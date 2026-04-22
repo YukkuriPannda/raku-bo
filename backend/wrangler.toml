@@ -1,0 +1,17 @@
+name = "raku-bo-backend"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "raku-bo-receipts"
+
+[vars]
+# 環境変数は wrangler secret コマンドで設定する（ここには書かない）
+# 設定が必要な secrets:
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   wrangler secret put SUPABASE_JWT_SECRET
+#   wrangler secret put GEMINI_API_KEY
+#   wrangler secret put GOOGLE_CLIENT_ID
+#   wrangler secret put GOOGLE_CLIENT_SECRET

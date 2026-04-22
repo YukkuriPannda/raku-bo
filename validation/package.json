@@ -1,0 +1,15 @@
+{
+  "name": "raku-bo-validation",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "ocr": "npx tsx gemini-ocr/test.ts",
+    "hono": "npx tsx hono-supabase/test.ts",
+    "calendar": "npx tsx calendar-api/test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0"
+  }
+}

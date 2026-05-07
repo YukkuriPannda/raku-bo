@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "らく〜ぼ",
+    "slug": "raku-bo",
+    "version": "1.0.0",
+    "scheme": "rakubo",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.rakubo.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.INTERNET"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.rakubo.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "レシートを撮影して家計簿に記録するためにカメラを使用します。"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "レシートを撮影して家計簿に記録するためにカメラを使用します。"
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "RemainingBudget",
+              "label": "今月あと○○円",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "description": "今月の残り使える額を表示",
+              "previewImage": "./assets/widget-preview.png",
+              "thumbnail": "./assets/widget-preview.png"
+            }
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -3,7 +3,7 @@
 // ホーム画面 - 「残り使える額」をメインに表示
 // ============================================================
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -60,6 +61,7 @@ export default function HomeScreen() {
   );
 
   const isPositive = balance.remaining >= 0;
+  const [fabOpen, setFabOpen] = useState(false);
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -144,21 +146,78 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* ============================================
-          FAB - レシート撮影ボタン（右下固定）
+          FAB - スピードダイアル（右下固定）
           ============================================ */}
-      <TouchableOpacity
-        onPress={() => router.push('/screens/camera')}
-        className="absolute bottom-8 right-6 w-16 h-16 bg-primary rounded-full items-center justify-center shadow-lg active:opacity-80"
-        style={{
-          shadowColor: '#22c55e',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-          elevation: 8,
-        }}
+      {fabOpen && (
+        <Pressable
+          className="absolute inset-0"
+          onPress={() => setFabOpen(false)}
+        />
+      )}
+
+      <View
+        className="absolute bottom-8 right-6 items-end"
+        style={{ gap: 12 }}
       >
-        <Text className="text-2xl">📷</Text>
-      </TouchableOpacity>
+        {fabOpen && (
+          <>
+            {/* レシート撮影ボタン */}
+            <View className="flex-row items-center" style={{ gap: 10 }}>
+              <View className="bg-gray-800 rounded-lg px-3 py-1.5 shadow">
+                <Text className="text-white text-sm">レシート撮影</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => { setFabOpen(false); router.push('/screens/camera'); }}
+                className="w-12 h-12 bg-primary rounded-full items-center justify-center shadow-lg active:opacity-80"
+                style={{
+                  shadowColor: '#22c55e',
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 6,
+                  elevation: 6,
+                }}
+              >
+                <Text className="text-xl">📷</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 手動入力ボタン */}
+            <View className="flex-row items-center" style={{ gap: 10 }}>
+              <View className="bg-gray-800 rounded-lg px-3 py-1.5 shadow">
+                <Text className="text-white text-sm">手動入力</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => { setFabOpen(false); router.push('/screens/manual-entry'); }}
+                className="w-12 h-12 bg-blue-500 rounded-full items-center justify-center shadow-lg active:opacity-80"
+                style={{
+                  shadowColor: '#3b82f6',
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 6,
+                  elevation: 6,
+                }}
+              >
+                <Text className="text-xl">✏️</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* メインFAB */}
+        <TouchableOpacity
+          onPress={() => setFabOpen((o) => !o)}
+          className="w-16 h-16 bg-primary rounded-full items-center justify-center shadow-lg active:opacity-80"
+          style={{
+            shadowColor: '#22c55e',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          }}
+        >
+          <Text className="text-2xl">{fabOpen ? '✕' : '➕'}</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

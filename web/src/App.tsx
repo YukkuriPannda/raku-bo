@@ -11,6 +11,7 @@ import Shifts from './pages/Shifts'
 import Points from './pages/Points'
 import Camera from './pages/Camera'
 import Confirm from './pages/Confirm'
+import ManualEntry from './pages/ManualEntry'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
@@ -87,6 +88,7 @@ export default function App() {
           <Route path="points" element={<Points />} />
           <Route path="camera" element={<Camera />} />
           <Route path="confirm" element={<Confirm />} />
+          <Route path="manual-entry" element={<ManualEntry />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

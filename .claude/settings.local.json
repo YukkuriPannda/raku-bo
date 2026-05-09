@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx expo *)",
+      "WebFetch(domain:photos.fife.usercontent.google.com)",
+      "PowerShell(Get-Content *)",
+      "Bash(Get-Content \"C:\\\\Users\\\\Pannda\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--OtherProjects-raku-bo\\\\cce53c13-6eb8-41a1-89b5-2d1af42ef7ca\\\\tasks\\\\b10slv65k.output\" -Wait)",
+      "Bash(Select-String -Pattern \"ready|error|Error|VITE|localhost\")",
+      "PowerShell(docker compose *)",
+      "PowerShell(docker run *)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8787/\" -UseBasicParsing 2>&1 | Select-Object StatusCode, StatusDescription)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8787/\" -UseBasicParsing 2>&1)",
+      "PowerShell(docker exec raku-bo-backend-1 *)"
+    ]
+  }
+}

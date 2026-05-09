@@ -14,7 +14,7 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use(
   '*',
   cors({
-    origin: ['*'], // 本番では Expo のオリジンに絞ること
+    origin: '*', // 本番では Expo のオリジンに絞ること
     allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: [
       'Content-Type',

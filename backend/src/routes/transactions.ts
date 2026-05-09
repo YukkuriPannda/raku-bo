@@ -54,7 +54,7 @@ transactions.get('/', async (c) => {
       return c.json({ error: 'データの取得に失敗しました' }, 500);
     }
 
-    return c.json({ transactions: data, month: `${year}-${String(month).padStart(2, '0')}` });
+    return c.json(data);
   } catch (error) {
     console.error('予期しないエラー:', error);
     return c.json({ error: '内部サーバーエラー' }, 500);

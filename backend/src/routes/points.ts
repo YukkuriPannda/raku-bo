@@ -25,7 +25,7 @@ points.get('/', async (c) => {
       return c.json({ error: 'データの取得に失敗しました' }, 500);
     }
 
-    return c.json({ points: data });
+    return c.json(data);
   } catch (error) {
     console.error('予期しないエラー:', error);
     return c.json({ error: '内部サーバーエラー' }, 500);
@@ -73,7 +73,7 @@ points.post('/', async (c) => {
       return c.json({ error: 'ポイントの作成に失敗しました' }, 500);
     }
 
-    return c.json({ point: data }, 201);
+    return c.json(data, 201);
   } catch (error) {
     console.error('予期しないエラー:', error);
     return c.json({ error: '内部サーバーエラー' }, 500);
@@ -121,7 +121,7 @@ points.patch('/:id', async (c) => {
       return c.json({ error: '指定されたポイントが見つかりません' }, 404);
     }
 
-    return c.json({ point: data });
+    return c.json(data);
   } catch (error) {
     console.error('予期しないエラー:', error);
     return c.json({ error: '内部サーバーエラー' }, 500);

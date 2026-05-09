@@ -98,16 +98,23 @@ shifts.get('/', async (c) => {
       return SHIFT_KEYWORDS.some((keyword) => title.includes(keyword));
     });
 
-    return c.json({
-      month: `${year}-${String(month).padStart(2, '0')}`,
-      shifts: shiftEvents.map((event) => ({
+    const result = shiftEvents.map((event) => {
+      const start = event.start?.dateTime ?? event.start?.date ?? '';
+      const end = event.end?.dateTime ?? event.end?.date ?? '';
+      const duration_hours =
+        start && end
+          ? Math.round((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60) * 10) / 10
+          : 0;
+      return {
         id: event.id,
         title: event.summary ?? '',
-        start: event.start?.dateTime ?? event.start?.date ?? null,
-        end: event.end?.dateTime ?? event.end?.date ?? null,
-        description: event.description ?? null,
-      })),
+        start,
+        end,
+        duration_hours,
+      };
     });
+
+    return c.json(result);
   } catch (error) {
     console.error('シフト取得エラー:', error);
     return c.json({ error: '内部サーバーエラー' }, 500);

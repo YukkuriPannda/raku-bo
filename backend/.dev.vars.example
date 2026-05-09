@@ -1,0 +1,6 @@
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=xxxx
+SUPABASE_JWT_SECRET=xxxx
+GEMINI_API_KEY=xxxx
+GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=xxxx

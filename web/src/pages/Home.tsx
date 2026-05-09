@@ -16,6 +16,7 @@ export default function Home() {
   const { balance, isLoading, fetchTransactions, fetchPoints, fetchShifts, logout, user } =
     useAppStore()
   const [month, setMonth] = useState(currentMonth)
+  const [fabOpen, setFabOpen] = useState(false)
 
   const loadAll = () =>
     Promise.all([fetchTransactions(month), fetchPoints(), fetchShifts(month)])
@@ -115,14 +116,54 @@ export default function Home() {
         </button>
       </div>
 
-      {/* FAB: Camera */}
-      <button
-        onClick={() => navigate('/camera')}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-2xl shadow-lg hover:bg-green-400 active:scale-95 transition-all z-10"
-        aria-label="レシート撮影"
-      >
-        📷
-      </button>
+      {/* FAB: Speed dial */}
+      <div className="fixed bottom-20 right-4 flex flex-col items-end gap-3 z-10">
+        {fabOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 -z-10"
+              onClick={() => setFabOpen(false)}
+            />
+            {/* Camera option */}
+            <div className="flex items-center gap-3">
+              <span className="text-white text-sm bg-gray-800/90 px-3 py-1.5 rounded-lg whitespace-nowrap shadow">
+                レシート撮影
+              </span>
+              <button
+                onClick={() => { setFabOpen(false); navigate('/camera') }}
+                className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-xl shadow-lg hover:bg-green-400 active:scale-95 transition-all"
+                aria-label="レシート撮影"
+              >
+                📷
+              </button>
+            </div>
+            {/* Manual entry option */}
+            <div className="flex items-center gap-3">
+              <span className="text-white text-sm bg-gray-800/90 px-3 py-1.5 rounded-lg whitespace-nowrap shadow">
+                手動入力
+              </span>
+              <button
+                onClick={() => { setFabOpen(false); navigate('/manual-entry') }}
+                className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-xl shadow-lg hover:bg-blue-400 active:scale-95 transition-all"
+                aria-label="手動入力"
+              >
+                ✏️
+              </button>
+            </div>
+          </>
+        )}
+        {/* Main FAB */}
+        <button
+          onClick={() => setFabOpen((o) => !o)}
+          className={`w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-2xl shadow-lg hover:bg-green-400 active:scale-95 transition-all ${
+            fabOpen ? 'rotate-45' : ''
+          }`}
+          aria-label="支出を追加"
+        >
+          ➕
+        </button>
+      </div>
     </div>
   )
 }

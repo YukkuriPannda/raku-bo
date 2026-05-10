@@ -2,10 +2,21 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/auth'
 
+const EXPO_CALLBACK = 'exp://100.66.255.66:8081/--/auth/callback'
+
 export default function AuthCallback() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    // モバイルブラウザからのアクセス（IPアドレス経由）→ Expo Go にリダイレクト
+    if (window.location.hostname !== 'localhost') {
+      const hash = window.location.hash
+      const search = window.location.search
+      window.location.href = EXPO_CALLBACK + search + hash
+      return
+    }
+
+    // Web アプリの通常認証フロー（localhost）
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -14,7 +25,6 @@ export default function AuthCallback() {
       }
     })
 
-    // Also check existing session (PKCE flow resolves before listener fires)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         navigate('/', { replace: true })

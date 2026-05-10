@@ -38,6 +38,25 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  mobile:
+    build:
+      context: ./mobile
+    ports:
+      - "8081:8081"
+    env_file:
+      - path: ./mobile/.env
+        required: false
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./mobile:/app
+      - mobile_modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   backend_modules:
   web_modules:
+  mobile_modules:

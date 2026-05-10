@@ -29,6 +29,22 @@ app.get('/', (c) => {
   return c.json({ status: 'ok', service: 'raku-bo-backend' });
 });
 
+// モバイルOAuth コールバック中継ページ（Expo Go 開発用）
+app.get('/auth/callback', (c) => {
+  return c.html(`<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>認証中...</title></head>
+<body>
+<p>アプリに戻っています...</p>
+<script>
+  const hash = window.location.hash;
+  const search = window.location.search;
+  window.location.href = 'rakubo://auth/callback' + search + hash;
+</script>
+</body>
+</html>`);
+});
+
 // 認証が必要なルートには authMiddleware を適用
 app.use('/receipts/*', authMiddleware);
 app.use('/transactions/*', authMiddleware);

@@ -11,7 +11,25 @@
       "PowerShell(docker run *)",
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8787/\" -UseBasicParsing 2>&1 | Select-Object StatusCode, StatusDescription)",
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8787/\" -UseBasicParsing 2>&1)",
-      "PowerShell(docker exec raku-bo-backend-1 *)"
+      "PowerShell(docker exec raku-bo-backend-1 *)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(tree \"D:\\\\OtherProjects\\\\raku-bo\\\\mobile\" -I \"node_modules\" -L 3)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\OtherProjects\\\\raku-bo\\\\mobile\" -Recurse -Exclude \"node_modules\" | Where-Object {$_.PSIsContainer -eq $false} | Select-Object FullName | Sort-Object FullName)",
+      "Bash(docker compose *)",
+      "Bash(Start-Sleep -Seconds 10)",
+      "Bash(powershell *)",
+      "Bash(taskkill /F /IM node.exe /FI \"WINDOWTITLE eq expo*\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":8081\")",
+      "Bash(taskkill *)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(curl *)",
+      "Bash(tailscale ip *)",
+      "Bash(ipconfig)",
+      "Bash(tailscale serve *)",
+      "Bash(tailscale status *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('Self', {}\\).get\\('DNSName', 'unknown'\\)\\)\")"
     ]
   }
 }

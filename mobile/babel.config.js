@@ -11,15 +11,12 @@ module.exports = function (api) {
       [
         'babel-preset-expo',
         {
-          // NativeWind v4 は jsxImportSource で className を処理
           jsxImportSource: 'nativewind',
         },
       ],
     ],
     plugins: [
-      // NativeWind v4 の Babel プラグイン
-      'nativewind/babel',
-      // パスエイリアス（@/ → ./）
+      'react-native-reanimated/plugin',
       [
         'module-resolver',
         {

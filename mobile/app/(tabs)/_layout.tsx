@@ -1,13 +1,6 @@
-// ============================================================
-// app/(tabs)/_layout.tsx
-// タブナビゲーション（BottomTabNavigator）
-// 4 タブ: ホーム・履歴・シフト・ポイント
-// ============================================================
-
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 
-// タブアイコン（絵文字で代替）
 type TabIconProps = {
   emoji: string;
   focused: boolean;
@@ -15,42 +8,41 @@ type TabIconProps = {
 
 function TabIcon({ emoji, focused }: TabIconProps) {
   return (
-    <Text style={{ fontSize: focused ? 24 : 20, opacity: focused ? 1 : 0.6 }}>
+    <Text style={{ fontSize: focused ? 24 : 20, opacity: focused ? 1 : 0.5 }}>
       {emoji}
     </Text>
   );
 }
 
-// ============================================================
-// タブレイアウト
-// ============================================================
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#22c55e',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: '#1B7F4F',
+        tabBarInactiveTintColor: '#6B7280',
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
-          height: 60,
-          paddingBottom: 8,
+          borderTopColor: '#E5E7EB',
+          height: 56,
+          paddingBottom: 6,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: '600',
         },
         headerStyle: {
           backgroundColor: '#ffffff',
         },
+        headerShadowVisible: false,
         headerTitleStyle: {
           fontWeight: 'bold',
-          color: '#1f2937',
+          fontSize: 17,
+          color: '#1A1A1A',
         },
+        headerBottomBorderWidth: 1,
       }}
     >
-      {/* ホーム */}
       <Tabs.Screen
         name="index"
         options={{
@@ -59,8 +51,6 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
         }}
       />
-
-      {/* 支出履歴 */}
       <Tabs.Screen
         name="history"
         options={{
@@ -69,8 +59,6 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="📋" focused={focused} />,
         }}
       />
-
-      {/* シフト */}
       <Tabs.Screen
         name="shifts"
         options={{
@@ -79,8 +67,6 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="📅" focused={focused} />,
         }}
       />
-
-      {/* ポイント */}
       <Tabs.Screen
         name="points"
         options={{

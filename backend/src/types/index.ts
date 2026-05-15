@@ -47,6 +47,8 @@ export interface Env {
   SUPABASE_SERVICE_ROLE_KEY: string;
   SUPABASE_JWT_SECRET: string;
   GEMINI_API_KEY: string;
+  GROQ_API_KEY?: string;
+  AI: Ai;
   R2_BUCKET: R2Bucket;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;

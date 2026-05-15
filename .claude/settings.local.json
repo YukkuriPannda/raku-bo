@@ -29,7 +29,16 @@
       "Bash(ipconfig)",
       "Bash(tailscale serve *)",
       "Bash(tailscale status *)",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('Self', {}\\).get\\('DNSName', 'unknown'\\)\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('Self', {}\\).get\\('DNSName', 'unknown'\\)\\)\")",
+      "mcp__claude_ai_Notion__notion-search",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "PowerShell(New-NetFirewallRule *)",
+      "Bash(Get-Content \"C:\\\\Users\\\\Pannda\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--OtherProjects-raku-bo\\\\cce53c13-6eb8-41a1-89b5-2d1af42ef7ca\\\\tasks\\\\b3why5q5r.output\" -Wait)",
+      "Bash(Select-String -Pattern \"QR|Metro|error|Error|ready|Ready\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\Pannda\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--OtherProjects-raku-bo\\\\cce53c13-6eb8-41a1-89b5-2d1af42ef7ca\\\\tasks\\\\bg8q6s5f0.output\" -Wait)",
+      "Bash(Select-String -Pattern \"QR|Metro waiting|error|Error|ready|bundled\")",
+      "PowerShell(Get-Process *)",
+      "PowerShell(tasklist *)"
     ]
   }
 }

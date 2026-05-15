@@ -1,14 +1,4 @@
-// ============================================================
-// app/screens/confirm.tsx
-// OCR 確認画面モーダル
-// - OCR 結果の確認・修正 UI
-// - カテゴリ選択（大きいボタン、上位 4 件表示）
-// - 支払い方法切り替え（現金/カード/QR）
-// - 店名・金額の確認表示
-// - 「記録する」ボタンで DB 保存 → ホームに戻る
-// ============================================================
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,54 +13,105 @@ import {
 import { useRouter } from 'expo-router';
 
 import { useAppStore } from '@/store';
+import { receiptApi } from '@/lib/api';
 import { CATEGORY_EMOJI, ALL_CATEGORIES } from '@/types';
-import type { Category, PaymentMethod } from '@/types';
+import type { Category, PaymentMethod, OcrResult } from '@/types';
+import { styles } from '@/styles/confirm.styles';
+import { colors } from '@/constants/theme';
 
-// ============================================================
-// 支払い方法ラベル
-// ============================================================
 const PAYMENT_OPTIONS: { label: string; value: PaymentMethod }[] = [
   { label: '💵 現金', value: 'cash' },
   { label: '💳 カード', value: 'card' },
   { label: '📱 QR', value: 'qr' },
 ];
 
-// ============================================================
-// OCR 確認画面コンポーネント
-// ============================================================
 export default function ConfirmScreen() {
   const router = useRouter();
-  const { ocrResult, addTransaction, clearOcrResult } = useAppStore();
+  const {
+    ocrResult,
+    pendingImageBase64,
+    setOcrResult,
+    clearOcrResult,
+    clearPendingImage,
+    addTransaction,
+  } = useAppStore();
 
-  // OCR 結果がない場合（直接遷移されるケース）
+  // フォームの状態（OCR完了後に更新される）
+  const [storeName, setStoreName] = useState(ocrResult?.store_name ?? '');
+  const [amount, setAmount] = useState(String(ocrResult?.total_amount ?? 0));
+  const [category, setCategory] = useState<Category>(ocrResult?.category ?? 'その他');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(ocrResult?.payment_method ?? 'cash');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(!!pendingImageBase64);
+
+  // 撮影画像がある場合、マウント時にアップロード開始
+  useEffect(() => {
+    if (!pendingImageBase64) return;
+
+    let cancelled = false;
+
+    receiptApi.upload(pendingImageBase64)
+      .then((res) => {
+        if (cancelled) return;
+        const result: OcrResult = res.data.ocr_result;
+        setOcrResult(result);
+        clearPendingImage();
+        // OCR結果でフォームを更新
+        setStoreName(result.store_name ?? '');
+        setAmount(String(result.total_amount ?? 0));
+        setCategory(result.category ?? 'その他');
+        setPaymentMethod(result.payment_method ?? 'cash');
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[Confirm] アップロードエラー:', err);
+        clearPendingImage();
+        // フォールバック: 空のデータで継続
+        const fallback: OcrResult = {
+          store_name: '',
+          date: new Date().toISOString().split('T')[0],
+          items: [],
+          total_amount: 0,
+          category: 'その他',
+          payment_method: 'cash',
+          points_earned: null,
+        };
+        setOcrResult(fallback);
+      })
+      .finally(() => {
+        if (!cancelled) setIsAnalyzing(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 解析中のローディング画面
+  if (isAnalyzing) {
+    return (
+      <View style={styles.emptyContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.emptyText, { marginTop: 16 }]}>レシートを解析中...</Text>
+      </View>
+    );
+  }
+
+  // データなし（通常は発生しない）
   if (!ocrResult) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-gray-400">データがありません</Text>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="mt-4 bg-primary rounded-lg px-6 py-3"
-        >
-          <Text className="text-white font-semibold">戻る</Text>
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>データがありません</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.emptyBackButton}>
+          <Text style={styles.emptyBackButtonText}>戻る</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  // ============================================================
-  // 編集可能な状態（OCR 結果を初期値として使用）
-  // ============================================================
-  const [storeName, setStoreName] = useState(ocrResult.store_name);
-  const [amount, setAmount] = useState(String(ocrResult.total_amount));
-  const [category, setCategory] = useState<Category>(ocrResult.category);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
-    ocrResult.payment_method
-  );
-  const [isSaving, setIsSaving] = useState(false);
+  const topCategories: Category[] = [
+    ocrResult.category,
+    ...ALL_CATEGORIES.filter((c) => c !== ocrResult.category),
+  ].slice(0, 4);
 
-  // ============================================================
-  // 記録ボタン処理
-  // ============================================================
   const handleSave = async () => {
     const parsedAmount = parseInt(amount, 10);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -89,11 +130,7 @@ export default function ConfirmScreen() {
         points_earned: ocrResult.points_earned ?? undefined,
         transacted_at: ocrResult.date || new Date().toISOString(),
       });
-
-      // 中間状態をクリア
       clearOcrResult();
-
-      // ホーム画面に戻る
       router.replace('/(tabs)');
     } catch (error) {
       console.error('[Confirm] 保存エラー:', error);
@@ -103,98 +140,71 @@ export default function ConfirmScreen() {
     }
   };
 
-  // ============================================================
-  // OCR で検出した上位 4 カテゴリ（元の category を先頭に）
-  // ============================================================
-  const topCategories: Category[] = [
-    ocrResult.category,
-    ...ALL_CATEGORIES.filter((c) => c !== ocrResult.category),
-  ].slice(0, 4);
-
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-gray-50"
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={{ paddingBottom: 48 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ============================================================
-            店名・金額
-            ============================================================ */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl shadow-sm p-5">
-          <Text className="text-xs text-gray-400 mb-1">店名</Text>
+        {/* 店名・金額 */}
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>店名</Text>
           <TextInput
             value={storeName}
             onChangeText={setStoreName}
-            className="text-base text-gray-800 border-b border-gray-200 pb-2 mb-4"
+            style={styles.fieldInput}
             placeholder="店名を入力"
+            placeholderTextColor="#9CA3AF"
           />
 
-          <Text className="text-xs text-gray-400 mb-1">金額</Text>
-          <View className="flex-row items-center border-b border-gray-200 pb-2">
-            <Text className="text-lg text-gray-600 mr-1">¥</Text>
+          <Text style={styles.fieldLabel}>金額</Text>
+          <View style={styles.amountRow}>
+            <Text style={styles.currency}>¥</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
               keyboardType="number-pad"
-              className="text-2xl font-bold text-gray-800 flex-1"
+              style={styles.amountInput}
               placeholder="0"
+              placeholderTextColor="#9CA3AF"
             />
           </View>
         </View>
 
-        {/* ============================================================
-            カテゴリ選択（上位 4 件を大きいボタンで表示）
-            ============================================================ */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl shadow-sm p-4">
-          <Text className="text-sm font-semibold text-gray-700 mb-3">カテゴリ</Text>
+        {/* カテゴリ選択 */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>カテゴリ</Text>
 
-          {/* 上位 4 カテゴリ（大きいボタン、64dp 以上） */}
-          <View className="flex-row flex-wrap gap-2 mb-3">
+          <View style={styles.categoryGrid}>
             {topCategories.map((cat) => (
               <TouchableOpacity
                 key={cat}
                 onPress={() => setCategory(cat)}
-                style={{ minHeight: 64 }}
-                className={`flex-1 min-w-[44%] items-center justify-center rounded-xl border-2 py-3 px-2 active:opacity-70 ${
-                  category === cat
-                    ? 'border-primary bg-green-50'
-                    : 'border-gray-200 bg-gray-50'
-                }`}
+                activeOpacity={0.7}
+                style={[styles.categoryBtn, category === cat && styles.categoryBtnActive]}
               >
-                <Text className="text-2xl mb-1">{CATEGORY_EMOJI[cat]}</Text>
-                <Text
-                  className={`text-xs font-semibold ${
-                    category === cat ? 'text-green-700' : 'text-gray-600'
-                  }`}
-                >
+                <Text style={styles.categoryEmoji}>{CATEGORY_EMOJI[cat]}</Text>
+                <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>
                   {cat}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* その他のカテゴリ（コンパクトリスト） */}
-          <Text className="text-xs text-gray-400 mb-2">その他</Text>
-          <View className="flex-row flex-wrap gap-1.5">
+          <Text style={styles.otherLabel}>その他</Text>
+          <View style={styles.chipRow}>
             {ALL_CATEGORIES.filter((c) => !topCategories.includes(c)).map((cat) => (
               <TouchableOpacity
                 key={cat}
                 onPress={() => setCategory(cat)}
-                className={`flex-row items-center px-3 py-1.5 rounded-full border active:opacity-70 ${
-                  category === cat
-                    ? 'border-primary bg-green-50'
-                    : 'border-gray-200 bg-gray-50'
-                }`}
+                activeOpacity={0.7}
+                style={[styles.chip, category === cat && styles.chipActive]}
               >
-                <Text className="text-sm mr-1">{CATEGORY_EMOJI[cat]}</Text>
-                <Text
-                  className={`text-xs ${
-                    category === cat ? 'text-green-700 font-semibold' : 'text-gray-600'
-                  }`}
-                >
+                <Text style={styles.chipEmoji}>{CATEGORY_EMOJI[cat]}</Text>
+                <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>
                   {cat}
                 </Text>
               </TouchableOpacity>
@@ -202,28 +212,18 @@ export default function ConfirmScreen() {
           </View>
         </View>
 
-        {/* ============================================================
-            支払い方法（3 ボタン）
-            ============================================================ */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl shadow-sm p-4">
-          <Text className="text-sm font-semibold text-gray-700 mb-3">支払い方法</Text>
-
-          <View className="flex-row gap-2">
+        {/* 支払い方法 */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>支払い方法</Text>
+          <View style={styles.paymentRow}>
             {PAYMENT_OPTIONS.map((opt) => (
               <TouchableOpacity
                 key={opt.value}
                 onPress={() => setPaymentMethod(opt.value)}
-                className={`flex-1 items-center py-3 rounded-xl border-2 active:opacity-70 ${
-                  paymentMethod === opt.value
-                    ? 'border-primary bg-green-50'
-                    : 'border-gray-200 bg-gray-50'
-                }`}
+                activeOpacity={0.7}
+                style={[styles.paymentBtn, paymentMethod === opt.value && styles.paymentBtnActive]}
               >
-                <Text
-                  className={`text-sm font-semibold ${
-                    paymentMethod === opt.value ? 'text-green-700' : 'text-gray-600'
-                  }`}
-                >
+                <Text style={[styles.paymentText, paymentMethod === opt.value && styles.paymentTextActive]}>
                   {opt.label}
                 </Text>
               </TouchableOpacity>
@@ -231,43 +231,37 @@ export default function ConfirmScreen() {
           </View>
         </View>
 
-        {/* ポイント情報（OCR で取得できた場合） */}
+        {/* ポイント情報 */}
         {ocrResult.points_earned !== null && (
-          <View className="mx-4 mt-4 bg-blue-50 rounded-2xl p-4 flex-row items-center">
-            <Text className="text-lg mr-2">💎</Text>
-            <Text className="text-sm text-blue-700">
+          <View style={styles.pointsBadge}>
+            <Text style={styles.pointsEmoji}>💎</Text>
+            <Text style={styles.pointsText}>
               {ocrResult.points_earned.toLocaleString()} ポイント獲得予定
             </Text>
           </View>
         )}
 
-        {/* ============================================================
-            記録ボタン
-            ============================================================ */}
-        <View className="mx-4 mt-6">
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={isSaving}
-            className="bg-primary rounded-2xl py-4 items-center shadow-sm active:opacity-80"
-          >
-            {isSaving ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text className="text-white text-base font-bold">記録する</Text>
-            )}
-          </TouchableOpacity>
+        {/* 記録ボタン */}
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={isSaving}
+          activeOpacity={0.8}
+          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+        >
+          {isSaving ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.saveButtonText}>記録する</Text>
+          )}
+        </TouchableOpacity>
 
-          {/* キャンセル */}
-          <TouchableOpacity
-            onPress={() => {
-              clearOcrResult();
-              router.replace('/(tabs)');
-            }}
-            className="mt-3 py-3 items-center active:opacity-70"
-          >
-            <Text className="text-gray-400 text-sm">キャンセル</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={() => { clearOcrResult(); router.replace('/(tabs)'); }}
+          activeOpacity={0.7}
+          style={styles.cancelButton}
+        >
+          <Text style={styles.cancelText}>キャンセル</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );

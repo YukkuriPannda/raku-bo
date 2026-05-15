@@ -30,7 +30,8 @@ interface AppState {
   balance: BalanceData;
   hourlyWage: number;        // 時給（円）
   isLoading: boolean;
-  ocrResult: OcrResult | null; // confirm 画面に渡す中間状態
+  ocrResult: OcrResult | null;       // confirm 画面に渡す中間状態
+  pendingImageBase64: string | null; // 撮影直後の未アップロード画像
 
   // ---- ユーザー ----
   setUser: (user: User | null) => void;
@@ -50,6 +51,10 @@ interface AppState {
   // ---- OCR 結果 ----
   setOcrResult: (result: OcrResult) => void;
   clearOcrResult: () => void;
+
+  // ---- 撮影画像 ----
+  setPendingImage: (base64: string) => void;
+  clearPendingImage: () => void;
 
   // ---- 設定 ----
   setHourlyWage: (wage: number) => void;
@@ -78,6 +83,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   hourlyWage: 1_000, // デフォルト時給 1000 円
   isLoading: false,
   ocrResult: null,
+  pendingImageBase64: null,
 
   // ============================================================
   // ユーザー設定
@@ -94,6 +100,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       shifts: [],
       balance: initialBalance,
       ocrResult: null,
+      pendingImageBase64: null,
     });
   },
 
@@ -225,6 +232,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ============================================================
   setOcrResult: (result) => set({ ocrResult: result }),
   clearOcrResult: () => set({ ocrResult: null }),
+
+  setPendingImage: (base64) => set({ pendingImageBase64: base64 }),
+  clearPendingImage: () => set({ pendingImageBase64: null }),
 
   // ============================================================
   // 時給設定

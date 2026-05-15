@@ -1,10 +1,3 @@
-// ============================================================
-// app/screens/manual-entry.tsx
-// 手動入力画面
-// - 金額・カテゴリ・支払方法・日付・メモを手入力
-// - 「記録する」ボタンで DB 保存 → ホームに戻る
-// ============================================================
-
 import { useState } from 'react';
 import {
   View,
@@ -22,10 +15,8 @@ import { useRouter } from 'expo-router';
 import { useAppStore } from '@/store';
 import { CATEGORY_EMOJI, ALL_CATEGORIES } from '@/types';
 import type { Category, PaymentMethod } from '@/types';
+import { styles } from '@/styles/manual-entry.styles';
 
-// ============================================================
-// 支払い方法ラベル
-// ============================================================
 const PAYMENT_OPTIONS: { label: string; value: PaymentMethod }[] = [
   { label: '💵 現金', value: 'cash' },
   { label: '💳 カード', value: 'card' },
@@ -43,9 +34,6 @@ function todayString() {
   return `${y}-${m}-${d}`;
 }
 
-// ============================================================
-// 手動入力画面コンポーネント
-// ============================================================
 export default function ManualEntryScreen() {
   const router = useRouter();
   const { addTransaction } = useAppStore();
@@ -57,9 +45,6 @@ export default function ManualEntryScreen() {
   const [date, setDate] = useState(todayString);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ============================================================
-  // 記録ボタン処理
-  // ============================================================
   const handleSave = async () => {
     const parsedAmount = parseInt(amount, 10);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -83,7 +68,6 @@ export default function ManualEntryScreen() {
         store_name: storeName.trim() || undefined,
         transacted_at: dateObj.toISOString(),
       });
-
       router.replace('/(tabs)');
     } catch (error) {
       console.error('[ManualEntry] 保存エラー:', error);
@@ -95,114 +79,94 @@ export default function ManualEntryScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-gray-50"
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* ヘッダー */}
-      <View className="flex-row items-center px-4 pt-12 pb-4 bg-white border-b border-gray-100">
+      <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
-          className="w-9 h-9 items-center justify-center rounded-full bg-gray-100 mr-3 active:opacity-70"
+          activeOpacity={0.7}
+          style={styles.backBtn}
         >
-          <Text className="text-gray-600 text-lg">←</Text>
+          <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-800">手動入力</Text>
+        <Text style={styles.headerTitle}>手動入力</Text>
       </View>
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 48 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ============================================================
-            金額・店名・日付
-            ============================================================ */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl shadow-sm p-5">
-          {/* 金額 */}
-          <Text className="text-xs text-gray-400 mb-1">
-            金額 <Text className="text-red-400">*</Text>
+        {/* 金額・店名・日付 */}
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>
+            金額 <Text style={styles.required}>*</Text>
           </Text>
-          <View className="flex-row items-center border-b border-gray-200 pb-2 mb-4">
-            <Text className="text-lg text-gray-600 mr-1">¥</Text>
+          <View style={styles.amountRow}>
+            <Text style={styles.currency}>¥</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
               keyboardType="number-pad"
-              className="text-2xl font-bold text-gray-800 flex-1"
+              style={styles.amountInput}
               placeholder="0"
+              placeholderTextColor="#9CA3AF"
               autoFocus
             />
           </View>
 
-          {/* 店名・メモ */}
-          <Text className="text-xs text-gray-400 mb-1">店舗名・メモ</Text>
+          <Text style={styles.fieldLabel}>店舗名・メモ</Text>
           <TextInput
             value={storeName}
             onChangeText={setStoreName}
-            className="text-base text-gray-800 border-b border-gray-200 pb-2 mb-4"
+            style={styles.fieldInput}
             placeholder="店舗名またはメモ（任意）"
+            placeholderTextColor="#9CA3AF"
           />
 
-          {/* 日付 */}
-          <Text className="text-xs text-gray-400 mb-1">日付</Text>
+          <Text style={styles.fieldLabel}>日付</Text>
           <TextInput
             value={date}
             onChangeText={setDate}
-            className="text-base text-gray-800 border-b border-gray-200 pb-2"
+            style={[styles.fieldInput, { marginBottom: 0 }]}
             placeholder="YYYY-MM-DD"
+            placeholderTextColor="#9CA3AF"
             keyboardType="numbers-and-punctuation"
           />
         </View>
 
-        {/* ============================================================
-            カテゴリ選択
-            ============================================================ */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl shadow-sm p-4">
-          <Text className="text-sm font-semibold text-gray-700 mb-3">カテゴリ</Text>
+        {/* カテゴリ選択 */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>カテゴリ</Text>
 
-          {/* 上位 4 カテゴリ（大きいボタン） */}
-          <View className="flex-row flex-wrap gap-2 mb-3">
+          <View style={styles.categoryGrid}>
             {TOP_CATEGORIES.map((cat) => (
               <TouchableOpacity
                 key={cat}
                 onPress={() => setCategory(cat)}
-                style={{ minHeight: 64 }}
-                className={`flex-1 min-w-[44%] items-center justify-center rounded-xl border-2 py-3 px-2 active:opacity-70 ${
-                  category === cat
-                    ? 'border-primary bg-green-50'
-                    : 'border-gray-200 bg-gray-50'
-                }`}
+                activeOpacity={0.7}
+                style={[styles.categoryBtn, category === cat && styles.categoryBtnActive]}
               >
-                <Text className="text-2xl mb-1">{CATEGORY_EMOJI[cat]}</Text>
-                <Text
-                  className={`text-xs font-semibold ${
-                    category === cat ? 'text-green-700' : 'text-gray-600'
-                  }`}
-                >
+                <Text style={styles.categoryEmoji}>{CATEGORY_EMOJI[cat]}</Text>
+                <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>
                   {cat}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* その他のカテゴリ（コンパクトリスト） */}
-          <Text className="text-xs text-gray-400 mb-2">その他</Text>
-          <View className="flex-row flex-wrap gap-1.5">
+          <Text style={styles.otherLabel}>その他</Text>
+          <View style={styles.chipRow}>
             {OTHER_CATEGORIES.map((cat) => (
               <TouchableOpacity
                 key={cat}
                 onPress={() => setCategory(cat)}
-                className={`flex-row items-center px-3 py-1.5 rounded-full border active:opacity-70 ${
-                  category === cat
-                    ? 'border-primary bg-green-50'
-                    : 'border-gray-200 bg-gray-50'
-                }`}
+                activeOpacity={0.7}
+                style={[styles.chip, category === cat && styles.chipActive]}
               >
-                <Text className="text-sm mr-1">{CATEGORY_EMOJI[cat]}</Text>
-                <Text
-                  className={`text-xs ${
-                    category === cat ? 'text-green-700 font-semibold' : 'text-gray-600'
-                  }`}
-                >
+                <Text style={styles.chipEmoji}>{CATEGORY_EMOJI[cat]}</Text>
+                <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>
                   {cat}
                 </Text>
               </TouchableOpacity>
@@ -210,28 +174,18 @@ export default function ManualEntryScreen() {
           </View>
         </View>
 
-        {/* ============================================================
-            支払い方法
-            ============================================================ */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl shadow-sm p-4">
-          <Text className="text-sm font-semibold text-gray-700 mb-3">支払い方法</Text>
-
-          <View className="flex-row gap-2">
+        {/* 支払い方法 */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>支払い方法</Text>
+          <View style={styles.paymentRow}>
             {PAYMENT_OPTIONS.map((opt) => (
               <TouchableOpacity
                 key={opt.value}
                 onPress={() => setPaymentMethod(opt.value)}
-                className={`flex-1 items-center py-3 rounded-xl border-2 active:opacity-70 ${
-                  paymentMethod === opt.value
-                    ? 'border-primary bg-green-50'
-                    : 'border-gray-200 bg-gray-50'
-                }`}
+                activeOpacity={0.7}
+                style={[styles.paymentBtn, paymentMethod === opt.value && styles.paymentBtnActive]}
               >
-                <Text
-                  className={`text-sm font-semibold ${
-                    paymentMethod === opt.value ? 'text-green-700' : 'text-gray-600'
-                  }`}
-                >
+                <Text style={[styles.paymentText, paymentMethod === opt.value && styles.paymentTextActive]}>
                   {opt.label}
                 </Text>
               </TouchableOpacity>
@@ -239,29 +193,27 @@ export default function ManualEntryScreen() {
           </View>
         </View>
 
-        {/* ============================================================
-            記録ボタン
-            ============================================================ */}
-        <View className="mx-4 mt-6">
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={isSaving}
-            className="bg-primary rounded-2xl py-4 items-center shadow-sm active:opacity-80"
-          >
-            {isSaving ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text className="text-white text-base font-bold">記録する</Text>
-            )}
-          </TouchableOpacity>
+        {/* 記録ボタン */}
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={isSaving}
+          activeOpacity={0.8}
+          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+        >
+          {isSaving ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.saveButtonText}>記録する</Text>
+          )}
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="mt-3 py-3 items-center active:opacity-70"
-          >
-            <Text className="text-gray-400 text-sm">キャンセル</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+          style={styles.cancelButton}
+        >
+          <Text style={styles.cancelText}>キャンセル</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );

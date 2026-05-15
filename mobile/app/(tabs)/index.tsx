@@ -1,9 +1,4 @@
-// ============================================================
-// app/(tabs)/index.tsx
-// ホーム画面 - 「残り使える額」をメインに表示
-// ============================================================
-
-import { useEffect, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -17,205 +12,131 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useAppStore } from '@/store';
+import { colors } from '@/constants/theme';
+import { styles } from '@/styles/index.styles';
 
-// 今月の YYYY-MM 文字列を取得
 function getCurrentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// 金額を 3 桁カンマ区切りでフォーマット
 function formatCurrency(amount: number): string {
   return `¥${Math.abs(amount).toLocaleString('ja-JP')}`;
 }
 
-// ============================================================
-// ホーム画面コンポーネント
-// ============================================================
 export default function HomeScreen() {
   const router = useRouter();
-  const {
-    balance,
-    isLoading,
-    fetchTransactions,
-    fetchPoints,
-    fetchShifts,
-  } = useAppStore();
-
+  const { balance, isLoading, fetchTransactions, fetchPoints, fetchShifts } = useAppStore();
   const month = getCurrentMonth();
-
-  // データ取得（3 つを並列実行）
-  const loadData = useCallback(async () => {
-    await Promise.all([
-      fetchTransactions(month),
-      fetchPoints(),
-      fetchShifts(month),
-    ]);
-  }, [month, fetchTransactions, fetchPoints, fetchShifts]);
-
-  // 画面フォーカス時にデータを再取得
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData])
-  );
-
-  const isPositive = balance.remaining >= 0;
   const [fabOpen, setFabOpen] = useState(false);
 
+  const loadData = useCallback(async () => {
+    await Promise.all([fetchTransactions(month), fetchPoints(), fetchShifts(month)]);
+  }, [month, fetchTransactions, fetchPoints, fetchShifts]);
+
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  const isPositive = balance.remaining >= 0;
+
   return (
-    <View className="flex-1 bg-gray-50">
+    <View style={styles.screen}>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
             onRefresh={loadData}
-            colors={['#22c55e']}
-            tintColor="#22c55e"
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       >
-        {/* ============================================
-            メインカード - 残り使える額
-            ============================================ */}
-        <View className="mx-4 mt-6 bg-white rounded-2xl shadow-sm p-6 items-center">
-          <Text className="text-base text-gray-500 mb-1">今月あと</Text>
+        {/* メインカード - 残り使える額 */}
+        <View style={styles.mainCard}>
+          <Text style={styles.mainCardLabel}>今月あと</Text>
 
           {isLoading ? (
-            <ActivityIndicator size="large" color="#22c55e" className="my-4" />
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 16 }} />
           ) : (
-            <Text
-              className={`text-5xl font-bold mb-2 ${
-                isPositive ? 'text-green-500' : 'text-red-500'
-              }`}
-            >
+            <Text style={[styles.mainAmount, isPositive ? styles.mainAmountPositive : styles.mainAmountNegative]}>
               {isPositive ? '' : '-'}{formatCurrency(balance.remaining)}
             </Text>
           )}
 
-          <Text className="text-base text-gray-400">使える</Text>
+          <Text style={styles.mainCardSub}>使える</Text>
         </View>
 
-        {/* ============================================
-            サブ情報カード
-            ============================================ */}
-        <View className="mx-4 mt-4 bg-white rounded-2xl shadow-sm overflow-hidden">
-          {/* 今月支出合計 */}
-          <View className="flex-row items-center justify-between px-5 py-4 border-b border-gray-100">
-            <View className="flex-row items-center">
-              <Text className="text-lg mr-2">💸</Text>
-              <Text className="text-base text-gray-600">今月の支出</Text>
+        {/* サブ情報カード */}
+        <View style={styles.subCard}>
+          <View style={styles.subRow}>
+            <View style={styles.subRowLeft}>
+              <Text style={styles.subRowEmoji}>💸</Text>
+              <Text style={styles.subRowLabel}>今月の支出</Text>
             </View>
-            <Text className="text-base font-semibold text-gray-800">
-              {formatCurrency(balance.expense_total)}
-            </Text>
+            <Text style={styles.subRowValue}>{formatCurrency(balance.expense_total)}</Text>
           </View>
 
-          {/* 月収見込み */}
-          <View className="flex-row items-center justify-between px-5 py-4 border-b border-gray-100">
-            <View className="flex-row items-center">
-              <Text className="text-lg mr-2">💼</Text>
-              <Text className="text-base text-gray-600">月収見込み</Text>
+          <View style={styles.subRow}>
+            <View style={styles.subRowLeft}>
+              <Text style={styles.subRowEmoji}>💼</Text>
+              <Text style={styles.subRowLabel}>月収見込み</Text>
             </View>
-            <Text className="text-base font-semibold text-green-600">
-              {formatCurrency(balance.income_forecast)}
-            </Text>
+            <Text style={styles.subRowValueGreen}>{formatCurrency(balance.income_forecast)}</Text>
           </View>
 
-          {/* ポイント資産 */}
-          <View className="flex-row items-center justify-between px-5 py-4">
-            <View className="flex-row items-center">
-              <Text className="text-lg mr-2">💎</Text>
-              <Text className="text-base text-gray-600">ポイント資産</Text>
+          <View style={styles.subRowLast}>
+            <View style={styles.subRowLeft}>
+              <Text style={styles.subRowEmoji}>💎</Text>
+              <Text style={styles.subRowLabel}>ポイント資産</Text>
             </View>
-            <Text className="text-base font-semibold text-blue-600">
-              {formatCurrency(balance.points_total_yen)}
-            </Text>
+            <Text style={styles.subRowValue}>{formatCurrency(balance.points_total_yen)}</Text>
           </View>
         </View>
 
-        {/* ============================================
-            今月の統計
-            ============================================ */}
-        <View className="mx-4 mt-4">
-          <Text className="text-sm text-gray-400 mb-2 px-1">
-            {month.replace('-', '年')}月
-          </Text>
-        </View>
+        <Text style={styles.monthLabel}>{month.replace('-', '年')}月</Text>
       </ScrollView>
 
-      {/* ============================================
-          FAB - スピードダイアル（右下固定）
-          ============================================ */}
       {fabOpen && (
-        <Pressable
-          className="absolute inset-0"
-          onPress={() => setFabOpen(false)}
-        />
+        <Pressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setFabOpen(false)} />
       )}
 
-      <View
-        className="absolute bottom-8 right-6 items-end"
-        style={{ gap: 12 }}
-      >
+      <View style={styles.fabContainer}>
         {fabOpen && (
           <>
-            {/* レシート撮影ボタン */}
-            <View className="flex-row items-center" style={{ gap: 10 }}>
-              <View className="bg-gray-800 rounded-lg px-3 py-1.5 shadow">
-                <Text className="text-white text-sm">レシート撮影</Text>
+            <View style={styles.fabRow}>
+              <View style={styles.fabLabel}>
+                <Text style={styles.fabLabelText}>レシート撮影</Text>
               </View>
               <TouchableOpacity
                 onPress={() => { setFabOpen(false); router.push('/screens/camera'); }}
-                className="w-12 h-12 bg-primary rounded-full items-center justify-center shadow-lg active:opacity-80"
-                style={{
-                  shadowColor: '#22c55e',
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 6,
-                  elevation: 6,
-                }}
+                style={styles.fabPrimary}
+                activeOpacity={0.8}
               >
-                <Text className="text-xl">📷</Text>
+                <Text style={{ fontSize: 20 }}>📷</Text>
               </TouchableOpacity>
             </View>
 
-            {/* 手動入力ボタン */}
-            <View className="flex-row items-center" style={{ gap: 10 }}>
-              <View className="bg-gray-800 rounded-lg px-3 py-1.5 shadow">
-                <Text className="text-white text-sm">手動入力</Text>
+            <View style={styles.fabRow}>
+              <View style={styles.fabLabel}>
+                <Text style={styles.fabLabelText}>手動入力</Text>
               </View>
               <TouchableOpacity
                 onPress={() => { setFabOpen(false); router.push('/screens/manual-entry'); }}
-                className="w-12 h-12 bg-blue-500 rounded-full items-center justify-center shadow-lg active:opacity-80"
-                style={{
-                  shadowColor: '#3b82f6',
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 6,
-                  elevation: 6,
-                }}
+                style={styles.fabSecondary}
+                activeOpacity={0.8}
               >
-                <Text className="text-xl">✏️</Text>
+                <Text style={{ fontSize: 20 }}>✏️</Text>
               </TouchableOpacity>
             </View>
           </>
         )}
 
-        {/* メインFAB */}
         <TouchableOpacity
           onPress={() => setFabOpen((o) => !o)}
-          className="w-16 h-16 bg-primary rounded-full items-center justify-center shadow-lg active:opacity-80"
-          style={{
-            shadowColor: '#22c55e',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8,
-          }}
+          style={styles.fabMain}
+          activeOpacity={0.8}
         >
-          <Text className="text-2xl">{fabOpen ? '✕' : '➕'}</Text>
+          <Text style={{ fontSize: 24 }}>{fabOpen ? '✕' : '➕'}</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -19,10 +19,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // アプリのプライマリカラー（緑）
-        primary: '#22c55e',
-        // 危険・エラー色（赤）
-        danger: '#ef4444',
+        primary: '#1B7F4F',
+        danger: '#D01E1E',
       },
     },
   },

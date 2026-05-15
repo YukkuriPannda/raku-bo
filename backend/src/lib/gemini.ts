@@ -1,6 +1,6 @@
 import type { OcrResult } from '../types';
 
-const MODEL = 'gemini-2.5-flash-preview-04-17';
+const MODEL = 'gemini-2.0-flash';
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 /** Gemini への JSON Schema（構造化出力用） */

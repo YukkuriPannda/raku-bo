@@ -38,20 +38,37 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     // TODO: 401 の場合はサインアウト処理を追加
-    console.error('[API Error]', error.response?.status, error.response?.data);
+    console.error('[API Error]', error.response?.status, error.response?.data, 'code:', error.code, 'msg:', error.message);
     return Promise.reject(error);
   }
 );
 
 // ============================================================
-// レシート API
+// レシート API（base64 JSON 送信 - Expo Go の file:// URI 制限を回避）
 // ============================================================
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8787';
+
 export const receiptApi = {
-  /** レシート画像をアップロードして OCR 解析結果を取得 */
-  upload: (formData: FormData) =>
-    api.post('/receipts', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+  upload: async (base64: string) => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token ?? '';
+
+    const res = await fetch(`${BASE_URL}/receipts`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image: base64 }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw Object.assign(new Error(err.error ?? 'upload failed'), { response: { status: res.status, data: err } });
+    }
+
+    return { data: await res.json() };
+  },
 };
 
 // ============================================================

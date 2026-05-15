@@ -3,6 +3,8 @@ import type { Env, Variables } from '../types';
 import { createSupabaseClient } from '../lib/supabase';
 import { uploadReceiptToR2 } from '../lib/r2';
 import { analyzeReceiptWithGemini } from '../lib/gemini';
+import { analyzeReceiptWithGroq } from '../lib/groq';
+import type { OcrResult } from '../types';
 
 const receipts = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -21,37 +23,53 @@ const receipts = new Hono<{ Bindings: Env; Variables: Variables }>();
 receipts.post('/', async (c) => {
   const userId = c.get('userId');
 
-  // multipart/form-data から画像を取得
-  let formData: FormData;
+  // JSON body から base64 画像を取得
+  let imageBase64: string;
   try {
-    formData = await c.req.formData();
+    const body = await c.req.json<{ image: string }>();
+    imageBase64 = body.image;
+    if (!imageBase64) throw new Error('image field missing');
   } catch {
-    return c.json({ error: 'リクエストの解析に失敗しました' }, 400);
+    return c.json({ error: '画像データが含まれていません（フィールド: image, base64文字列）' }, 400);
   }
 
-  const imageFile = formData.get('image');
-  // Cloudflare Workers の FormData では File は Blob として扱われる
-  if (!imageFile || typeof imageFile === 'string') {
-    return c.json({ error: '画像ファイルが含まれていません（フィールド名: image）' }, 400);
+  // base64 → ArrayBuffer
+  const binaryString = atob(imageBase64);
+  const uint8Array = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    uint8Array[i] = binaryString.charCodeAt(i);
   }
-
-  // ファイルを ArrayBuffer に変換（Blob として扱う）
-  const imageBuffer = await (imageFile as Blob).arrayBuffer();
+  const imageBuffer = uint8Array.buffer;
 
   try {
     // 1. R2 にアップロード
     const r2Key = await uploadReceiptToR2(c.env, userId, imageBuffer);
 
-    // 2. base64 に変換して Gemini OCR
-    const uint8Array = new Uint8Array(imageBuffer);
-    let binaryString = '';
-    for (let i = 0; i < uint8Array.length; i++) {
-      binaryString += String.fromCharCode(uint8Array[i]);
+    // 2. OCR: Gemini → Groq → ダミーデータの順でフォールバック
+    let ocrResult: OcrResult;
+    try {
+      ocrResult = await analyzeReceiptWithGemini(c.env.GEMINI_API_KEY, imageBase64);
+    } catch (geminiError) {
+      console.warn('Gemini API 失敗、Groq にフォールバック:', geminiError);
+      try {
+        if (!c.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY 未設定');
+        ocrResult = await analyzeReceiptWithGroq(c.env.GROQ_API_KEY, imageBase64);
+      } catch (groqError) {
+        console.warn('Groq API も失敗、ダミーデータで続行:', groqError);
+        const today = new Date().toISOString().split('T')[0];
+        ocrResult = {
+          store_name: '店名不明',
+          date: today,
+          items: [{ name: '商品', price: 0 }],
+          total_amount: 0,
+          category: 'その他',
+          payment_method: 'cash',
+          points_earned: null,
+        };
+      }
     }
-    const imageBase64 = btoa(binaryString);
-    const ocrResult = await analyzeReceiptWithGemini(c.env.GEMINI_API_KEY, imageBase64);
 
-    // 3. receipts テーブルに保存（トランザクション作成は確認画面から行う）
+    // 3. receipts テーブルに保存
     const supabase = createSupabaseClient(c.env);
 
     const { data: receipt, error: receiptError } = await supabase

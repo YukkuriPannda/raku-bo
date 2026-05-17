@@ -20,6 +20,76 @@ import { colors } from '@/constants/theme';
 import { styles } from '@/styles/points.styles';
 import type { Point } from '@/types';
 
+function ListHeader({
+  newName,
+  setNewName,
+  newAmount,
+  setNewAmount,
+  newRate,
+  setNewRate,
+  isAdding,
+  onAdd,
+  totalYen,
+  pointCount,
+}: {
+  newName: string;
+  setNewName: (v: string) => void;
+  newAmount: string;
+  setNewAmount: (v: string) => void;
+  newRate: string;
+  setNewRate: (v: string) => void;
+  isAdding: boolean;
+  onAdd: () => void;
+  totalYen: number;
+  pointCount: number;
+}) {
+  return (
+    <View>
+      <View style={styles.totalCard}>
+        <Text style={styles.totalLabel}>ポイント資産合計（円換算）</Text>
+        <Text style={styles.totalAmount}>¥{totalYen.toLocaleString('ja-JP')}</Text>
+        <Text style={styles.totalSub}>{pointCount} 種類のポイント</Text>
+      </View>
+
+      <View style={styles.addCard}>
+        <Text style={styles.addTitle}>ポイントを追加</Text>
+        <TextInput
+          value={newName}
+          onChangeText={setNewName}
+          placeholder="ポイント名（例: Tポイント）"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+        <View style={styles.inputRow}>
+          <TextInput
+            value={newAmount}
+            onChangeText={setNewAmount}
+            placeholder="保有数"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="number-pad"
+            style={styles.inputHalf}
+          />
+          <TextInput
+            value={newRate}
+            onChangeText={setNewRate}
+            placeholder="レート"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="decimal-pad"
+            style={styles.inputHalf}
+          />
+        </View>
+        <TouchableOpacity onPress={onAdd} disabled={isAdding} style={styles.addBtn} activeOpacity={0.8}>
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+            {isAdding ? '追加中...' : '+ 追加する'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionLabel}>ポイント一覧</Text>
+    </View>
+  );
+}
+
 function PointItem({
   item,
   onEdit,
@@ -117,52 +187,6 @@ export default function PointsScreen() {
     ]);
   };
 
-  const ListHeader = () => (
-    <View>
-      <View style={styles.totalCard}>
-        <Text style={styles.totalLabel}>ポイント資産合計（円換算）</Text>
-        <Text style={styles.totalAmount}>¥{totalYen.toLocaleString('ja-JP')}</Text>
-        <Text style={styles.totalSub}>{points.length} 種類のポイント</Text>
-      </View>
-
-      <View style={styles.addCard}>
-        <Text style={styles.addTitle}>ポイントを追加</Text>
-        <TextInput
-          value={newName}
-          onChangeText={setNewName}
-          placeholder="ポイント名（例: Tポイント）"
-          placeholderTextColor={colors.textSecondary}
-          style={styles.input}
-        />
-        <View style={styles.inputRow}>
-          <TextInput
-            value={newAmount}
-            onChangeText={setNewAmount}
-            placeholder="保有数"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="number-pad"
-            style={styles.inputHalf}
-          />
-          <TextInput
-            value={newRate}
-            onChangeText={setNewRate}
-            placeholder="レート"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="decimal-pad"
-            style={styles.inputHalf}
-          />
-        </View>
-        <TouchableOpacity onPress={handleAdd} disabled={isAdding} style={styles.addBtn} activeOpacity={0.8}>
-          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
-            {isAdding ? '追加中...' : '+ 追加する'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.sectionLabel}>ポイント一覧</Text>
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView
       style={styles.screen}
@@ -178,7 +202,20 @@ export default function PointsScreen() {
             onDelete={handleDelete}
           />
         )}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={
+          <ListHeader
+            newName={newName}
+            setNewName={setNewName}
+            newAmount={newAmount}
+            setNewAmount={setNewAmount}
+            newRate={newRate}
+            setNewRate={setNewRate}
+            isAdding={isAdding}
+            onAdd={handleAdd}
+            totalYen={totalYen}
+            pointCount={points.length}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>💎</Text>

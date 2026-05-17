@@ -42,7 +42,7 @@ export default function CameraScreen() {
 
       // 撮影完了 → 即座に遷移（アップロードは confirm 画面で行う）
       setPendingImage(photo.base64);
-      router.replace('/screens/confirm');
+      router.replace('/screens/manual-entry');
     } catch (error) {
       console.error('[Camera] エラー:', error);
       Alert.alert('エラー', '撮影に失敗しました。もう一度お試しください。', [{ text: 'OK' }]);

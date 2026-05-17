@@ -1,11 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   View,
   Text,
   FlatList,
   RefreshControl,
+  TouchableOpacity,
+  Alert,
   ListRenderItemInfo,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useAppStore } from '@/store';
@@ -30,34 +33,80 @@ const PAYMENT_LABEL: Record<string, string> = {
   qr: 'QR',
 };
 
-function TransactionItem({ item }: { item: Transaction }) {
+function DeleteAction({ onPress }: { onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={styles.deleteAction}
+    >
+      <Text style={styles.deleteActionText}>削除</Text>
+    </TouchableOpacity>
+  );
+}
+
+function TransactionItem({
+  item,
+  onDelete,
+}: {
+  item: Transaction;
+  onDelete: (id: string) => void;
+}) {
+  const swipeableRef = useRef<Swipeable>(null);
   const emoji = CATEGORY_EMOJI[item.category] ?? '💸';
 
+  const handleDelete = () => {
+    swipeableRef.current?.close();
+    Alert.alert(
+      '削除の確認',
+      `この履歴を削除しますか？\n${item.store_name ?? item.category} ¥${item.amount.toLocaleString('ja-JP')}`,
+      [
+        { text: 'キャンセル', style: 'cancel', onPress: () => swipeableRef.current?.close() },
+        { text: '削除', style: 'destructive', onPress: () => onDelete(item.id) },
+      ]
+    );
+  };
+
   return (
-    <View style={styles.item}>
-      <View style={styles.itemIcon}>
-        <Text style={styles.itemEmoji}>{emoji}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.itemName} numberOfLines={1}>
-          {item.store_name ?? item.category}
+    <Swipeable
+      ref={swipeableRef}
+      renderRightActions={() => <DeleteAction onPress={handleDelete} />}
+      rightThreshold={40}
+      overshootRight={false}
+    >
+      <View style={styles.item}>
+        <View style={styles.itemIcon}>
+          <Text style={styles.itemEmoji}>{emoji}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.itemName} numberOfLines={1}>
+            {item.store_name ?? item.category}
+          </Text>
+          <Text style={styles.itemSub}>
+            {item.category} · {PAYMENT_LABEL[item.payment_method]} · {formatDate(item.transacted_at)}
+          </Text>
+        </View>
+        <Text style={styles.itemAmount}>
+          ¥{item.amount.toLocaleString('ja-JP')}
         </Text>
-        <Text style={styles.itemSub}>
-          {item.category} · {PAYMENT_LABEL[item.payment_method]} · {formatDate(item.transacted_at)}
-        </Text>
       </View>
-      <Text style={styles.itemAmount}>
-        ¥{item.amount.toLocaleString('ja-JP')}
-      </Text>
-    </View>
+    </Swipeable>
   );
 }
 
 export default function HistoryScreen() {
-  const { transactions, isLoading, fetchTransactions } = useAppStore();
+  const { transactions, isLoading, fetchTransactions, deleteTransaction } = useAppStore();
   const month = getCurrentMonth();
 
   useFocusEffect(useCallback(() => { fetchTransactions(month); }, [month, fetchTransactions]));
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteTransaction(id);
+    } catch {
+      Alert.alert('エラー', '削除に失敗しました。もう一度お試しください。');
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -70,7 +119,9 @@ export default function HistoryScreen() {
       <FlatList
         data={transactions}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }: ListRenderItemInfo<Transaction>) => <TransactionItem item={item} />}
+        renderItem={({ item }: ListRenderItemInfo<Transaction>) => (
+          <TransactionItem item={item} onDelete={handleDelete} />
+        )}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>📭</Text>

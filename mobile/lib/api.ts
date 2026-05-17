@@ -82,6 +82,9 @@ export const transactionApi = {
   /** トランザクションを新規作成 */
   create: (data: CreateTransactionData) =>
     api.post('/transactions', data),
+
+  /** トランザクションを削除 */
+  delete: (id: string) => api.delete(`/transactions/${id}`),
 };
 
 // ============================================================

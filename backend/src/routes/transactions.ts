@@ -114,4 +114,33 @@ transactions.post('/', async (c) => {
   }
 });
 
+/**
+ * DELETE /transactions/:id
+ * 指定IDのトランザクションを削除する。
+ */
+transactions.delete('/:id', async (c) => {
+  const userId = c.get('userId');
+  const id = c.req.param('id');
+
+  try {
+    const supabase = createSupabaseClient(c.env);
+
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('トランザクション削除エラー:', error);
+      return c.json({ error: '削除に失敗しました' }, 500);
+    }
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('予期しないエラー:', error);
+    return c.json({ error: '内部サーバーエラー' }, 500);
+  }
+});
+
 export default transactions;

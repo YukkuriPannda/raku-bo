@@ -67,4 +67,15 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
   },
+  deleteAction: {
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+  },
+  deleteActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });

@@ -14,7 +14,6 @@ import type {
   Point,
   ShiftEvent,
   BalanceData,
-  OcrResult,
   CreateTransactionData,
 } from '@/types';
 
@@ -30,7 +29,6 @@ interface AppState {
   balance: BalanceData;
   hourlyWage: number;        // 時給（円）
   isLoading: boolean;
-  ocrResult: OcrResult | null;       // confirm 画面に渡す中間状態
   pendingImageBase64: string | null; // 撮影直後の未アップロード画像
 
   // ---- ユーザー ----
@@ -45,12 +43,9 @@ interface AppState {
   // ---- 残高計算 ----
   calcBalance: () => void;
 
-  // ---- トランザクション追加 ----
+  // ---- トランザクション追加・削除 ----
   addTransaction: (data: CreateTransactionData) => Promise<void>;
-
-  // ---- OCR 結果 ----
-  setOcrResult: (result: OcrResult) => void;
-  clearOcrResult: () => void;
+  deleteTransaction: (id: string) => Promise<void>;
 
   // ---- 撮影画像 ----
   setPendingImage: (base64: string) => void;
@@ -82,7 +77,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   balance: initialBalance,
   hourlyWage: 1_000, // デフォルト時給 1000 円
   isLoading: false,
-  ocrResult: null,
   pendingImageBase64: null,
 
   // ============================================================
@@ -99,7 +93,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       points: [],
       shifts: [],
       balance: initialBalance,
-      ocrResult: null,
       pendingImageBase64: null,
     });
   },
@@ -228,11 +221,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // ============================================================
+  // トランザクション削除
+  // ============================================================
+  deleteTransaction: async (id) => {
+    try {
+      await transactionApi.delete(id);
+      set((state) => ({
+        transactions: state.transactions.filter((t) => t.id !== id),
+      }));
+      get().calcBalance();
+    } catch (error) {
+      console.error('[deleteTransaction] エラー:', error);
+      throw error;
+    }
+  },
+
+  // ============================================================
   // OCR 結果の中間状態管理
   // ============================================================
-  setOcrResult: (result) => set({ ocrResult: result }),
-  clearOcrResult: () => set({ ocrResult: null }),
-
   setPendingImage: (base64) => set({ pendingImageBase64: base64 }),
   clearPendingImage: () => set({ pendingImageBase64: null }),
 

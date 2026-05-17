@@ -15,6 +15,7 @@ import type {
   ShiftEvent,
   BalanceData,
   CreateTransactionData,
+  UpdateTransactionData,
 } from '@/types';
 
 // ============================================================
@@ -43,8 +44,9 @@ interface AppState {
   // ---- 残高計算 ----
   calcBalance: () => void;
 
-  // ---- トランザクション追加・削除 ----
+  // ---- トランザクション追加・更新・削除 ----
   addTransaction: (data: CreateTransactionData) => Promise<void>;
+  updateTransaction: (id: string, data: UpdateTransactionData) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
 
   // ---- 撮影画像 ----
@@ -218,6 +220,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  // ============================================================
+  // トランザクション更新
+  // ============================================================
+  updateTransaction: async (id, data) => {
+    const res = await transactionApi.update(id, data);
+    const updated: Transaction = res.data;
+    set((state) => ({
+      transactions: state.transactions.map((t) => t.id === id ? updated : t),
+    }));
+    get().calcBalance();
   },
 
   // ============================================================

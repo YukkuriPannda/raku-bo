@@ -1,15 +1,17 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
   FlatList,
   RefreshControl,
   TouchableOpacity,
+  Pressable,
   Alert,
   ListRenderItemInfo,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 
 import { useAppStore } from '@/store';
 import { CATEGORY_EMOJI } from '@/types';
@@ -47,13 +49,20 @@ function DeleteAction({ onPress }: { onPress: () => void }) {
 
 function TransactionItem({
   item,
+  expanded,
+  onToggle,
+  onLongPress,
   onDelete,
 }: {
   item: Transaction;
+  expanded: boolean;
+  onToggle: () => void;
+  onLongPress: () => void;
   onDelete: (id: string) => void;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
   const emoji = CATEGORY_EMOJI[item.category] ?? '💸';
+  const hasItems = !!item.items && item.items.length > 0;
 
   const handleDelete = () => {
     swipeableRef.current?.close();
@@ -74,31 +83,58 @@ function TransactionItem({
       rightThreshold={40}
       overshootRight={false}
     >
-      <View style={styles.item}>
-        <View style={styles.itemIcon}>
-          <Text style={styles.itemEmoji}>{emoji}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.itemName} numberOfLines={1}>
-            {item.store_name ?? item.category}
+      <Pressable onPress={onToggle} onLongPress={onLongPress} delayLongPress={400} android_ripple={{ color: '#00000010' }}>
+        <View style={styles.item}>
+          <View style={styles.itemIcon}>
+            <Text style={styles.itemEmoji}>{emoji}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.itemName} numberOfLines={1}>
+              {item.store_name ?? item.category}
+            </Text>
+            <Text style={styles.itemSub}>
+              {item.category} · {PAYMENT_LABEL[item.payment_method]} · {formatDate(item.transacted_at)}
+              {hasItems ? `  · 🧾${item.items!.length}` : ''}
+            </Text>
+          </View>
+          <Text style={styles.itemAmount}>
+            ¥{item.amount.toLocaleString('ja-JP')}
           </Text>
-          <Text style={styles.itemSub}>
-            {item.category} · {PAYMENT_LABEL[item.payment_method]} · {formatDate(item.transacted_at)}
-          </Text>
         </View>
-        <Text style={styles.itemAmount}>
-          ¥{item.amount.toLocaleString('ja-JP')}
-        </Text>
-      </View>
+        {expanded && (
+          <View style={styles.expandedSection}>
+            {hasItems ? (
+              item.items!.map((it) => (
+                <View key={it.id} style={styles.expandedItemRow}>
+                  <Text style={styles.expandedItemName} numberOfLines={1}>{it.name}</Text>
+                  <Text style={styles.expandedItemPrice}>¥{it.price.toLocaleString('ja-JP')}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.expandedEmpty}>商品情報なし</Text>
+            )}
+          </View>
+        )}
+      </Pressable>
     </Swipeable>
   );
 }
 
 export default function HistoryScreen() {
   const { transactions, isLoading, fetchTransactions, deleteTransaction } = useAppStore();
+  const router = useRouter();
   const month = getCurrentMonth();
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   useFocusEffect(useCallback(() => { fetchTransactions(month); }, [month, fetchTransactions]));
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -120,7 +156,13 @@ export default function HistoryScreen() {
         data={transactions}
         keyExtractor={(item) => item.id}
         renderItem={({ item }: ListRenderItemInfo<Transaction>) => (
-          <TransactionItem item={item} onDelete={handleDelete} />
+          <TransactionItem
+            item={item}
+            expanded={expandedIds.has(item.id)}
+            onToggle={() => toggleExpand(item.id)}
+            onLongPress={() => router.push({ pathname: '/screens/manual-entry', params: { transactionId: item.id } })}
+            onDelete={handleDelete}
+          />
         )}
         ListEmptyComponent={
           <View style={styles.empty}>

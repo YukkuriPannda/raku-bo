@@ -38,7 +38,10 @@
       "Bash(Get-Content \"C:\\\\Users\\\\Pannda\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--OtherProjects-raku-bo\\\\cce53c13-6eb8-41a1-89b5-2d1af42ef7ca\\\\tasks\\\\bg8q6s5f0.output\" -Wait)",
       "Bash(Select-String -Pattern \"QR|Metro waiting|error|Error|ready|bundled\")",
       "PowerShell(Get-Process *)",
-      "PowerShell(tasklist *)"
+      "PowerShell(tasklist *)",
+      "Bash(docker-compose restart *)",
+      "Bash(docker-compose logs *)",
+      "Bash(Test-Path *)"
     ]
   }
 }

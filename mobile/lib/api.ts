@@ -5,7 +5,7 @@
 
 import axios from 'axios';
 import { supabase } from './auth';
-import type { CreateTransactionData } from '@/types';
+import type { CreateTransactionData, UpdateTransactionData } from '@/types';
 
 // ============================================================
 // axios インスタンス
@@ -82,6 +82,10 @@ export const transactionApi = {
   /** トランザクションを新規作成 */
   create: (data: CreateTransactionData) =>
     api.post('/transactions', data),
+
+  /** トランザクションを更新 */
+  update: (id: string, data: UpdateTransactionData) =>
+    api.patch(`/transactions/${id}`, data),
 
   /** トランザクションを削除 */
   delete: (id: string) => api.delete(`/transactions/${id}`),

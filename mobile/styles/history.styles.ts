@@ -78,4 +78,35 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  expandedSection: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md + 52,
+    paddingTop: 4,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  expandedItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  expandedItemName: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textPrimary,
+    marginRight: 12,
+  },
+  expandedItemPrice: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  expandedEmpty: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    paddingVertical: 4,
+  },
 });

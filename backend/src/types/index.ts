@@ -29,6 +29,15 @@ export interface Transaction {
   points_earned: number | null;
   transacted_at: string;
   created_at: string;
+  items?: TransactionItem[];
+}
+
+export interface TransactionItem {
+  id: string;
+  transaction_id: string;
+  name: string;
+  price: number;
+  created_at: string;
 }
 
 export interface Point {

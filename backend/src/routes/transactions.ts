@@ -40,14 +40,26 @@ transactions.get('/', async (c) => {
   try {
     const supabase = createSupabaseClient(c.env);
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('transactions')
-      .select('*')
+      .select('*, items:transaction_items(*)')
       .eq('user_id', userId)
       .in('type', ['cash', 'point'])
       .gte('transacted_at', startDate)
       .lt('transacted_at', endDate)
       .order('transacted_at', { ascending: false });
+
+    // transaction_items テーブルが未作成の場合は items なしで再取得
+    if (error?.code === 'PGRST200') {
+      ({ data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .in('type', ['cash', 'point'])
+        .gte('transacted_at', startDate)
+        .lt('transacted_at', endDate)
+        .order('transacted_at', { ascending: false }));
+    }
 
     if (error) {
       console.error('トランザクション取得エラー:', error);
@@ -75,7 +87,7 @@ transactions.post('/', async (c) => {
     return c.json({ error: 'リクエストボディの解析に失敗しました' }, 400);
   }
 
-  const { type, amount, category, payment_method, store_name, receipt_id, receipt_url, points_earned, transacted_at } = body;
+  const { type, amount, category, payment_method, store_name, receipt_id, receipt_url, points_earned, transacted_at, items } = body;
 
   // バリデーション
   if (!type || !amount || !category || !transacted_at) {
@@ -107,7 +119,98 @@ transactions.post('/', async (c) => {
       return c.json({ error: 'トランザクションの保存に失敗しました' }, 500);
     }
 
-    return c.json(data, 201);
+    // items が指定されていれば transaction_items に一括 insert
+    let savedItems: unknown[] = [];
+    if (Array.isArray(items) && items.length > 0) {
+      const rows = items
+        .filter((it): it is { name: string; price: number } =>
+          typeof it === 'object' && it !== null &&
+          typeof (it as { name?: unknown }).name === 'string' &&
+          typeof (it as { price?: unknown }).price === 'number'
+        )
+        .map((it) => ({
+          transaction_id: data.id,
+          name: it.name,
+          price: it.price,
+        }));
+
+      if (rows.length > 0) {
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('transaction_items')
+          .insert(rows)
+          .select();
+
+        if (itemsError) {
+          console.error('商品アイテム保存エラー:', itemsError);
+          // transaction を rollback（compensating delete）
+          await supabase.from('transactions').delete().eq('id', data.id);
+          return c.json({ error: '商品アイテムの保存に失敗しました' }, 500);
+        }
+        savedItems = itemsData ?? [];
+      }
+    }
+
+    return c.json({ ...data, items: savedItems }, 201);
+  } catch (error) {
+    console.error('予期しないエラー:', error);
+    return c.json({ error: '内部サーバーエラー' }, 500);
+  }
+});
+
+/**
+ * PATCH /transactions/:id
+ * 指定IDのトランザクションを更新する。items は全削除→再 insert で置き換える。
+ */
+transactions.patch('/:id', async (c) => {
+  const userId = c.get('userId');
+  const id = c.req.param('id');
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'リクエストボディの解析に失敗しました' }, 400);
+  }
+
+  const { amount, category, payment_method, store_name, points_earned, transacted_at, items } = body;
+
+  try {
+    const supabase = createSupabaseClient(c.env);
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .update({ amount, category, payment_method, store_name: store_name ?? null, points_earned: points_earned ?? 0, transacted_at })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('トランザクション更新エラー:', error);
+      return c.json({ error: '更新に失敗しました' }, 500);
+    }
+
+    // items を全削除→再 insert（置き換え）
+    await supabase.from('transaction_items').delete().eq('transaction_id', id);
+
+    let savedItems: unknown[] = [];
+    if (Array.isArray(items) && items.length > 0) {
+      const rows = items
+        .filter((it): it is { name: string; price: number } =>
+          typeof it === 'object' && it !== null &&
+          typeof (it as { name?: unknown }).name === 'string' &&
+          typeof (it as { price?: unknown }).price === 'number'
+        )
+        .map((it) => ({ transaction_id: id, name: it.name, price: it.price }));
+      if (rows.length > 0) {
+        const { data: itemsData } = await supabase
+          .from('transaction_items')
+          .insert(rows)
+          .select();
+        savedItems = itemsData ?? [];
+      }
+    }
+
+    return c.json({ ...data, items: savedItems });
   } catch (error) {
     console.error('予期しないエラー:', error);
     return c.json({ error: '内部サーバーエラー' }, 500);

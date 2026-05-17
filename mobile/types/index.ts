@@ -61,6 +61,15 @@ export interface OcrResult {
   points_earned: number | null;
 }
 
+/** トランザクションに紐づく商品アイテム */
+export interface TransactionItem {
+  id: string;
+  transaction_id: string;
+  name: string;
+  price: number;
+  created_at: string;
+}
+
 /** 支出・収入トランザクション */
 export interface Transaction {
   id: string;
@@ -74,6 +83,7 @@ export interface Transaction {
   points_earned: number | null;
   transacted_at: string;
   created_at: string;
+  items?: TransactionItem[];
 }
 
 /** ポイント情報 */
@@ -109,6 +119,17 @@ export interface User {
   googleAccessToken: string;
 }
 
+/** トランザクション更新用データ */
+export interface UpdateTransactionData {
+  amount: number;
+  category: Category;
+  payment_method: PaymentMethod;
+  store_name?: string;
+  points_earned?: number;
+  transacted_at: string;
+  items?: { name: string; price: number }[];
+}
+
 /** 新規トランザクション登録用データ */
 export interface CreateTransactionData {
   type: TransactionType;
@@ -119,4 +140,5 @@ export interface CreateTransactionData {
   receipt_url?: string;
   points_earned?: number;
   transacted_at: string;
+  items?: { name: string; price: number }[];
 }

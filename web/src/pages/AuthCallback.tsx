@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/auth'
 
-const EXPO_CALLBACK = 'exp://100.66.255.66:8081/--/auth/callback'
+const EXPO_CALLBACK = 'rakubo://auth/callback'
 
 export default function AuthCallback() {
   const navigate = useNavigate()

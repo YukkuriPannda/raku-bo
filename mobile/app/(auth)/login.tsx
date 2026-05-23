@@ -8,13 +8,13 @@ import {
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
-import { supabase } from '@/lib/auth';
+import { supabase, saveGoogleAccessToken } from '@/lib/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
 // Supabase は登録済みの http:// URL にしかリダイレクトしないため、
-// Web アプリを中継して Expo Go へ転送する
-const REDIRECT_URI = 'https://panndapcv3.tail63d9fe.ts.net/auth/callback';
+// Web アプリを中継してアプリへ転送する
+const REDIRECT_URI = 'https://raku-bo-web.pages.dev/auth/callback';
 
 export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
@@ -49,8 +49,11 @@ export default function LoginScreen() {
         const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
 
         if (code) {
-          const { error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
+          const { data: exchData, error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
           if (exchErr) throw exchErr;
+          // provider_token（Google Access Token）を永続化する
+          const providerToken = exchData.session?.provider_token;
+          if (providerToken) await saveGoogleAccessToken(providerToken);
         } else if (accessToken && refreshToken) {
           const { error: sessErr } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
           if (sessErr) throw sessErr;

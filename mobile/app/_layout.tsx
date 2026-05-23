@@ -6,13 +6,14 @@
 // - NativeWind / GestureHandlerRootView でラップ
 // ============================================================
 
+import '../global.css';
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
-import { supabase, getGoogleAccessToken } from '@/lib/auth';
+import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken } from '@/lib/auth';
 import { initDB } from '@/lib/db';
 import { useAppStore } from '@/store';
 
@@ -32,12 +33,14 @@ function useAuthGuard() {
 
   useEffect(() => {
     // 初回セッションチェック（既存セッションがある場合）
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
+        // provider_token は再起動後 null になるため SecureStore から復元する
+        const storedToken = await loadGoogleAccessToken();
         setUser({
           id: session.user.id,
           email: session.user.email ?? '',
-          googleAccessToken: getGoogleAccessToken(session) ?? '',
+          googleAccessToken: getGoogleAccessToken(session) ?? storedToken ?? '',
         });
       }
 
@@ -73,11 +76,15 @@ function useAuthGuard() {
 
     // セッション変更を購読
     const { data: subscription } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         if (session) {
           // provider_token は setSession 後に null になるため、URL から取得した値を優先
           const googleAccessToken = session.provider_token ?? pendingGoogleToken;
           pendingGoogleToken = '';
+          // 取得できたトークンを SecureStore に永続化する
+          if (googleAccessToken) {
+            await saveGoogleAccessToken(googleAccessToken);
+          }
           setUser({
             id: session.user.id,
             email: session.user.email ?? '',
@@ -85,6 +92,7 @@ function useAuthGuard() {
           });
           router.replace('/(tabs)');
         } else {
+          await clearGoogleAccessToken();
           router.replace('/(auth)/login');
         }
       }

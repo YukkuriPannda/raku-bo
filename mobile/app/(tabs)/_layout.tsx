@@ -40,7 +40,6 @@ export default function TabsLayout() {
           fontSize: 17,
           color: '#1A1A1A',
         },
-        headerBottomBorderWidth: 1,
       }}
     >
       <Tabs.Screen

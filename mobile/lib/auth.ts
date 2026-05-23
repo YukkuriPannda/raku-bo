@@ -5,6 +5,7 @@
 
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import * as SecureStore from 'expo-secure-store';
 import { createClient } from '@supabase/supabase-js';
 
 // expo-auth-session がブラウザセッションを正しく閉じるために必要
@@ -27,6 +28,24 @@ export const redirectUri = makeRedirectUri({
 });
 
 // ============================================================
+// Google Access Token の永続化
+// provider_token は Supabase が再起動後に復元しないため SecureStore に保存する
+// ============================================================
+const GOOGLE_TOKEN_KEY = 'google_provider_token';
+
+export async function saveGoogleAccessToken(token: string): Promise<void> {
+  await SecureStore.setItemAsync(GOOGLE_TOKEN_KEY, token);
+}
+
+export async function loadGoogleAccessToken(): Promise<string | null> {
+  return SecureStore.getItemAsync(GOOGLE_TOKEN_KEY);
+}
+
+export async function clearGoogleAccessToken(): Promise<void> {
+  await SecureStore.deleteItemAsync(GOOGLE_TOKEN_KEY);
+}
+
+// ============================================================
 // Google OAuth でサインイン
 // authorization code を受け取り、Supabase にセッションを作成する
 // ============================================================
@@ -38,9 +57,10 @@ export async function signInWithGoogle(code: string): Promise<void> {
 }
 
 // ============================================================
-// サインアウト
+// サインアウト（Google トークンも削除）
 // ============================================================
 export async function signOut(): Promise<void> {
+  await clearGoogleAccessToken();
   const { error } = await supabase.auth.signOut();
   if (error) {
     throw new Error(`サインアウトエラー: ${error.message}`);
@@ -60,9 +80,9 @@ export async function getSession() {
 
 // ============================================================
 // セッションから Google Access Token を取得
+// provider_token は再起動後 null になるため SecureStore から補完する
 // ============================================================
 export function getGoogleAccessToken(session: Awaited<ReturnType<typeof getSession>>): string | null {
   if (!session) return null;
-  // Supabase セッションの provider_token には Google の access token が入る
   return session.provider_token ?? null;
 }

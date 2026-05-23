@@ -53,6 +53,17 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 );
 
 -- ---------------------------------------------------------------
+-- transaction_items（トランザクションに紐づく商品明細）
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.transaction_items (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  transaction_id  UUID REFERENCES public.transactions(id) ON DELETE CASCADE NOT NULL,
+  name            TEXT NOT NULL,
+  price           INTEGER NOT NULL,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ---------------------------------------------------------------
 -- points（ポイント資産）
 -- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.points (
@@ -76,6 +87,10 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user_id
 -- transactions: 月絞り込み用
 CREATE INDEX IF NOT EXISTS idx_transactions_transacted_at
   ON public.transactions(transacted_at);
+
+-- transaction_items: transaction_id 絞り込み
+CREATE INDEX IF NOT EXISTS idx_transaction_items_transaction_id
+  ON public.transaction_items(transaction_id);
 
 -- points: user_id 絞り込み
 CREATE INDEX IF NOT EXISTS idx_points_user_id
@@ -174,6 +189,24 @@ CREATE POLICY "transactions: 自分のレコードのみ更新可" ON public.tra
 
 CREATE POLICY "transactions: 自分のレコードのみ削除可" ON public.transactions
   FOR DELETE USING (auth.uid() = user_id);
+
+-- transaction_items（バックエンドは Service Role Key 経由なので RLS はバイパスされるが念のため設定）
+ALTER TABLE public.transaction_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "transaction_items: 自分のレコードのみ参照可" ON public.transaction_items
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.transactions t WHERE t.id = transaction_id AND t.user_id = auth.uid())
+  );
+
+CREATE POLICY "transaction_items: 自分のレコードのみ作成可" ON public.transaction_items
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.transactions t WHERE t.id = transaction_id AND t.user_id = auth.uid())
+  );
+
+CREATE POLICY "transaction_items: 自分のレコードのみ削除可" ON public.transaction_items
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.transactions t WHERE t.id = transaction_id AND t.user_id = auth.uid())
+  );
 
 -- points
 ALTER TABLE public.points ENABLE ROW LEVEL SECURITY;

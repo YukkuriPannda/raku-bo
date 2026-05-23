@@ -41,7 +41,28 @@
       "PowerShell(tasklist *)",
       "Bash(docker-compose restart *)",
       "Bash(docker-compose logs *)",
-      "Bash(Test-Path *)"
+      "Bash(Test-Path *)",
+      "Bash(Select-Object FullName)",
+      "Bash(sed 's/=$//')",
+      "Bash(eas --version)",
+      "Bash(npx wrangler *)",
+      "Bash(wrangler deploy *)",
+      "Bash(wrangler pages *)",
+      "Bash(npm install *)",
+      "Bash(eas whoami *)",
+      "Bash(eas build *)",
+      "Bash(eas init *)",
+      "Bash(eas build:view 1b2aa801-6196-4dc8-85ce-fd4eb844b23f)",
+      "Bash(npx tsc *)",
+      "Bash(eas env:create --name EXPO_PUBLIC_API_URL --value \"https://raku-bo-backend.funa-hayate.workers.dev\" --environment preview --visibility plaintext --non-interactive)",
+      "Bash(eas env:create --name EXPO_PUBLIC_SUPABASE_URL --value \"https://fiizlqszvppmhijqvuse.supabase.co\" --environment preview --visibility plaintext --non-interactive)",
+      "Bash(eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpaXpscXN6dnBwbWhpanF2dXNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTk0OTcsImV4cCI6MjA5MjM3NTQ5N30.8nIPfsGtBKZ2nv4HBSK_ZExy1SdhimNi2in6pthUbSw\" --environment preview --visibility sensitive --non-interactive)",
+      "Bash(eas build:view *)",
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('auth', {}\\).get\\('sessionSecret', 'no token'\\)[:20]+'...'\\)\")",
+      "Bash(xargs head -5)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(f[\\\\\"name\\\\\"]\\) for f in d[\\\\\"data\\\\\"][\\\\\"__schema\\\\\"][\\\\\"queryType\\\\\"][\\\\\"fields\\\\\"]]\")"
     ]
   }
 }

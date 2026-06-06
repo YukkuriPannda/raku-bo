@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id                     UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   hourly_wage            INTEGER DEFAULT 0,   -- 時給（円）
   google_calendar_token  TEXT,                -- Google Calendar OAuth Token（暗号化推奨）
+  shift_keywords         TEXT[] DEFAULT ARRAY['バイト', 'シフト', '出勤', '勤務'],  -- シフト検出キーワード
   created_at             TIMESTAMPTZ DEFAULT NOW(),
   updated_at             TIMESTAMPTZ DEFAULT NOW()
 );

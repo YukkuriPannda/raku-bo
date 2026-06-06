@@ -7,13 +7,28 @@ function currentMonth() {
 }
 
 export default function Shifts() {
-  const { shifts, balance, hourlyWage, isLoading, fetchShifts, setHourlyWage } = useAppStore()
+  const { shifts, balance, hourlyWage, shiftKeywords, isLoading, calendarError, clearCalendarError, fetchShifts, setHourlyWage, setShiftKeywords } = useAppStore()
   const [month, setMonth] = useState(currentMonth)
   const [wageInput, setWageInput] = useState(String(hourlyWage))
+  const [keywordsInput, setKeywordsInput] = useState(shiftKeywords.join('\n'))
 
   useEffect(() => {
     fetchShifts(month)
   }, [month])
+
+  useEffect(() => {
+    setKeywordsInput(shiftKeywords.join('\n'))
+  }, [shiftKeywords])
+
+  const commitKeywords = async () => {
+    const keywords = keywordsInput
+      .split('\n')
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0)
+    if (keywords.length > 0) {
+      await setShiftKeywords(keywords)
+    }
+  }
 
   const commitWage = () => {
     const val = parseInt(wageInput, 10)
@@ -36,6 +51,19 @@ export default function Shifts() {
         />
       </div>
 
+      {/* Calendar error */}
+      {calendarError && (
+        <div className="bg-red-950/40 border border-red-800 rounded-xl px-4 py-3 mb-4 flex items-start justify-between gap-3">
+          <p className="text-red-400 text-sm leading-relaxed">{calendarError}</p>
+          <button
+            onClick={clearCalendarError}
+            className="text-red-400 hover:text-red-300 text-lg font-semibold leading-none flex-shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Hourly Wage */}
       <div className="bg-gray-900 rounded-xl p-4 mb-4">
         <label className="block text-gray-400 text-sm mb-2">時給設定</label>
@@ -51,6 +79,26 @@ export default function Shifts() {
           />
           <span className="text-gray-400 text-sm">円 / 時</span>
         </div>
+      </div>
+
+      {/* Shift keywords */}
+      <div className="bg-gray-900 rounded-xl p-4 mb-4">
+        <label className="block text-gray-400 text-sm mb-1">シフト検出キーワード</label>
+        <p className="text-gray-600 text-xs mb-2">1行に1つ入力 · 保存は Ctrl+Enter または入力欄外クリック</p>
+        <textarea
+          value={keywordsInput}
+          onChange={(e) => setKeywordsInput(e.target.value)}
+          onBlur={commitKeywords}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+              e.preventDefault()
+              commitKeywords()
+            }
+          }}
+          rows={4}
+          className="w-full bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:border-green-500 outline-none resize-none"
+          placeholder={'バイト\nシフト\n出勤\n勤務'}
+        />
       </div>
 
       {/* Income forecast */}

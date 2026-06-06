@@ -16,7 +16,7 @@ import ManualEntry from './pages/ManualEntry'
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
-  const { setUser } = useAppStore()
+  const { setUser, fetchProfile } = useAppStore()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,6 +26,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
           email: session.user.email ?? '',
           googleAccessToken: (session as { provider_token?: string | null }).provider_token ?? '',
         })
+        fetchProfile()
         setAuthenticated(true)
       }
       setLoading(false)
@@ -42,6 +43,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
           email: session.user.email ?? '',
           googleAccessToken: (session as { provider_token?: string | null }).provider_token ?? '',
         })
+        fetchProfile()
         setAuthenticated(true)
       } else {
         setUser(null)

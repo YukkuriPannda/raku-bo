@@ -7,6 +7,7 @@ import transactions from './routes/transactions';
 import balance from './routes/balance';
 import shifts from './routes/shifts';
 import points from './routes/points';
+import profile from './routes/profile';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -51,6 +52,7 @@ app.use('/transactions/*', authMiddleware);
 app.use('/balance/*', authMiddleware);
 app.use('/shifts/*', authMiddleware);
 app.use('/points/*', authMiddleware);
+app.use('/profile/*', authMiddleware);
 
 // ルート登録
 app.route('/receipts', receipts);
@@ -58,5 +60,6 @@ app.route('/transactions', transactions);
 app.route('/balance', balance);
 app.route('/shifts', shifts);
 app.route('/points', points);
+app.route('/profile', profile);
 
 export default app;

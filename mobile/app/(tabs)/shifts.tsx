@@ -44,15 +44,17 @@ function ShiftItem({ item }: { item: ShiftEvent }) {
 }
 
 export default function ShiftsScreen() {
-  const { shifts, balance, hourlyWage, isLoading, fetchShifts, setHourlyWage } = useAppStore();
+  const { shifts, balance, hourlyWage, shiftKeywords, isLoading, calendarError, clearCalendarError, fetchShifts, setHourlyWage, setShiftKeywords } = useAppStore();
   const month = getCurrentMonth();
   const [wageInput, setWageInput] = useState(String(hourlyWage));
+  const [keywordsInput, setKeywordsInput] = useState(shiftKeywords.join('\n'));
 
   useFocusEffect(
     useCallback(() => {
       fetchShifts(month);
       setWageInput(String(hourlyWage));
-    }, [month, fetchShifts, hourlyWage])
+      setKeywordsInput(shiftKeywords.join('\n'));
+    }, [month, fetchShifts, hourlyWage, shiftKeywords])
   );
 
   const handleSaveWage = () => {
@@ -65,8 +67,29 @@ export default function ShiftsScreen() {
     Alert.alert('保存しました', `時給を ¥${parsed.toLocaleString()} に設定しました`);
   };
 
+  const handleSaveKeywords = async () => {
+    const keywords = keywordsInput
+      .split('\n')
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
+    if (keywords.length === 0) {
+      Alert.alert('入力エラー', 'キーワードを1つ以上入力してください');
+      return;
+    }
+    await setShiftKeywords(keywords);
+    Alert.alert('保存しました', 'シフト検出キーワードを更新しました');
+  };
+
   const ListHeader = () => (
     <View>
+      {calendarError && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{calendarError}</Text>
+          <TouchableOpacity onPress={clearCalendarError}>
+            <Text style={styles.errorDismiss}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <View style={styles.forecastCard}>
         <Text style={styles.forecastLabel}>今月の月収見込み</Text>
         <Text style={styles.forecastAmount}>¥{balance.income_forecast.toLocaleString('ja-JP')}</Text>
@@ -93,6 +116,22 @@ export default function ShiftsScreen() {
             <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>保存</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      <View style={styles.keywordsCard}>
+        <Text style={styles.keywordsLabel}>シフト検出キーワード</Text>
+        <Text style={styles.keywordsHint}>1行に1つ入力してください</Text>
+        <TextInput
+          value={keywordsInput}
+          onChangeText={setKeywordsInput}
+          multiline
+          style={styles.keywordsInput}
+          placeholder={'バイト\nシフト\n出勤\n勤務'}
+          placeholderTextColor={colors.textSecondary}
+        />
+        <TouchableOpacity onPress={handleSaveKeywords} style={styles.keywordsSaveBtn} activeOpacity={0.8}>
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>保存</Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionLabel}>シフト一覧 ({shifts.length} 件)</Text>

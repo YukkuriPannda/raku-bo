@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 import type { Env, Variables } from '../types';
+import { createSupabaseClient } from '../lib/supabase';
 
 const shifts = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-/** シフトと判断するキーワード */
-const SHIFT_KEYWORDS = ['バイト', 'シフト', '出勤', '勤務'];
+/** シフトと判断するデフォルトキーワード（ユーザー設定がない場合に使用） */
+const DEFAULT_SHIFT_KEYWORDS = ['バイト', 'シフト', '出勤', '勤務'];
 
 interface GoogleCalendarEvent {
   id: string;
@@ -28,6 +29,7 @@ interface GoogleCalendarEventsResponse {
  * Google Access Token は X-Google-Access-Token ヘッダから取得する。
  */
 shifts.get('/', async (c) => {
+  const userId = c.get('userId');
   const monthParam = c.req.query('month');
 
   // Google Access Token の取得
@@ -62,6 +64,22 @@ shifts.get('/', async (c) => {
   const endYear = month === 12 ? year + 1 : year;
   const timeMax = `${endYear}-${String(endMonth).padStart(2, '0')}-01T00:00:00Z`;
 
+  // ユーザーのシフトキーワードをプロフィールから取得
+  let shiftKeywords = DEFAULT_SHIFT_KEYWORDS;
+  try {
+    const supabase = createSupabaseClient(c.env);
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('shift_keywords')
+      .eq('id', userId)
+      .single();
+    if (profileData?.shift_keywords && profileData.shift_keywords.length > 0) {
+      shiftKeywords = profileData.shift_keywords;
+    }
+  } catch {
+    // プロフィール取得失敗時はデフォルトキーワードを使用
+  }
+
   try {
     // Google Calendar API を呼び出す
     const calendarUrl = new URL(
@@ -95,7 +113,7 @@ shifts.get('/', async (c) => {
     // シフト関連キーワードを含むイベントのみフィルタリング
     const shiftEvents = events.filter((event) => {
       const title = event.summary ?? '';
-      return SHIFT_KEYWORDS.some((keyword) => title.includes(keyword));
+      return shiftKeywords.some((keyword) => title.includes(keyword));
     });
 
     const result = shiftEvents.map((event) => {

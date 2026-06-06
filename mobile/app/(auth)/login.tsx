@@ -7,14 +7,20 @@ import {
   Alert,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 import { supabase, saveGoogleAccessToken } from '@/lib/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
 // Supabase は登録済みの http:// URL にしかリダイレクトしないため、
-// Web アプリを中継してアプリへ転送する
-const REDIRECT_URI = 'https://raku-bo-web.pages.dev/auth/callback';
+// Web アプリを中継してアプリへ転送する。
+// app_redirect に現在の環境のコールバック URL を渡すことで正しいアプリが開く：
+//   Expo Go:    exp://IP:PORT/--/auth/callback
+//   Standalone: rakubo://auth/callback
+const WEB_CALLBACK = 'https://raku-bo-web.pages.dev/auth/callback';
+const appCallback = Linking.createURL('auth/callback');
+const REDIRECT_URI = `${WEB_CALLBACK}?app_redirect=${encodeURIComponent(appCallback)}`;
 
 export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);

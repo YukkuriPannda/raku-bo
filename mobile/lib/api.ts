@@ -116,6 +116,15 @@ export const shiftApi = {
 };
 
 // ============================================================
+// プロフィール API
+// ============================================================
+export const profileApi = {
+  get: () => api.get('/profile'),
+  update: (data: { hourly_wage?: number; shift_keywords?: string[] }) =>
+    api.patch('/profile', data),
+};
+
+// ============================================================
 // ポイント API
 // ============================================================
 export const pointApi = {

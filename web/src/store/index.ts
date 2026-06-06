@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { supabase, signOut as supabaseSignOut, getGoogleAccessToken } from '../lib/auth'
-import { transactionApi, pointApi, shiftApi } from '../lib/api'
+import { transactionApi, pointApi, shiftApi, profileApi } from '../lib/api'
 import type {
   User,
   Transaction,
@@ -46,19 +46,24 @@ interface AppState {
   shifts: ShiftEvent[]
   balance: BalanceData
   hourlyWage: number
+  shiftKeywords: string[]
   isLoading: boolean
   ocrResult: OcrResult | null
+  calendarError: string | null
 
   setUser: (user: User | null) => void
   logout: () => Promise<void>
   fetchTransactions: (month: string) => Promise<void>
   fetchPoints: () => Promise<void>
   fetchShifts: (month: string) => Promise<void>
+  fetchProfile: () => Promise<void>
+  clearCalendarError: () => void
   calcBalance: () => void
   addTransaction: (data: CreateTransactionData) => Promise<void>
   setOcrResult: (result: OcrResult) => void
   clearOcrResult: () => void
   setHourlyWage: (wage: number) => void
+  setShiftKeywords: (keywords: string[]) => Promise<void>
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -68,10 +73,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   shifts: [],
   balance: emptyBalance,
   hourlyWage: 1000,
+  shiftKeywords: ['バイト', 'シフト', '出勤', '勤務'],
   isLoading: false,
   ocrResult: null,
+  calendarError: null,
 
   setUser: (user) => set({ user }),
+
+  fetchProfile: async () => {
+    try {
+      const { data } = await profileApi.get()
+      if (data.hourly_wage) set({ hourlyWage: data.hourly_wage })
+      if (data.shift_keywords?.length > 0) set({ shiftKeywords: data.shift_keywords })
+    } catch (error) {
+      console.error('[Store] fetchProfile failed', error)
+    }
+  },
 
   logout: async () => {
     await supabaseSignOut()
@@ -116,6 +133,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       data: { session },
     } = await supabase.auth.getSession()
     const googleToken = getGoogleAccessToken(session) ?? undefined
+    set({ calendarError: null })
     try {
       const rawShifts = await shiftApi.list(month, googleToken)
       const { hourlyWage } = get()
@@ -127,8 +145,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().calcBalance()
     } catch (error) {
       console.error('[Store] fetchShifts failed', error)
+      set({ calendarError: 'Googleカレンダーの取得に失敗しました。アクセス権限を確認してください。' })
     }
   },
+
+  clearCalendarError: () => set({ calendarError: null }),
 
   calcBalance: () => {
     const { transactions, points, shifts } = get()
@@ -161,5 +182,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     }))
     set({ hourlyWage: wage, shifts: updatedShifts })
     get().calcBalance()
+    profileApi.update({ hourly_wage: wage }).catch((e) =>
+      console.error('[Store] setHourlyWage DB保存エラー:', e)
+    )
+  },
+
+  setShiftKeywords: async (keywords) => {
+    set({ shiftKeywords: keywords })
+    try {
+      await profileApi.update({ shift_keywords: keywords })
+    } catch (error) {
+      console.error('[Store] setShiftKeywords DB保存エラー:', error)
+    }
   },
 }))

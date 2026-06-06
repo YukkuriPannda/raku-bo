@@ -5,7 +5,7 @@
 // ============================================================
 
 import { create } from 'zustand';
-import { transactionApi, balanceApi, shiftApi, pointApi } from '@/lib/api';
+import { transactionApi, balanceApi, shiftApi, pointApi, profileApi } from '@/lib/api';
 import { signOut as authSignOut } from '@/lib/auth';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
 import type {
@@ -29,8 +29,10 @@ interface AppState {
   shifts: ShiftEvent[];
   balance: BalanceData;
   hourlyWage: number;        // 時給（円）
+  shiftKeywords: string[];
   isLoading: boolean;
   pendingImageBase64: string | null; // 撮影直後の未アップロード画像
+  calendarError: string | null;
 
   // ---- ユーザー ----
   setUser: (user: User | null) => void;
@@ -40,6 +42,11 @@ interface AppState {
   fetchTransactions: (month: string) => Promise<void>;
   fetchPoints: () => Promise<void>;
   fetchShifts: (month: string) => Promise<void>;
+  fetchProfile: () => Promise<void>;
+  clearCalendarError: () => void;
+
+  // ---- 設定保存 ----
+  setShiftKeywords: (keywords: string[]) => Promise<void>;
 
   // ---- 残高計算 ----
   calcBalance: () => void;
@@ -78,8 +85,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   shifts: [],
   balance: initialBalance,
   hourlyWage: 1_000, // デフォルト時給 1000 円
+  shiftKeywords: ['バイト', 'シフト', '出勤', '勤務'],
   isLoading: false,
   pendingImageBase64: null,
+  calendarError: null,
 
   // ============================================================
   // ユーザー設定
@@ -97,6 +106,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       balance: initialBalance,
       pendingImageBase64: null,
     });
+  },
+
+  // ============================================================
+  // プロフィール取得（時給・シフトキーワード）
+  // ============================================================
+  fetchProfile: async () => {
+    try {
+      const res = await profileApi.get();
+      const data = res.data;
+      if (data.hourly_wage) set({ hourlyWage: data.hourly_wage });
+      if (data.shift_keywords?.length > 0) set({ shiftKeywords: data.shift_keywords });
+    } catch (error) {
+      console.error('[fetchProfile] エラー:', error);
+    }
   },
 
   // ============================================================
@@ -146,7 +169,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { user, hourlyWage } = get();
     if (!user) return;
 
-    set({ isLoading: true });
+    set({ isLoading: true, calendarError: null });
     try {
       const res = await shiftApi.list(month, user.googleAccessToken);
       // estimated_wage が未設定の場合は時給 × duration_hours で補完
@@ -157,11 +180,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ shifts });
     } catch (error) {
       console.error('[fetchShifts] エラー:', error);
+      set({ calendarError: 'Googleカレンダーの取得に失敗しました。\nアクセス権限を確認してください。' });
     } finally {
       set({ isLoading: false });
       get().calcBalance();
     }
   },
+
+  clearCalendarError: () => set({ calendarError: null }),
 
   // ============================================================
   // 残高計算
@@ -257,7 +283,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearPendingImage: () => set({ pendingImageBase64: null }),
 
   // ============================================================
-  // 時給設定
+  // 時給設定（DB保存付き）
   // ============================================================
   setHourlyWage: (wage) => {
     set({ hourlyWage: wage });
@@ -269,5 +295,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     set({ shifts: updatedShifts });
     get().calcBalance();
+    // DBに非同期で保存（失敗してもUIは更新済み）
+    profileApi.update({ hourly_wage: wage }).catch((e) =>
+      console.error('[setHourlyWage] DB保存エラー:', e)
+    );
+  },
+
+  // ============================================================
+  // シフトキーワード設定（DB保存付き）
+  // ============================================================
+  setShiftKeywords: async (keywords) => {
+    set({ shiftKeywords: keywords });
+    try {
+      await profileApi.update({ shift_keywords: keywords });
+    } catch (error) {
+      console.error('[setShiftKeywords] DB保存エラー:', error);
+    }
   },
 }));

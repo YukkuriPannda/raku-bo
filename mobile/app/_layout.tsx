@@ -30,6 +30,7 @@ function useAuthGuard() {
   const router = useRouter();
   const segments = useSegments();
   const setUser = useAppStore((s) => s.setUser);
+  const fetchProfile = useAppStore((s) => s.fetchProfile);
 
   useEffect(() => {
     // 初回セッションチェック（既存セッションがある場合）
@@ -42,6 +43,7 @@ function useAuthGuard() {
           email: session.user.email ?? '',
           googleAccessToken: getGoogleAccessToken(session) ?? storedToken ?? '',
         });
+        fetchProfile();
       }
 
       const inAuthCallback = segments[0] === 'auth';
@@ -90,6 +92,7 @@ function useAuthGuard() {
             email: session.user.email ?? '',
             googleAccessToken,
           });
+          fetchProfile();
           router.replace('/(tabs)');
         } else {
           await clearGoogleAccessToken();

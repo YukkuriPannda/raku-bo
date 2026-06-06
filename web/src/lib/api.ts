@@ -76,3 +76,9 @@ export const shiftApi = {
     return data
   },
 }
+
+export const profileApi = {
+  get: () => api.get('/profile'),
+  update: (data: { hourly_wage?: number; shift_keywords?: string[] }) =>
+    api.patch('/profile', data),
+}

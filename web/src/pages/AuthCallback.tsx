@@ -2,17 +2,22 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/auth'
 
-const EXPO_CALLBACK = 'rakubo://auth/callback'
+const FALLBACK_APP_CALLBACK = 'rakubo://auth/callback'
 
 export default function AuthCallback() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // モバイルブラウザからのアクセス（IPアドレス経由）→ Expo Go にリダイレクト
+    // モバイルアプリからのアクセス → app_redirect パラメータのスキームにリダイレクト
+    // Expo Go:    exp://IP:PORT/--/auth/callback
+    // Standalone: rakubo://auth/callback
     if (window.location.hostname !== 'localhost') {
+      const params = new URLSearchParams(window.location.search)
+      const appRedirect = params.get('app_redirect') ?? FALLBACK_APP_CALLBACK
+      params.delete('app_redirect')
+      const restSearch = params.toString() ? '?' + params.toString() : ''
       const hash = window.location.hash
-      const search = window.location.search
-      window.location.href = EXPO_CALLBACK + search + hash
+      window.location.href = appRedirect + restSearch + hash
       return
     }
 

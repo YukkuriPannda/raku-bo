@@ -109,7 +109,71 @@ export interface BalanceData {
   expense_total: number;       // 今月支出合計
   income_forecast: number;     // 月収見込み（シフトから計算）
   points_total_yen: number;    // ポイント資産合計（円換算）
+  planned_total: number;       // 予定された支出合計
   remaining: number;           // 残り使える額
+}
+
+/** 予定された支出の種別 */
+export type PlannedEntryType = 'subscription' | 'calendar';
+
+/** サブスクの請求サイクル */
+export type BillingCycle = 'monthly' | 'yearly';
+
+/** 予定された支出 */
+export interface PlannedExpenditure {
+  id: string;
+  user_id: string;
+  entry_type: PlannedEntryType;
+  amount: number;
+  category: Category;
+  payment_method: PaymentMethod;
+  memo: string | null;
+  // サブスク用
+  service_name: string | null;
+  billing_cycle: BillingCycle | null;
+  billing_day: number | null;
+  billing_month: number | null;
+  is_active: boolean;
+  // カレンダー連動用
+  calendar_event_id: string | null;
+  calendar_event_title: string | null;
+  event_date: string | null; // "YYYY-MM-DD"
+  created_at: string;
+  updated_at: string;
+}
+
+/** Googleカレンダーのイベント（支出予定連動用） */
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  date: string; // "YYYY-MM-DD"
+}
+
+/** サブスク登録データ */
+export interface CreateSubscriptionData {
+  entry_type: 'subscription';
+  service_name: string;
+  amount: number;
+  category: Category;
+  payment_method: PaymentMethod;
+  billing_cycle: BillingCycle;
+  billing_day: number;
+  billing_month?: number;
+  memo?: string;
+}
+
+/** カレンダー連動登録データ */
+export interface CreateCalendarExpenditureData {
+  entry_type: 'calendar';
+  calendar_event_id: string;
+  calendar_event_title: string;
+  event_date: string;
+  amount: number;
+  category: Category;
+  payment_method: PaymentMethod;
+  memo?: string;
 }
 
 /** ログインユーザー情報 */

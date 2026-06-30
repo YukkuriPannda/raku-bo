@@ -28,7 +28,7 @@ export default function TabsLayout() {
           paddingBottom: 6,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: '600',
         },
         headerStyle: {
@@ -72,6 +72,14 @@ export default function TabsLayout() {
           title: 'ポイント',
           headerTitle: 'ポイント管理',
           tabBarIcon: ({ focused }) => <TabIcon emoji="💎" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="planned-expenditures"
+        options={{
+          title: '支出予定',
+          headerTitle: '支出予定',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📆" focused={focused} />,
         }}
       />
     </Tabs>

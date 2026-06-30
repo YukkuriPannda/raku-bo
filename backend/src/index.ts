@@ -8,6 +8,8 @@ import balance from './routes/balance';
 import shifts from './routes/shifts';
 import points from './routes/points';
 import profile from './routes/profile';
+import plannedExpenditures from './routes/planned-expenditures';
+import calendarEvents from './routes/calendar-events';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -53,6 +55,8 @@ app.use('/balance/*', authMiddleware);
 app.use('/shifts/*', authMiddleware);
 app.use('/points/*', authMiddleware);
 app.use('/profile/*', authMiddleware);
+app.use('/planned-expenditures/*', authMiddleware);
+app.use('/calendar-events/*', authMiddleware);
 
 // ルート登録
 app.route('/receipts', receipts);
@@ -61,5 +65,7 @@ app.route('/balance', balance);
 app.route('/shifts', shifts);
 app.route('/points', points);
 app.route('/profile', profile);
+app.route('/planned-expenditures', plannedExpenditures);
+app.route('/calendar-events', calendarEvents);
 
 export default app;

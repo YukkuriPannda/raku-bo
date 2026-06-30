@@ -5,7 +5,12 @@
 
 import axios from 'axios';
 import { supabase } from './auth';
-import type { CreateTransactionData, UpdateTransactionData } from '@/types';
+import type {
+  CreateTransactionData,
+  UpdateTransactionData,
+  CreateSubscriptionData,
+  CreateCalendarExpenditureData,
+} from '@/types';
 
 // ============================================================
 // axios インスタンス
@@ -141,4 +146,36 @@ export const pointApi = {
 
   /** ポイントを削除 */
   delete: (id: string) => api.delete(`/points/${id}`),
+};
+
+// ============================================================
+// 予定された支出 API
+// ============================================================
+export const plannedExpenditureApi = {
+  /** 指定月の有効な予定支出一覧を取得 */
+  list: (month: string) =>
+    api.get('/planned-expenditures', { params: { month } }),
+
+  /** 予定支出を新規登録 */
+  create: (data: CreateSubscriptionData | CreateCalendarExpenditureData) =>
+    api.post('/planned-expenditures', data),
+
+  /** 予定支出を更新 */
+  update: (id: string, data: Partial<CreateSubscriptionData> & { is_active?: boolean }) =>
+    api.patch(`/planned-expenditures/${id}`, data),
+
+  /** 予定支出を削除 */
+  delete: (id: string) => api.delete(`/planned-expenditures/${id}`),
+};
+
+// ============================================================
+// カレンダーイベント API（支出予定連動用・フィルタなし）
+// ============================================================
+export const calendarEventApi = {
+  /** 指定月のカレンダーイベント全件取得 */
+  list: (month: string, googleAccessToken: string) =>
+    api.get('/calendar-events', {
+      params: { month },
+      headers: { 'X-Google-Access-Token': googleAccessToken },
+    }),
 };

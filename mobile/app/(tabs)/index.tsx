@@ -26,13 +26,13 @@ function formatCurrency(amount: number): string {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { balance, isLoading, fetchTransactions, fetchPoints, fetchShifts } = useAppStore();
+  const { balance, isLoading, fetchTransactions, fetchPoints, fetchShifts, fetchPlannedExpenditures } = useAppStore();
   const month = getCurrentMonth();
   const [fabOpen, setFabOpen] = useState(false);
 
   const loadData = useCallback(async () => {
-    await Promise.all([fetchTransactions(month), fetchPoints(), fetchShifts(month)]);
-  }, [month, fetchTransactions, fetchPoints, fetchShifts]);
+    await Promise.all([fetchTransactions(month), fetchPoints(), fetchShifts(month), fetchPlannedExpenditures(month)]);
+  }, [month, fetchTransactions, fetchPoints, fetchShifts, fetchPlannedExpenditures]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
@@ -84,12 +84,22 @@ export default function HomeScreen() {
             <Text style={styles.subRowValueGreen}>{formatCurrency(balance.income_forecast)}</Text>
           </View>
 
-          <View style={styles.subRowLast}>
+          <View style={styles.subRow}>
             <View style={styles.subRowLeft}>
               <Text style={styles.subRowEmoji}>💎</Text>
               <Text style={styles.subRowLabel}>ポイント資産</Text>
             </View>
             <Text style={styles.subRowValue}>{formatCurrency(balance.points_total_yen)}</Text>
+          </View>
+
+          <View style={styles.subRowLast}>
+            <View style={styles.subRowLeft}>
+              <Text style={styles.subRowEmoji}>📆</Text>
+              <Text style={styles.subRowLabel}>予定支出</Text>
+            </View>
+            <Text style={[styles.subRowValue, { color: balance.planned_total > 0 ? '#E65100' : '#6B7280' }]}>
+              -{formatCurrency(balance.planned_total)}
+            </Text>
           </View>
         </View>
 

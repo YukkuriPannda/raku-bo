@@ -5,7 +5,7 @@
 // ============================================================
 
 import { create } from 'zustand';
-import { transactionApi, balanceApi, shiftApi, pointApi, profileApi } from '@/lib/api';
+import { transactionApi, balanceApi, shiftApi, pointApi, profileApi, plannedExpenditureApi, calendarEventApi } from '@/lib/api';
 import { signOut as authSignOut } from '@/lib/auth';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
 import type {
@@ -16,6 +16,10 @@ import type {
   BalanceData,
   CreateTransactionData,
   UpdateTransactionData,
+  PlannedExpenditure,
+  CalendarEvent,
+  CreateSubscriptionData,
+  CreateCalendarExpenditureData,
 } from '@/types';
 
 // ============================================================
@@ -27,6 +31,8 @@ interface AppState {
   transactions: Transaction[];
   points: Point[];
   shifts: ShiftEvent[];
+  plannedExpenditures: PlannedExpenditure[];
+  calendarEvents: CalendarEvent[];
   balance: BalanceData;
   hourlyWage: number;        // 時給（円）
   shiftKeywords: string[];
@@ -43,6 +49,8 @@ interface AppState {
   fetchPoints: () => Promise<void>;
   fetchShifts: (month: string) => Promise<void>;
   fetchProfile: () => Promise<void>;
+  fetchPlannedExpenditures: (month: string) => Promise<void>;
+  fetchCalendarEvents: (month: string) => Promise<void>;
   clearCalendarError: () => void;
 
   // ---- 設定保存 ----
@@ -55,6 +63,11 @@ interface AppState {
   addTransaction: (data: CreateTransactionData) => Promise<void>;
   updateTransaction: (id: string, data: UpdateTransactionData) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+
+  // ---- 予定支出 追加・更新・削除 ----
+  addPlannedExpenditure: (data: CreateSubscriptionData | CreateCalendarExpenditureData) => Promise<void>;
+  updatePlannedExpenditure: (id: string, data: Partial<CreateSubscriptionData> & { is_active?: boolean }) => Promise<void>;
+  deletePlannedExpenditure: (id: string) => Promise<void>;
 
   // ---- 撮影画像 ----
   setPendingImage: (base64: string) => void;
@@ -71,6 +84,7 @@ const initialBalance: BalanceData = {
   expense_total: 0,
   income_forecast: 0,
   points_total_yen: 0,
+  planned_total: 0,
   remaining: 0,
 };
 
@@ -83,6 +97,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   transactions: [],
   points: [],
   shifts: [],
+  plannedExpenditures: [],
+  calendarEvents: [],
   balance: initialBalance,
   hourlyWage: 1_000, // デフォルト時給 1000 円
   shiftKeywords: ['バイト', 'シフト', '出勤', '勤務'],
@@ -103,6 +119,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       transactions: [],
       points: [],
       shifts: [],
+      plannedExpenditures: [],
+      calendarEvents: [],
       balance: initialBalance,
       pendingImageBase64: null,
     });
@@ -190,12 +208,42 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearCalendarError: () => set({ calendarError: null }),
 
   // ============================================================
+  // 予定支出一覧取得
+  // ============================================================
+  fetchPlannedExpenditures: async (month) => {
+    set({ isLoading: true });
+    try {
+      const res = await plannedExpenditureApi.list(month);
+      set({ plannedExpenditures: res.data });
+    } catch (error) {
+      console.error('[fetchPlannedExpenditures] エラー:', error);
+    } finally {
+      set({ isLoading: false });
+      get().calcBalance();
+    }
+  },
+
+  // ============================================================
+  // カレンダーイベント一覧取得（支出予定連動用）
+  // ============================================================
+  fetchCalendarEvents: async (month) => {
+    const { user } = get();
+    if (!user) return;
+    try {
+      const res = await calendarEventApi.list(month, user.googleAccessToken);
+      set({ calendarEvents: res.data });
+    } catch (error) {
+      console.error('[fetchCalendarEvents] エラー:', error);
+      set({ calendarEvents: [] });
+    }
+  },
+
+  // ============================================================
   // 残高計算
-  // 月収見込み = シフトの estimated_wage 合計
-  // 残り = 月収見込み + ポイント資産（円換算）- 支出合計
+  // 残り = 月収見込み + ポイント資産（円換算）- 支出合計 - 予定支出合計
   // ============================================================
   calcBalance: () => {
-    const { transactions, points, shifts } = get();
+    const { transactions, points, shifts, plannedExpenditures } = get();
 
     const expense_total = transactions
       .filter((t) => t.type === 'cash' || t.type === 'point')
@@ -208,13 +256,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       0
     );
 
-    const remaining = income_forecast + points_total_yen - expense_total;
+    const planned_total = plannedExpenditures.reduce((sum, p) => sum + p.amount, 0);
+
+    const remaining = income_forecast + points_total_yen - expense_total - planned_total;
 
     set({
       balance: {
         expense_total,
         income_forecast,
         points_total_yen,
+        planned_total,
         remaining,
       },
     });
@@ -272,6 +323,48 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().calcBalance();
     } catch (error) {
       console.error('[deleteTransaction] エラー:', error);
+      throw error;
+    }
+  },
+
+  // ============================================================
+  // 予定支出 追加・更新・削除
+  // ============================================================
+  addPlannedExpenditure: async (data) => {
+    set({ isLoading: true });
+    try {
+      const res = await plannedExpenditureApi.create(data);
+      const newItem: PlannedExpenditure = res.data;
+      set((state) => ({
+        plannedExpenditures: [newItem, ...state.plannedExpenditures],
+      }));
+      get().calcBalance();
+    } catch (error) {
+      console.error('[addPlannedExpenditure] エラー:', error);
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  updatePlannedExpenditure: async (id, data) => {
+    const res = await plannedExpenditureApi.update(id, data);
+    const updated: PlannedExpenditure = res.data;
+    set((state) => ({
+      plannedExpenditures: state.plannedExpenditures.map((p) => p.id === id ? updated : p),
+    }));
+    get().calcBalance();
+  },
+
+  deletePlannedExpenditure: async (id) => {
+    try {
+      await plannedExpenditureApi.delete(id);
+      set((state) => ({
+        plannedExpenditures: state.plannedExpenditures.filter((p) => p.id !== id),
+      }));
+      get().calcBalance();
+    } catch (error) {
+      console.error('[deletePlannedExpenditure] エラー:', error);
       throw error;
     }
   },

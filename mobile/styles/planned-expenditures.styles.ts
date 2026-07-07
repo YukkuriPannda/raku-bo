@@ -266,6 +266,17 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.danger,
   },
+  completeBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  completeBtnText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+  },
 
   // 月ナビゲーター
   monthNav: {

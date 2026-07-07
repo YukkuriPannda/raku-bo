@@ -37,11 +37,13 @@ function PlannedItem({
   onEdit,
   onToggle,
   onDelete,
+  onComplete,
 }: {
   item: PlannedExpenditure;
   onEdit: (item: PlannedExpenditure) => void;
   onToggle: (item: PlannedExpenditure) => void;
   onDelete: (id: string, name: string) => void;
+  onComplete: (item: PlannedExpenditure) => void;
 }) {
   const isSubscription = item.entry_type === 'subscription';
   const icon = isSubscription ? '🔄' : '📅';
@@ -79,6 +81,11 @@ function PlannedItem({
                 <Text style={styles.editBtnText}>編集</Text>
               </TouchableOpacity>
             </>
+          )}
+          {!isSubscription && (
+            <TouchableOpacity onPress={() => onComplete(item)} style={styles.completeBtn} activeOpacity={0.7}>
+              <Text style={styles.completeBtnText}>完了</Text>
+            </TouchableOpacity>
           )}
           <TouchableOpacity onPress={() => onDelete(item.id, name ?? '')} style={styles.deleteBtn} activeOpacity={0.7}>
             <Text style={styles.deleteBtnText}>削除</Text>
@@ -410,7 +417,7 @@ function CalendarForm({ month, onAdd }: { month: string; onAdd: () => void }) {
 }
 
 export default function PlannedExpendituresScreen() {
-  const { plannedExpenditures, isLoading, fetchPlannedExpenditures, updatePlannedExpenditure, deletePlannedExpenditure } = useAppStore();
+  const { plannedExpenditures, isLoading, fetchPlannedExpenditures, updatePlannedExpenditure, deletePlannedExpenditure, completePlannedExpenditure } = useAppStore();
   const month = getCurrentMonth();
   const [activeTab, setActiveTab] = useState<'subscription' | 'calendar'>('subscription');
   const [editingItem, setEditingItem] = useState<PlannedExpenditure | null>(null);
@@ -442,6 +449,23 @@ export default function PlannedExpendituresScreen() {
             await deletePlannedExpenditure(id);
           } catch {
             Alert.alert('エラー', '削除に失敗しました');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleComplete = (item: PlannedExpenditure) => {
+    const name = item.calendar_event_title ?? '';
+    Alert.alert('完了確認', `「${name}」を完了して支出履歴に移動しますか？`, [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '完了',
+        onPress: async () => {
+          try {
+            await completePlannedExpenditure(item.id);
+          } catch {
+            Alert.alert('エラー', '完了処理に失敗しました');
           }
         },
       },
@@ -482,6 +506,7 @@ export default function PlannedExpendituresScreen() {
             onEdit={handleEdit}
             onToggle={handleToggle}
             onDelete={handleDelete}
+            onComplete={handleComplete}
           />
         )}
         ListHeaderComponent={

@@ -10,6 +10,7 @@ import type {
   UpdateTransactionData,
   CreateSubscriptionData,
   CreateCalendarExpenditureData,
+  Transaction,
 } from '@/types';
 
 // ============================================================
@@ -182,6 +183,9 @@ export const plannedExpenditureApi = {
 
   /** 予定支出を削除 */
   delete: (id: string) => api.delete(`/planned-expenditures/${id}`),
+
+  /** カレンダー連動型の予定支出を完了させ、支出履歴に移す */
+  complete: (id: string) => api.post<Transaction>(`/planned-expenditures/${id}/complete`),
 };
 
 // ============================================================

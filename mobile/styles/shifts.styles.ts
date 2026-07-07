@@ -170,6 +170,23 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  logoutCard: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  logoutBtn: {
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: radius.md,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoutText: {
+    color: colors.danger,
+    fontWeight: '600',
+    fontSize: 14,
+  },
   errorBanner: {
     backgroundColor: '#FEF2F2',
     borderRadius: radius.lg,

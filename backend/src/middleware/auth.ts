@@ -1,5 +1,6 @@
 import { createMiddleware } from 'hono/factory';
 import type { Env, Variables } from '../types';
+import { AuthErrorCode } from '../types/error-codes';
 
 /**
  * Supabase JWT 検証ミドルウェア。
@@ -11,7 +12,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
   async (c, next) => {
     const authHeader = c.req.header('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return c.json({ error: '認証トークンがありません' }, 401);
+      return c.json({ error: '認証トークンがありません', code: AuthErrorCode.NO_TOKEN }, 401);
     }
 
     const token = authHeader.slice(7); // "Bearer " の7文字を除く
@@ -25,12 +26,16 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
     });
 
     if (!response.ok) {
-      return c.json({ error: '認証に失敗しました' }, 401);
+      console.error('Supabase トークン検証エラー:', response.status, await response.text().catch(() => ''));
+      return c.json(
+        { error: '認証に失敗しました', code: AuthErrorCode.SUPABASE_VERIFY_FAILED, detail: `status ${response.status}` },
+        401,
+      );
     }
 
     const user = (await response.json()) as { id: string };
     if (!user?.id) {
-      return c.json({ error: '無効なトークンです' }, 401);
+      return c.json({ error: '無効なトークンです', code: AuthErrorCode.TOKEN_INVALID }, 401);
     }
 
     c.set('userId', user.id);

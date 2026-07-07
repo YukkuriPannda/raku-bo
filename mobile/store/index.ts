@@ -5,8 +5,9 @@
 // ============================================================
 
 import { create } from 'zustand';
-import { transactionApi, balanceApi, shiftApi, pointApi, profileApi, plannedExpenditureApi, calendarEventApi } from '@/lib/api';
-import { signOut as authSignOut } from '@/lib/auth';
+import { transactionApi, balanceApi, shiftApi, pointApi, profileApi, plannedExpenditureApi, calendarEventApi, authApi } from '@/lib/api';
+import { signOut as authSignOut, loadGoogleRefreshToken, saveGoogleAccessToken } from '@/lib/auth';
+import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage } from '@/lib/auth-errors';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
 import type {
   User,
@@ -188,17 +189,38 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!user) return;
 
     set({ isLoading: true, calendarError: null });
+
+    const doFetch = async (token: string) => shiftApi.list(month, token);
+
     try {
-      const res = await shiftApi.list(month, user.googleAccessToken);
-      // estimated_wage が未設定の場合は時給 × duration_hours で補完
+      let token = user.googleAccessToken;
+      let res;
+      try {
+        res = await doFetch(token);
+      } catch (firstErr: unknown) {
+        const status = (firstErr as { response?: { status?: number } }).response?.status;
+        if (status === 401) {
+          // トークン期限切れ → リフレッシュして1回リトライ
+          const refreshToken = await loadGoogleRefreshToken();
+          if (!refreshToken) throw new AuthError(AuthErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
+          const refreshRes = await authApi.refreshGoogleToken(refreshToken);
+          token = refreshRes.data.access_token;
+          await saveGoogleAccessToken(token);
+          set({ user: { ...user, googleAccessToken: token } });
+          res = await doFetch(token);
+        } else {
+          throw firstErr;
+        }
+      }
       const shifts: ShiftEvent[] = res.data.map((s: ShiftEvent) => ({
         ...s,
         estimated_wage: s.estimated_wage ?? s.duration_hours * hourlyWage,
       }));
       set({ shifts });
     } catch (error) {
-      console.error('[fetchShifts] エラー:', error);
-      set({ calendarError: 'Googleカレンダーの取得に失敗しました。\nアクセス権限を確認してください。' });
+      const authErr = parseAuthError(error);
+      console.error('[fetchShifts] エラー:', authErr.code, authErr.detail ?? authErr.message);
+      set({ calendarError: `${getAuthErrorMessage(authErr.code)}\n（エラーコード: ${authErr.code}）` });
     } finally {
       set({ isLoading: false });
       get().calcBalance();
@@ -230,11 +252,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { user } = get();
     if (!user) return;
     try {
-      const res = await calendarEventApi.list(month, user.googleAccessToken);
+      let token = user.googleAccessToken;
+      let res;
+      try {
+        res = await calendarEventApi.list(month, token);
+      } catch (firstErr: unknown) {
+        const status = (firstErr as { response?: { status?: number } }).response?.status;
+        if (status === 401) {
+          const refreshToken = await loadGoogleRefreshToken();
+          if (!refreshToken) throw new AuthError(AuthErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
+          const refreshRes = await authApi.refreshGoogleToken(refreshToken);
+          token = refreshRes.data.access_token;
+          await saveGoogleAccessToken(token);
+          set({ user: { ...user, googleAccessToken: token } });
+          res = await calendarEventApi.list(month, token);
+        } else {
+          throw firstErr;
+        }
+      }
       set({ calendarEvents: res.data });
     } catch (error) {
-      console.error('[fetchCalendarEvents] エラー:', error);
-      set({ calendarEvents: [] });
+      const authErr = parseAuthError(error);
+      console.error('[fetchCalendarEvents] エラー:', authErr.code, authErr.detail ?? authErr.message);
+      set({
+        calendarEvents: [],
+        calendarError: `${getAuthErrorMessage(authErr.code)}\n(エラーコード: ${authErr.code})`,
+      });
     }
   },
 

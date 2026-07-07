@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env, Variables } from './types';
 import { authMiddleware } from './middleware/auth';
+import authRoutes from './routes/auth';
 import receipts from './routes/receipts';
 import transactions from './routes/transactions';
 import balance from './routes/balance';
@@ -49,6 +50,7 @@ app.get('/auth/callback', (c) => {
 });
 
 // 認証が必要なルートには authMiddleware を適用
+app.use('/auth/refresh-google-token', authMiddleware);
 app.use('/receipts/*', authMiddleware);
 app.use('/transactions/*', authMiddleware);
 app.use('/balance/*', authMiddleware);
@@ -59,6 +61,7 @@ app.use('/planned-expenditures/*', authMiddleware);
 app.use('/calendar-events/*', authMiddleware);
 
 // ルート登録
+app.route('/auth', authRoutes);
 app.route('/receipts', receipts);
 app.route('/transactions', transactions);
 app.route('/balance', balance);

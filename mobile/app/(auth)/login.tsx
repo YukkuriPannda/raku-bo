@@ -9,7 +9,8 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
-import { supabase, saveGoogleAccessToken } from '@/lib/auth';
+import { supabase, saveGoogleAccessToken, saveGoogleRefreshToken } from '@/lib/auth';
+import { AuthError, AuthErrorCode, formatAuthError } from '@/lib/auth-errors';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -34,11 +35,12 @@ export default function LoginScreen() {
           redirectTo: REDIRECT_URI,
           skipBrowserRedirect: true,
           scopes: 'openid email profile https://www.googleapis.com/auth/calendar.readonly',
+          queryParams: { access_type: 'offline', prompt: 'consent' },
         },
       });
 
       if (error || !data.url) {
-        throw error ?? new Error('OAuth URL の取得に失敗しました');
+        throw new AuthError(AuthErrorCode.OAUTH_URL_FAILED, undefined, error?.message);
       }
 
       console.log('[Login] REDIRECT_URI:', REDIRECT_URI);
@@ -46,28 +48,45 @@ export default function LoginScreen() {
       const result = await WebBrowser.openAuthSessionAsync(data.url, REDIRECT_URI);
       console.log('[Login] result:', result.type, (result as any).url ?? '');
 
-      if (result.type === 'success' && (result as any).url) {
-        const resultUrl: string = (result as any).url;
-        const queryParams = new URLSearchParams(resultUrl.split('?')[1] ?? '');
-        const hashParams = new URLSearchParams(resultUrl.split('#')[1] ?? '');
-        const code = queryParams.get('code');
-        const accessToken = hashParams.get('access_token') ?? queryParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
+      if (result.type !== 'success' || !(result as any).url) {
+        // ユーザーが自発的にブラウザを閉じた/キャンセルしたケース
+        throw new AuthError(AuthErrorCode.OAUTH_CANCELLED, undefined, result.type);
+      }
 
-        if (code) {
-          const { data: exchData, error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchErr) throw exchErr;
-          // provider_token（Google Access Token）を永続化する
-          const providerToken = exchData.session?.provider_token;
-          if (providerToken) await saveGoogleAccessToken(providerToken);
-        } else if (accessToken && refreshToken) {
-          const { error: sessErr } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-          if (sessErr) throw sessErr;
-        }
+      const resultUrl: string = (result as any).url;
+      const queryParams = new URLSearchParams(resultUrl.split('?')[1] ?? '');
+      const hashParams = new URLSearchParams(resultUrl.split('#')[1] ?? '');
+      const code = queryParams.get('code');
+      const accessToken = hashParams.get('access_token') ?? queryParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
+
+      if (code) {
+        const { data: exchData, error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchErr) throw new AuthError(AuthErrorCode.CODE_EXCHANGE_FAILED, undefined, exchErr.message, exchErr);
+        const providerToken = exchData.session?.provider_token;
+        if (providerToken) await saveGoogleAccessToken(providerToken);
+        const providerRefreshToken = exchData.session?.provider_refresh_token;
+        if (providerRefreshToken) await saveGoogleRefreshToken(providerRefreshToken);
+      } else if (accessToken && refreshToken) {
+        const { error: sessErr } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (sessErr) throw new AuthError(AuthErrorCode.SET_SESSION_FAILED, undefined, sessErr.message, sessErr);
+        // setSession はGoogleのprovider_token/provider_refresh_tokenを返さないため、
+        // コールバックURLに含まれていれば直接保存する
+        const providerToken = hashParams.get('provider_token') ?? queryParams.get('provider_token');
+        if (providerToken) await saveGoogleAccessToken(providerToken);
+        const providerRefreshToken = hashParams.get('provider_refresh_token') ?? queryParams.get('provider_refresh_token');
+        if (providerRefreshToken) await saveGoogleRefreshToken(providerRefreshToken);
+      } else {
+        // コールバックURLに code も access_token も含まれない想定外のケース
+        throw new AuthError(AuthErrorCode.OAUTH_NO_PARAMS, undefined, resultUrl);
       }
     } catch (err) {
-      console.error('[Login] エラー:', err);
-      Alert.alert('エラー', 'ログイン処理中にエラーが発生しました。');
+      const authErr = err instanceof AuthError ? err : new AuthError(AuthErrorCode.UNKNOWN, undefined, String(err));
+      console.error('[Login] エラー:', authErr.code, authErr.detail ?? authErr.message);
+      if (authErr.code !== AuthErrorCode.OAUTH_CANCELLED) {
+        const { title, message } = formatAuthError(authErr);
+        Alert.alert(title, message);
+      }
     } finally {
       setIsLoading(false);
     }

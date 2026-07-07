@@ -8,20 +8,23 @@
 
 import '../global.css';
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
-import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken } from '@/lib/auth';
+import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken, saveGoogleRefreshToken, loadGoogleRefreshToken, clearGoogleRefreshToken } from '@/lib/auth';
+import { AuthError, AuthErrorCode, formatAuthError } from '@/lib/auth-errors';
 import { initDB } from '@/lib/db';
 import { useAppStore } from '@/store';
 
 // スプラッシュスクリーンを手動制御
 SplashScreen.preventAutoHideAsync();
 
-// URLから取り出した provider_token を一時保持（setSession は provider_token を受け取れないため）
+// URLから取り出した provider_token / provider_refresh_token を一時保持（setSession は受け取れないため）
 let pendingGoogleToken = '';
+let pendingGoogleRefreshToken = '';
 
 // ============================================================
 // 認証状態を監視して画面遷移を制御するフック
@@ -64,14 +67,27 @@ function useAuthGuard() {
       const accessToken = h.get('access_token') ?? q.get('access_token');
       const refreshToken = h.get('refresh_token') ?? q.get('refresh_token');
       const providerToken = h.get('provider_token') ?? q.get('provider_token');
+      const providerRefreshToken = h.get('provider_refresh_token') ?? q.get('provider_refresh_token');
 
       if (providerToken) pendingGoogleToken = providerToken;
+      if (providerRefreshToken) pendingGoogleRefreshToken = providerRefreshToken;
 
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) console.error('[Layout] exchange error:', error.message);
+        if (error) {
+          const authErr = new AuthError(AuthErrorCode.CODE_EXCHANGE_FAILED, undefined, error.message, error);
+          console.error('[Layout] exchange error:', authErr.code, error.message);
+          const { title, message } = formatAuthError(authErr);
+          Alert.alert(title, message);
+        }
       } else if (accessToken && refreshToken) {
-        await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (error) {
+          const authErr = new AuthError(AuthErrorCode.SET_SESSION_FAILED, undefined, error.message, error);
+          console.error('[Layout] setSession error:', authErr.code, error.message);
+          const { title, message } = formatAuthError(authErr);
+          Alert.alert(title, message);
+        }
       }
     };
     const linkingSub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
@@ -80,12 +96,21 @@ function useAuthGuard() {
     const { data: subscription } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session) {
-          // provider_token は setSession 後に null になるため、URL から取得した値を優先
-          const googleAccessToken = session.provider_token ?? pendingGoogleToken;
+          // provider_token は setSession 後や再起動後に null になるため、
+          // URL から取得した値 → SecureStore の既存値の順にフォールバックする。
+          // ここで storedToken を経由しないと、有効なトークンが空文字で
+          // 上書きされてしまう（getSession() 側のフォールバックとの競合）。
+          const storedToken = await loadGoogleAccessToken();
+          const googleAccessToken = session.provider_token || pendingGoogleToken || storedToken || '';
           pendingGoogleToken = '';
-          // 取得できたトークンを SecureStore に永続化する
           if (googleAccessToken) {
             await saveGoogleAccessToken(googleAccessToken);
+          }
+          const storedRefreshToken = await loadGoogleRefreshToken();
+          const googleRefreshToken = session.provider_refresh_token || pendingGoogleRefreshToken || storedRefreshToken || '';
+          pendingGoogleRefreshToken = '';
+          if (googleRefreshToken) {
+            await saveGoogleRefreshToken(googleRefreshToken);
           }
           setUser({
             id: session.user.id,
@@ -96,6 +121,7 @@ function useAuthGuard() {
           router.replace('/(tabs)');
         } else {
           await clearGoogleAccessToken();
+          await clearGoogleRefreshToken();
           router.replace('/(auth)/login');
         }
       }

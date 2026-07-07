@@ -7,6 +7,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
 import { createClient } from '@supabase/supabase-js';
+import { AuthError, AuthErrorCode } from './auth-errors';
 
 // expo-auth-session がブラウザセッションを正しく閉じるために必要
 WebBrowser.maybeCompleteAuthSession();
@@ -47,6 +48,7 @@ export const redirectUri = makeRedirectUri({
 // provider_token は Supabase が再起動後に復元しないため SecureStore に保存する
 // ============================================================
 const GOOGLE_TOKEN_KEY = 'google_provider_token';
+const GOOGLE_REFRESH_TOKEN_KEY = 'google_provider_refresh_token';
 
 export async function saveGoogleAccessToken(token: string): Promise<void> {
   await SecureStore.setItemAsync(GOOGLE_TOKEN_KEY, token);
@@ -60,6 +62,18 @@ export async function clearGoogleAccessToken(): Promise<void> {
   await SecureStore.deleteItemAsync(GOOGLE_TOKEN_KEY);
 }
 
+export async function saveGoogleRefreshToken(token: string): Promise<void> {
+  await SecureStore.setItemAsync(GOOGLE_REFRESH_TOKEN_KEY, token);
+}
+
+export async function loadGoogleRefreshToken(): Promise<string | null> {
+  return SecureStore.getItemAsync(GOOGLE_REFRESH_TOKEN_KEY);
+}
+
+export async function clearGoogleRefreshToken(): Promise<void> {
+  await SecureStore.deleteItemAsync(GOOGLE_REFRESH_TOKEN_KEY);
+}
+
 // ============================================================
 // Google OAuth でサインイン
 // authorization code を受け取り、Supabase にセッションを作成する
@@ -67,7 +81,7 @@ export async function clearGoogleAccessToken(): Promise<void> {
 export async function signInWithGoogle(code: string): Promise<void> {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
-    throw new Error(`Google サインインエラー: ${error.message}`);
+    throw new AuthError(AuthErrorCode.CODE_EXCHANGE_FAILED, undefined, error.message, error);
   }
 }
 
@@ -76,9 +90,10 @@ export async function signInWithGoogle(code: string): Promise<void> {
 // ============================================================
 export async function signOut(): Promise<void> {
   await clearGoogleAccessToken();
+  await clearGoogleRefreshToken();
   const { error } = await supabase.auth.signOut();
   if (error) {
-    throw new Error(`サインアウトエラー: ${error.message}`);
+    throw new AuthError(AuthErrorCode.SIGNOUT_FAILED, undefined, error.message, error);
   }
 }
 
@@ -88,7 +103,7 @@ export async function signOut(): Promise<void> {
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession();
   if (error) {
-    throw new Error(`セッション取得エラー: ${error.message}`);
+    throw new AuthError(AuthErrorCode.SESSION_GET_FAILED, undefined, error.message, error);
   }
   return data.session;
 }

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Env, Variables } from '../types';
+import { AuthErrorCode } from '../types/error-codes';
 
 const calendarEvents = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -27,7 +28,7 @@ calendarEvents.get('/', async (c) => {
   const googleAccessToken = c.req.header('X-Google-Access-Token');
   if (!googleAccessToken) {
     return c.json(
-      { error: 'Google Access Token が必要です（X-Google-Access-Token ヘッダ）' },
+      { error: 'Google Access Token が必要です（X-Google-Access-Token ヘッダ）', code: AuthErrorCode.GOOGLE_TOKEN_MISSING },
       400,
     );
   }
@@ -75,7 +76,11 @@ calendarEvents.get('/', async (c) => {
       const errorData = (await response.json()) as GoogleCalendarEventsResponse;
       console.error('Google Calendar API エラー:', errorData);
       return c.json(
-        { error: `Google Calendar API エラー: ${errorData.error?.message ?? response.statusText}` },
+        {
+          error: `Google Calendar API エラー: ${errorData.error?.message ?? response.statusText}`,
+          code: AuthErrorCode.GOOGLE_API_ERROR,
+          detail: errorData.error?.message,
+        },
         response.status as 400 | 401 | 403 | 404 | 500,
       );
     }

@@ -44,7 +44,7 @@ function ShiftItem({ item }: { item: ShiftEvent }) {
 }
 
 export default function ShiftsScreen() {
-  const { shifts, balance, hourlyWage, shiftKeywords, isLoading, calendarError, clearCalendarError, fetchShifts, setHourlyWage, setShiftKeywords } = useAppStore();
+  const { shifts, balance, hourlyWage, shiftKeywords, isLoading, calendarError, clearCalendarError, fetchShifts, setHourlyWage, setShiftKeywords, logout } = useAppStore();
   const month = getCurrentMonth();
   const [wageInput, setWageInput] = useState(String(hourlyWage));
   const [keywordsInput, setKeywordsInput] = useState(shiftKeywords.join('\n'));
@@ -78,6 +78,13 @@ export default function ShiftsScreen() {
     }
     await setShiftKeywords(keywords);
     Alert.alert('保存しました', 'シフト検出キーワードを更新しました');
+  };
+
+  const handleLogout = () => {
+    Alert.alert('ログアウト', 'ログアウトしますか？', [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: 'ログアウト', style: 'destructive', onPress: () => logout() },
+    ]);
   };
 
   const ListHeader = () => (
@@ -131,6 +138,12 @@ export default function ShiftsScreen() {
         />
         <TouchableOpacity onPress={handleSaveKeywords} style={styles.keywordsSaveBtn} activeOpacity={0.8}>
           <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>保存</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.logoutCard}>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} activeOpacity={0.8}>
+          <Text style={styles.logoutText}>ログアウト</Text>
         </TouchableOpacity>
       </View>
 

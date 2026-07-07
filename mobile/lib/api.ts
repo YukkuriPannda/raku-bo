@@ -43,10 +43,26 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     // TODO: 401 の場合はサインアウト処理を追加
-    console.error('[API Error]', error.response?.status, error.response?.data, 'code:', error.code, 'msg:', error.message);
+    console.error(
+      '[API Error]',
+      error.response?.status,
+      error.response?.data,
+      'authCode:', error.response?.data?.code,
+      'code:', error.code,
+      'msg:', error.message,
+    );
     return Promise.reject(error);
   }
 );
+
+// ============================================================
+// 認証 API
+// ============================================================
+export const authApi = {
+  /** Google アクセストークンをリフレッシュトークンで更新 */
+  refreshGoogleToken: (refreshToken: string) =>
+    api.post<{ access_token: string }>('/auth/refresh-google-token', { refresh_token: refreshToken }),
+};
 
 // ============================================================
 // レシート API（base64 JSON 送信 - Expo Go の file:// URI 制限を回避）

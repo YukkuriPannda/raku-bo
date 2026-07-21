@@ -278,7 +278,23 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // 月ナビゲーター
+  // 月ナビゲーター（一覧画面上部）
+  pageMonthNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.xs,
+  },
+
+  // 月ナビゲーター（追加フォーム内）
   monthNav: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -10,7 +10,6 @@ Required fields:
 - total_amount: number
 - category: exactly one of "食費","交通費","娯楽","衣類","医療","教育・書籍","カフェ・飲み物","家賃・光熱費","日用品","その他"
 - payment_method: exactly one of "cash","card","qr"
-- points_earned: number or null
 
 Return only the JSON object, no explanation.`;
 
@@ -41,7 +40,6 @@ export async function analyzeReceiptWithCloudflareAI(
       if (!jsonMatch) throw new Error(`JSON を抽出できませんでした: ${text.slice(0, 200)}`);
 
       const result = JSON.parse(jsonMatch[0]) as OcrResult;
-      if (result.points_earned === undefined) result.points_earned = null;
 
       return result;
     } catch (err) {

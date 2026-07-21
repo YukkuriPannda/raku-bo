@@ -64,7 +64,6 @@ receipts.post('/', async (c) => {
           total_amount: 0,
           category: 'その他',
           payment_method: 'cash',
-          points_earned: null,
         };
       }
     }

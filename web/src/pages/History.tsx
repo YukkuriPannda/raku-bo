@@ -72,9 +72,6 @@ function TransactionRow({ tx }: { tx: Transaction }) {
       </div>
       <div className="text-right flex-shrink-0">
         <p className="text-red-400 font-semibold">¥{tx.amount.toLocaleString()}</p>
-        {tx.points_earned != null && tx.points_earned > 0 && (
-          <p className="text-yellow-400 text-xs">+{tx.points_earned}pt</p>
-        )}
       </div>
     </div>
   )

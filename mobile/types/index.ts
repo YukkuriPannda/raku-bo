@@ -20,7 +20,7 @@ export type Category =
 export type PaymentMethod = 'cash' | 'card' | 'qr';
 
 /** トランザクション種別 */
-export type TransactionType = 'cash' | 'point' | 'income_forecast';
+export type TransactionType = 'cash' | 'income_forecast';
 
 /** カテゴリに対応する絵文字マップ */
 export const CATEGORY_EMOJI: Record<Category, string> = {
@@ -58,7 +58,6 @@ export interface OcrResult {
   total_amount: number;
   category: Category;
   payment_method: PaymentMethod;
-  points_earned: number | null;
 }
 
 /** トランザクションに紐づく商品アイテム */
@@ -80,18 +79,9 @@ export interface Transaction {
   payment_method: PaymentMethod;
   store_name: string | null;
   receipt_url: string | null;
-  points_earned: number | null;
   transacted_at: string;
   created_at: string;
   items?: TransactionItem[];
-}
-
-/** ポイント情報 */
-export interface Point {
-  id: string;
-  name: string;
-  amount: number;
-  rate: number; // 1ポイント = rate 円
 }
 
 /** シフトイベント（Google Calendar から取得） */
@@ -108,7 +98,6 @@ export interface ShiftEvent {
 export interface BalanceData {
   expense_total: number;       // 今月支出合計
   income_forecast: number;     // 月収見込み（シフトから計算）
-  points_total_yen: number;    // ポイント資産合計（円換算）
   planned_total: number;       // 予定された支出合計
   remaining: number;           // 残り使える額
 }
@@ -189,7 +178,6 @@ export interface UpdateTransactionData {
   category: Category;
   payment_method: PaymentMethod;
   store_name?: string;
-  points_earned?: number;
   transacted_at: string;
   items?: { name: string; price: number }[];
 }
@@ -202,7 +190,6 @@ export interface CreateTransactionData {
   payment_method: PaymentMethod;
   store_name?: string;
   receipt_url?: string;
-  points_earned?: number;
   transacted_at: string;
   items?: { name: string; price: number }[];
 }

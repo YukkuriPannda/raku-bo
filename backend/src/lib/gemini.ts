@@ -29,7 +29,6 @@ const RESPONSE_SCHEMA = {
       type: 'string',
       enum: ['cash', 'card', 'qr'],
     },
-    points_earned: { type: 'number', nullable: true },
   },
   required: ['store_name', 'date', 'items', 'total_amount', 'category', 'payment_method'],
 };
@@ -56,7 +55,6 @@ export async function analyzeReceiptWithGemini(
 - total_amount: 合計金額（数値）
 - category: カテゴリ（食費/交通費/娯楽/衣類/医療/教育・書籍/カフェ・飲み物/家賃・光熱費/日用品/その他）
 - payment_method: 支払方法（cash=現金/card=クレジットカード・デビットカード/qr=QRコード決済）
-- points_earned: 獲得ポイント数（ポイント情報がない場合はnull）
 
 日付が不明な場合は今日の日付を使用してください。`,
           },
@@ -98,10 +96,6 @@ export async function analyzeReceiptWithGemini(
   }
 
   const result = JSON.parse(text) as OcrResult;
-  // points_earned が undefined の場合は null に統一
-  if (result.points_earned === undefined) {
-    result.points_earned = null;
-  }
 
   return result;
 }

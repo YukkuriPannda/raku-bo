@@ -53,7 +53,6 @@ export default function ManualEntryScreen() {
   const [date, setDate] = useState(todayString);
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(!!pendingImageBase64);
-  const [pointsEarned, setPointsEarned] = useState<number | null>(null);
   const [items, setItems] = useState<{ name: string; price: string }[]>([]);
   const [isAmountManuallyEdited, setIsAmountManuallyEdited] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -87,7 +86,6 @@ export default function ManualEntryScreen() {
     setCategory(tx.category);
     setPaymentMethod(tx.payment_method);
     setDate(tx.transacted_at.split('T')[0]);
-    setPointsEarned(tx.points_earned ?? null);
     if (tx.items && tx.items.length > 0) {
       setItems(tx.items.map((it) => ({ name: it.name, price: String(it.price) })));
       setIsAmountManuallyEdited(true);
@@ -120,7 +118,6 @@ export default function ManualEntryScreen() {
         setCategory(result.category ?? '食費');
         setPaymentMethod(result.payment_method ?? 'cash');
         if (result.date) setDate(result.date);
-        setPointsEarned(result.points_earned ?? null);
         if (Array.isArray(result.items)) {
           setItems(result.items.map((it: { name: string; price: number }) => ({
             name: it.name ?? '',
@@ -176,7 +173,6 @@ export default function ManualEntryScreen() {
           category: validCategory,
           payment_method: paymentMethod,
           store_name: storeName.trim() || undefined,
-          points_earned: pointsEarned ?? undefined,
           transacted_at: dateObj.toISOString(),
           items: validItems.length > 0 ? validItems : undefined,
         });
@@ -188,7 +184,6 @@ export default function ManualEntryScreen() {
           category: validCategory,
           payment_method: paymentMethod,
           store_name: storeName.trim() || undefined,
-          points_earned: pointsEarned ?? undefined,
           transacted_at: dateObj.toISOString(),
           items: validItems.length > 0 ? validItems : undefined,
         });
@@ -411,26 +406,6 @@ export default function ManualEntryScreen() {
               ))}
             </View>
           </View>
-
-          {/* ポイント情報（OCR で取得できた場合のみ） */}
-          {pointsEarned !== null && (
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: '#EFF6FF',
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: '#BFDBFE',
-              padding: 12,
-              marginHorizontal: 16,
-              marginTop: 12,
-            }}>
-              <Text style={{ fontSize: 18, marginRight: 8 }}>💎</Text>
-              <Text style={{ fontSize: 14, color: '#1D4ED8' }}>
-                {pointsEarned.toLocaleString()} ポイント獲得予定
-              </Text>
-            </View>
-          )}
 
         </ScrollView>
 

@@ -13,13 +13,13 @@ function yen(amount: number) {
 
 export default function Home() {
   const navigate = useNavigate()
-  const { balance, isLoading, fetchTransactions, fetchPoints, fetchShifts, logout, user } =
+  const { balance, isLoading, fetchTransactions, fetchShifts, logout, user } =
     useAppStore()
   const [month, setMonth] = useState(currentMonth)
   const [fabOpen, setFabOpen] = useState(false)
 
   const loadAll = () =>
-    Promise.all([fetchTransactions(month), fetchPoints(), fetchShifts(month)])
+    Promise.all([fetchTransactions(month), fetchShifts(month)])
 
   useEffect(() => {
     loadAll()
@@ -75,17 +75,12 @@ export default function Home() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-2 gap-3 mb-5">
         <SummaryCard label="支出" value={yen(balance.expense_total)} color="text-red-400" />
         <SummaryCard
           label="収入見込み"
           value={yen(balance.income_forecast)}
           color="text-blue-400"
-        />
-        <SummaryCard
-          label="ポイント"
-          value={yen(balance.points_total_yen)}
-          color="text-yellow-400"
         />
       </div>
 

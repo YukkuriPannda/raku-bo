@@ -5,14 +5,13 @@
 // ============================================================
 
 import { create } from 'zustand';
-import { transactionApi, balanceApi, shiftApi, pointApi, profileApi, plannedExpenditureApi, calendarEventApi, authApi } from '@/lib/api';
+import { transactionApi, balanceApi, shiftApi, profileApi, plannedExpenditureApi, calendarEventApi, authApi } from '@/lib/api';
 import { signOut as authSignOut, loadGoogleRefreshToken, saveGoogleAccessToken } from '@/lib/auth';
 import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage } from '@/lib/auth-errors';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
 import type {
   User,
   Transaction,
-  Point,
   ShiftEvent,
   BalanceData,
   CreateTransactionData,
@@ -30,7 +29,6 @@ interface AppState {
   // ---- 状態 ----
   user: User | null;
   transactions: Transaction[];
-  points: Point[];
   shifts: ShiftEvent[];
   plannedExpenditures: PlannedExpenditure[];
   calendarEvents: CalendarEvent[];
@@ -47,7 +45,6 @@ interface AppState {
 
   // ---- データ取得 ----
   fetchTransactions: (month: string) => Promise<void>;
-  fetchPoints: () => Promise<void>;
   fetchShifts: (month: string) => Promise<void>;
   fetchProfile: () => Promise<void>;
   fetchPlannedExpenditures: (month: string) => Promise<void>;
@@ -84,7 +81,6 @@ interface AppState {
 const initialBalance: BalanceData = {
   expense_total: 0,
   income_forecast: 0,
-  points_total_yen: 0,
   planned_total: 0,
   remaining: 0,
 };
@@ -96,7 +92,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ---- 初期状態 ----
   user: null,
   transactions: [],
-  points: [],
   shifts: [],
   plannedExpenditures: [],
   calendarEvents: [],
@@ -118,7 +113,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       user: null,
       transactions: [],
-      points: [],
       shifts: [],
       plannedExpenditures: [],
       calendarEvents: [],
@@ -159,22 +153,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       // オフライン時はキャッシュから読み込む
       const cached = await getCachedTransactions(month);
       set({ transactions: cached });
-    } finally {
-      set({ isLoading: false });
-      get().calcBalance();
-    }
-  },
-
-  // ============================================================
-  // ポイント一覧取得
-  // ============================================================
-  fetchPoints: async () => {
-    set({ isLoading: true });
-    try {
-      const res = await pointApi.list();
-      set({ points: res.data });
-    } catch (error) {
-      console.error('[fetchPoints] エラー:', error);
     } finally {
       set({ isLoading: false });
       get().calcBalance();
@@ -283,31 +261,25 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ============================================================
   // 残高計算
-  // 残り = 月収見込み + ポイント資産（円換算）- 支出合計 - 予定支出合計
+  // 残り = 月収見込み - 支出合計 - 予定支出合計
   // ============================================================
   calcBalance: () => {
-    const { transactions, points, shifts, plannedExpenditures } = get();
+    const { transactions, shifts, plannedExpenditures } = get();
 
     const expense_total = transactions
-      .filter((t) => t.type === 'cash' || t.type === 'point')
+      .filter((t) => t.type === 'cash')
       .reduce((sum, t) => sum + t.amount, 0);
 
     const income_forecast = shifts.reduce((sum, s) => sum + s.estimated_wage, 0);
 
-    const points_total_yen = points.reduce(
-      (sum, p) => sum + Math.floor(p.amount * p.rate),
-      0
-    );
-
     const planned_total = plannedExpenditures.reduce((sum, p) => sum + p.amount, 0);
 
-    const remaining = income_forecast + points_total_yen - expense_total - planned_total;
+    const remaining = income_forecast - expense_total - planned_total;
 
     set({
       balance: {
         expense_total,
         income_forecast,
-        points_total_yen,
         planned_total,
         remaining,
       },

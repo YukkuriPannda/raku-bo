@@ -67,14 +67,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="points"
-        options={{
-          title: 'ポイント',
-          headerTitle: 'ポイント管理',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💎" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
         name="planned-expenditures"
         options={{
           title: '支出予定',

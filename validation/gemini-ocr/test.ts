@@ -42,7 +42,6 @@ interface OcrResult {
     | '日用品'
     | 'その他';
   payment_method: 'cash' | 'card' | 'qr';
-  points_earned?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,7 +80,6 @@ const RECEIPT_SCHEMA = {
       ],
     },
     payment_method: { type: 'string', enum: ['cash', 'card', 'qr'] },
-    points_earned: { type: ['integer', 'null'] },
   },
   required: [
     'store_name',
@@ -134,7 +132,7 @@ async function main(): Promise<void> {
           {
             text: [
               'このレシート画像を解析してください。',
-              '店名、日付（YYYY-MM-DD）、購入品目と金額、合計金額、カテゴリ、支払い方法、獲得ポイント数を抽出してください。',
+              '店名、日付（YYYY-MM-DD）、購入品目と金額、合計金額、カテゴリ、支払い方法を抽出してください。',
               '支払い方法は cash（現金）、card（クレジット/デビット）、qr（QRコード決済）のいずれかで答えてください。',
               'カテゴリは提供するスキーマの enum から最も適切なものを選んでください。',
             ].join(' '),

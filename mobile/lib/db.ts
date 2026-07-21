@@ -40,7 +40,6 @@ export async function initDB(): Promise<void> {
       payment_method  TEXT NOT NULL,
       store_name      TEXT,
       receipt_url     TEXT,
-      points_earned   INTEGER,
       transacted_at   TEXT NOT NULL,
       created_at      TEXT NOT NULL
     );
@@ -64,8 +63,8 @@ export async function cacheTransactions(transactions: Transaction[]): Promise<vo
       await database.runAsync(
         `INSERT OR REPLACE INTO transactions
           (id, user_id, type, amount, category, payment_method,
-           store_name, receipt_url, points_earned, transacted_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           store_name, receipt_url, transacted_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           tx.id,
           tx.user_id,
@@ -75,7 +74,6 @@ export async function cacheTransactions(transactions: Transaction[]): Promise<vo
           tx.payment_method,
           tx.store_name ?? null,
           tx.receipt_url ?? null,
-          tx.points_earned ?? null,
           tx.transacted_at,
           tx.created_at,
         ]

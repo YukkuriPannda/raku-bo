@@ -9,7 +9,6 @@ const balance = new Hono<{ Bindings: Env; Variables: Variables }>();
  *
  * 計算式:
  *   月収見込み（このエンドポイントでは0、フロントでシフト計算と合算）
- *   + ポイント資産合計（円換算: amount * rate）
  *   - 今月支出合計（transactions テーブルから）
  *
  * month 省略時は今月。
@@ -44,12 +43,12 @@ balance.get('/', async (c) => {
   try {
     const supabase = createSupabaseClient(c.env);
 
-    // 今月の支出合計（type='cash' | 'point' のみ集計）
+    // 今月の支出合計（type='cash' のみ集計）
     const { data: txData, error: txError } = await supabase
       .from('transactions')
       .select('amount')
       .eq('user_id', userId)
-      .in('type', ['cash', 'point'])
+      .eq('type', 'cash')
       .gte('transacted_at', startDate)
       .lt('transacted_at', endDate);
 
@@ -60,31 +59,14 @@ balance.get('/', async (c) => {
 
     const totalExpense = (txData ?? []).reduce((sum, tx) => sum + (tx.amount ?? 0), 0);
 
-    // ポイント資産合計（円換算）
-    const { data: pointsData, error: pointsError } = await supabase
-      .from('points')
-      .select('amount, rate')
-      .eq('user_id', userId);
-
-    if (pointsError) {
-      console.error('ポイント取得エラー:', pointsError);
-      return c.json({ error: 'ポイントデータの取得に失敗しました' }, 500);
-    }
-
-    const totalPointsInYen = (pointsData ?? []).reduce(
-      (sum, p) => sum + (p.amount ?? 0) * (p.rate ?? 0),
-      0,
-    );
-
     // 月収見込みはフロントでシフト計算と合算するため0
     const incomeForecast = 0;
 
-    const availableBalance = incomeForecast + totalPointsInYen - totalExpense;
+    const availableBalance = incomeForecast - totalExpense;
 
     return c.json({
       month: `${year}-${String(month).padStart(2, '0')}`,
       income_forecast: incomeForecast,
-      total_points_in_yen: totalPointsInYen,
       total_expense: totalExpense,
       available_balance: availableBalance,
     });

@@ -1,6 +1,6 @@
 export type Category = '食費' | '交通費' | '娯楽' | '衣類' | '医療' | '教育・書籍' | 'カフェ・飲み物' | '家賃・光熱費' | '日用品' | 'その他';
 export type PaymentMethod = 'cash' | 'card' | 'qr';
-export type TransactionType = 'cash' | 'point' | 'income_forecast';
+export type TransactionType = 'cash' | 'income_forecast';
 
 export interface ReceiptItem {
   name: string;
@@ -14,7 +14,6 @@ export interface OcrResult {
   total_amount: number;
   category: Category;
   payment_method: PaymentMethod;
-  points_earned: number | null;
 }
 
 export interface Transaction {
@@ -26,7 +25,6 @@ export interface Transaction {
   payment_method: PaymentMethod;
   store_name: string | null;
   receipt_url: string | null;
-  points_earned: number | null;
   transacted_at: string;
   created_at: string;
   items?: TransactionItem[];
@@ -38,16 +36,6 @@ export interface TransactionItem {
   name: string;
   price: number;
   created_at: string;
-}
-
-export interface Point {
-  id: string;
-  user_id: string;
-  name: string;
-  amount: number;
-  rate: number; // 1pt = ?円
-  created_at: string;
-  updated_at: string;
 }
 
 // Hono Variables (c.var に入れる型)

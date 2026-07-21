@@ -4,7 +4,6 @@ const TABS = [
   { path: '/', icon: '🏠', label: 'ホーム', end: true },
   { path: '/history', icon: '📋', label: '履歴', end: false },
   { path: '/shifts', icon: '📅', label: 'シフト', end: false },
-  { path: '/points', icon: '💎', label: 'ポイント', end: false },
 ]
 
 export default function BottomNav() {

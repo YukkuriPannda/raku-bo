@@ -44,7 +44,7 @@ export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'qr', label: 'QR' },
 ]
 
-export type TransactionType = 'cash' | 'point' | 'income_forecast'
+export type TransactionType = 'cash' | 'income_forecast'
 
 export interface OcrResult {
   store_name: string
@@ -53,7 +53,6 @@ export interface OcrResult {
   total_amount: number
   category: Category
   payment_method: PaymentMethod
-  points_earned: number | null
 }
 
 export interface Transaction {
@@ -65,16 +64,8 @@ export interface Transaction {
   payment_method: PaymentMethod
   store_name: string | null
   receipt_url: string | null
-  points_earned: number | null
   transacted_at: string
   created_at: string
-}
-
-export interface Point {
-  id: string
-  name: string
-  amount: number
-  rate: number
 }
 
 export interface ShiftEvent {
@@ -95,7 +86,6 @@ export interface User {
 export interface BalanceData {
   expense_total: number
   income_forecast: number
-  points_total_yen: number
   remaining: number
 }
 
@@ -106,6 +96,5 @@ export interface CreateTransactionData {
   payment_method: PaymentMethod
   store_name?: string
   receipt_url?: string
-  points_earned?: number
   transacted_at: string
 }

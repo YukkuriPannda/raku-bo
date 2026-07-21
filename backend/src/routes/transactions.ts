@@ -6,7 +6,7 @@ const transactions = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 /**
  * GET /transactions?month=2026-04
- * 当該月のトランザクション一覧を返す（type='cash' | 'point'）。
+ * 当該月のトランザクション一覧を返す（type='cash'）。
  * month パラメータ省略時は今月。
  */
 transactions.get('/', async (c) => {
@@ -44,7 +44,7 @@ transactions.get('/', async (c) => {
       .from('transactions')
       .select('*, items:transaction_items(*)')
       .eq('user_id', userId)
-      .in('type', ['cash', 'point'])
+      .eq('type', 'cash')
       .gte('transacted_at', startDate)
       .lt('transacted_at', endDate)
       .order('transacted_at', { ascending: false });
@@ -55,7 +55,7 @@ transactions.get('/', async (c) => {
         .from('transactions')
         .select('*')
         .eq('user_id', userId)
-        .in('type', ['cash', 'point'])
+        .eq('type', 'cash')
         .gte('transacted_at', startDate)
         .lt('transacted_at', endDate)
         .order('transacted_at', { ascending: false }));
@@ -76,7 +76,7 @@ transactions.get('/', async (c) => {
 /**
  * POST /transactions
  * 確認画面からトランザクションを手動登録する。
- * Body: { type, amount, category, payment_method, store_name?, receipt_id?, receipt_url?, points_earned?, transacted_at }
+ * Body: { type, amount, category, payment_method, store_name?, receipt_id?, receipt_url?, transacted_at }
  */
 transactions.post('/', async (c) => {
   const userId = c.get('userId');
@@ -87,7 +87,7 @@ transactions.post('/', async (c) => {
     return c.json({ error: 'リクエストボディの解析に失敗しました' }, 400);
   }
 
-  const { type, amount, category, payment_method, store_name, receipt_id, receipt_url, points_earned, transacted_at, items } = body;
+  const { type, amount, category, payment_method, store_name, receipt_id, receipt_url, transacted_at, items } = body;
 
   // バリデーション
   if (!type || !amount || !category || !transacted_at) {
@@ -108,7 +108,6 @@ transactions.post('/', async (c) => {
         store_name: store_name ?? null,
         receipt_id: receipt_id ?? null,
         receipt_url: receipt_url ?? null,
-        points_earned: points_earned ?? 0,
         transacted_at,
       })
       .select()
@@ -171,14 +170,14 @@ transactions.patch('/:id', async (c) => {
     return c.json({ error: 'リクエストボディの解析に失敗しました' }, 400);
   }
 
-  const { amount, category, payment_method, store_name, points_earned, transacted_at, items } = body;
+  const { amount, category, payment_method, store_name, transacted_at, items } = body;
 
   try {
     const supabase = createSupabaseClient(c.env);
 
     const { data, error } = await supabase
       .from('transactions')
-      .update({ amount, category, payment_method, store_name: store_name ?? null, points_earned: points_earned ?? 0, transacted_at })
+      .update({ amount, category, payment_method, store_name: store_name ?? null, transacted_at })
       .eq('id', id)
       .eq('user_id', userId)
       .select()

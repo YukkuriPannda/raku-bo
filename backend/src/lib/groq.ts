@@ -12,7 +12,6 @@ const PROMPT = `このレシート画像を解析して、以下のフィール�
 - total_amount: number（合計金額）
 - category: "食費","交通費","娯楽","衣類","医療","教育・書籍","カフェ・飲み物","家賃・光熱費","日用品","その他" のいずれか
 - payment_method: "cash","card","qr" のいずれか
-- points_earned: number または null
 
 JSONオブジェクトのみ返してください。`;
 
@@ -60,7 +59,6 @@ export async function analyzeReceiptWithGroq(
   if (!jsonMatch) throw new Error(`JSON 抽出失敗: ${text.slice(0, 200)}`);
 
   const result = JSON.parse(jsonMatch[0]) as OcrResult;
-  if (result.points_earned === undefined) result.points_earned = null;
 
   return result;
 }

@@ -146,25 +146,6 @@ export const profileApi = {
 };
 
 // ============================================================
-// ポイント API
-// ============================================================
-export const pointApi = {
-  /** ポイント一覧を取得 */
-  list: () => api.get('/points'),
-
-  /** ポイントを新規追加 */
-  create: (data: { name: string; amount: number; rate: number }) =>
-    api.post('/points', data),
-
-  /** ポイント保有数を更新 */
-  update: (id: string, amount: number) =>
-    api.patch(`/points/${id}`, { amount }),
-
-  /** ポイントを削除 */
-  delete: (id: string) => api.delete(`/points/${id}`),
-};
-
-// ============================================================
 // 予定された支出 API
 // ============================================================
 export const plannedExpenditureApi = {

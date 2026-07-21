@@ -1,10 +1,9 @@
 import { create } from 'zustand'
 import { supabase, signOut as supabaseSignOut, getGoogleAccessToken } from '../lib/auth'
-import { transactionApi, pointApi, shiftApi, profileApi } from '../lib/api'
+import { transactionApi, shiftApi, profileApi } from '../lib/api'
 import type {
   User,
   Transaction,
-  Point,
   ShiftEvent,
   OcrResult,
   BalanceData,
@@ -35,14 +34,12 @@ const getCachedTransactions = (month: string): Transaction[] => {
 const emptyBalance: BalanceData = {
   expense_total: 0,
   income_forecast: 0,
-  points_total_yen: 0,
   remaining: 0,
 }
 
 interface AppState {
   user: User | null
   transactions: Transaction[]
-  points: Point[]
   shifts: ShiftEvent[]
   balance: BalanceData
   hourlyWage: number
@@ -54,7 +51,6 @@ interface AppState {
   setUser: (user: User | null) => void
   logout: () => Promise<void>
   fetchTransactions: (month: string) => Promise<void>
-  fetchPoints: () => Promise<void>
   fetchShifts: (month: string) => Promise<void>
   fetchProfile: () => Promise<void>
   clearCalendarError: () => void
@@ -69,7 +65,6 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   user: null,
   transactions: [],
-  points: [],
   shifts: [],
   balance: emptyBalance,
   hourlyWage: 1000,
@@ -96,7 +91,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       user: null,
       transactions: [],
-      points: [],
       shifts: [],
       balance: emptyBalance,
       ocrResult: null,
@@ -115,16 +109,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     } finally {
       set({ isLoading: false })
       get().calcBalance()
-    }
-  },
-
-  fetchPoints: async () => {
-    try {
-      const points = await pointApi.list()
-      set({ points })
-      get().calcBalance()
-    } catch (error) {
-      console.error('[Store] fetchPoints failed', error)
     }
   },
 
@@ -152,14 +136,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearCalendarError: () => set({ calendarError: null }),
 
   calcBalance: () => {
-    const { transactions, points, shifts } = get()
+    const { transactions, shifts } = get()
     const expense_total = transactions
-      .filter((t) => t.type === 'cash' || t.type === 'point')
+      .filter((t) => t.type === 'cash')
       .reduce((sum, t) => sum + t.amount, 0)
     const income_forecast = shifts.reduce((sum, s) => sum + s.estimated_wage, 0)
-    const points_total_yen = points.reduce((sum, p) => sum + p.amount * p.rate, 0)
-    const remaining = income_forecast + points_total_yen - expense_total
-    set({ balance: { expense_total, income_forecast, points_total_yen, remaining } })
+    const remaining = income_forecast - expense_total
+    set({ balance: { expense_total, income_forecast, remaining } })
   },
 
   addTransaction: async (data) => {

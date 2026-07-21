@@ -26,13 +26,13 @@ function formatCurrency(amount: number): string {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { balance, isLoading, fetchTransactions, fetchPoints, fetchShifts, fetchPlannedExpenditures } = useAppStore();
+  const { balance, isLoading, fetchTransactions, fetchShifts, fetchPlannedExpenditures } = useAppStore();
   const month = getCurrentMonth();
   const [fabOpen, setFabOpen] = useState(false);
 
   const loadData = useCallback(async () => {
-    await Promise.all([fetchTransactions(month), fetchPoints(), fetchShifts(month), fetchPlannedExpenditures(month)]);
-  }, [month, fetchTransactions, fetchPoints, fetchShifts, fetchPlannedExpenditures]);
+    await Promise.all([fetchTransactions(month), fetchShifts(month), fetchPlannedExpenditures(month)]);
+  }, [month, fetchTransactions, fetchShifts, fetchPlannedExpenditures]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
@@ -86,17 +86,6 @@ export default function HomeScreen() {
             </View>
             <View style={styles.subRowRight}>
               <Text style={styles.subRowValueGreen}>{formatCurrency(balance.income_forecast)}</Text>
-              <Text style={styles.subRowChevron}>›</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.subRow} onPress={() => router.push('/points')} activeOpacity={0.6}>
-            <View style={styles.subRowLeft}>
-              <Text style={styles.subRowEmoji}>💎</Text>
-              <Text style={styles.subRowLabel}>ポイント資産</Text>
-            </View>
-            <View style={styles.subRowRight}>
-              <Text style={styles.subRowValue}>{formatCurrency(balance.points_total_yen)}</Text>
               <Text style={styles.subRowChevron}>›</Text>
             </View>
           </TouchableOpacity>

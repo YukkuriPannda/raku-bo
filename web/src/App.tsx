@@ -8,7 +8,6 @@ import AuthCallback from './pages/AuthCallback'
 import Home from './pages/Home'
 import History from './pages/History'
 import Shifts from './pages/Shifts'
-import Points from './pages/Points'
 import Camera from './pages/Camera'
 import Confirm from './pages/Confirm'
 import ManualEntry from './pages/ManualEntry'
@@ -87,7 +86,6 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="history" element={<History />} />
           <Route path="shifts" element={<Shifts />} />
-          <Route path="points" element={<Points />} />
           <Route path="camera" element={<Camera />} />
           <Route path="confirm" element={<Confirm />} />
           <Route path="manual-entry" element={<ManualEntry />} />

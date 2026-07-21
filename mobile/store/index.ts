@@ -9,6 +9,7 @@ import { transactionApi, balanceApi, shiftApi, profileApi, plannedExpenditureApi
 import { signOut as authSignOut, loadGoogleRefreshToken, saveGoogleAccessToken } from '@/lib/auth';
 import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage } from '@/lib/auth-errors';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
+import { saveWidgetBudget, clearWidgetBudget } from '@/lib/widget-bridge';
 import type {
   User,
   Transaction,
@@ -111,6 +112,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   logout: async () => {
     await authSignOut();
     await clearCache();
+    clearWidgetBudget();
     set({
       user: null,
       transactions: [],
@@ -193,7 +195,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       const shifts: ShiftEvent[] = res.data.map((s: ShiftEvent) => ({
         ...s,
-        estimated_wage: s.estimated_wage ?? s.duration_hours * hourlyWage,
+        estimated_wage: s.estimated_wage ?? Math.round(s.duration_hours * hourlyWage),
       }));
       set({ shifts });
     } catch (error) {
@@ -277,14 +279,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const remaining = income_forecast - expense_total - planned_total;
 
-    set({
-      balance: {
-        expense_total,
-        income_forecast,
-        planned_total,
-        remaining,
-      },
-    });
+    const balance = { expense_total, income_forecast, planned_total, remaining };
+    set({ balance });
+
+    // ホーム画面ウィジェットへ反映（ネットワーク非依存のキャッシュ書き込み）
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    saveWidgetBudget(balance, month);
   },
 
   // ============================================================
@@ -420,7 +421,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { shifts } = get();
     const updatedShifts = shifts.map((s) => ({
       ...s,
-      estimated_wage: s.duration_hours * wage,
+      estimated_wage: Math.round(s.duration_hours * wage),
     }));
     set({ shifts: updatedShifts });
     get().calcBalance();

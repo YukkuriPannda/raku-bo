@@ -10,18 +10,19 @@ import { FlexWidget, TextWidget } from 'react-native-android-widget';
 // Props 定義
 // ============================================================
 interface RemainingBudgetWidgetProps {
-  budget: number; // 残り使える額（円）
+  budget: number | null; // 残り使える額（円）。未ログイン/未取得時は null
 }
 
 // ============================================================
 // ウィジェットコンポーネント
 // ============================================================
 export function RemainingBudgetWidget({ budget }: RemainingBudgetWidgetProps) {
-  // 残額に応じて色を変更（正: 緑、負: 赤）
-  const color = budget >= 0 ? '#22c55e' : '#ef4444';
+  // 残額に応じて色を変更（正: 緑、負: 赤、未取得: グレー）
+  const color = budget === null ? '#9ca3af' : budget >= 0 ? '#22c55e' : '#ef4444';
 
   return (
     <FlexWidget
+      clickAction="OPEN_APP"
       style={{
         flex: 1,
         justifyContent: 'center',
@@ -38,13 +39,13 @@ export function RemainingBudgetWidget({ budget }: RemainingBudgetWidgetProps) {
 
       {/* 残額（メイン表示） */}
       <TextWidget
-        text={`¥${budget.toLocaleString('ja-JP')}`}
+        text={budget === null ? '¥ ---' : `¥${budget.toLocaleString('ja-JP')}`}
         style={{ fontSize: 32, fontWeight: 'bold', color }}
       />
 
       {/* 下部ラベル */}
       <TextWidget
-        text="使える"
+        text={budget === null ? 'ひらいて更新' : '使える'}
         style={{ fontSize: 14, color: '#6b7280' }}
       />
     </FlexWidget>

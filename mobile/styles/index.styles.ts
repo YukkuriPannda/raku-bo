@@ -82,6 +82,16 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
+  subRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  subRowChevron: {
+    fontSize: 18,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
   monthLabel: {
     fontSize: 12,
     color: colors.textSecondary,

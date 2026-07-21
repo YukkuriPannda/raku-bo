@@ -68,39 +68,51 @@ export default function HomeScreen() {
 
         {/* サブ情報カード */}
         <View style={styles.subCard}>
-          <View style={styles.subRow}>
+          <TouchableOpacity style={styles.subRow} onPress={() => router.push('/history')} activeOpacity={0.6}>
             <View style={styles.subRowLeft}>
               <Text style={styles.subRowEmoji}>💸</Text>
               <Text style={styles.subRowLabel}>今月の支出</Text>
             </View>
-            <Text style={styles.subRowValue}>{formatCurrency(balance.expense_total)}</Text>
-          </View>
+            <View style={styles.subRowRight}>
+              <Text style={styles.subRowValue}>{formatCurrency(balance.expense_total)}</Text>
+              <Text style={styles.subRowChevron}>›</Text>
+            </View>
+          </TouchableOpacity>
 
-          <View style={styles.subRow}>
+          <TouchableOpacity style={styles.subRow} onPress={() => router.push('/shifts')} activeOpacity={0.6}>
             <View style={styles.subRowLeft}>
               <Text style={styles.subRowEmoji}>💼</Text>
               <Text style={styles.subRowLabel}>月収見込み</Text>
             </View>
-            <Text style={styles.subRowValueGreen}>{formatCurrency(balance.income_forecast)}</Text>
-          </View>
+            <View style={styles.subRowRight}>
+              <Text style={styles.subRowValueGreen}>{formatCurrency(balance.income_forecast)}</Text>
+              <Text style={styles.subRowChevron}>›</Text>
+            </View>
+          </TouchableOpacity>
 
-          <View style={styles.subRow}>
+          <TouchableOpacity style={styles.subRow} onPress={() => router.push('/points')} activeOpacity={0.6}>
             <View style={styles.subRowLeft}>
               <Text style={styles.subRowEmoji}>💎</Text>
               <Text style={styles.subRowLabel}>ポイント資産</Text>
             </View>
-            <Text style={styles.subRowValue}>{formatCurrency(balance.points_total_yen)}</Text>
-          </View>
+            <View style={styles.subRowRight}>
+              <Text style={styles.subRowValue}>{formatCurrency(balance.points_total_yen)}</Text>
+              <Text style={styles.subRowChevron}>›</Text>
+            </View>
+          </TouchableOpacity>
 
-          <View style={styles.subRowLast}>
+          <TouchableOpacity style={styles.subRowLast} onPress={() => router.push('/planned-expenditures')} activeOpacity={0.6}>
             <View style={styles.subRowLeft}>
               <Text style={styles.subRowEmoji}>📆</Text>
               <Text style={styles.subRowLabel}>予定支出</Text>
             </View>
-            <Text style={[styles.subRowValue, { color: balance.planned_total > 0 ? '#E65100' : '#6B7280' }]}>
-              -{formatCurrency(balance.planned_total)}
-            </Text>
-          </View>
+            <View style={styles.subRowRight}>
+              <Text style={[styles.subRowValue, { color: balance.planned_total > 0 ? '#E65100' : '#6B7280' }]}>
+                -{formatCurrency(balance.planned_total)}
+              </Text>
+              <Text style={styles.subRowChevron}>›</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.monthLabel}>{month.replace('-', '年')}月</Text>

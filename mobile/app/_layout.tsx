@@ -14,6 +14,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
+import * as QuickActions from 'expo-quick-actions';
 import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken, saveGoogleRefreshToken, loadGoogleRefreshToken, clearGoogleRefreshToken } from '@/lib/auth';
 import { AuthError, AuthErrorCode, formatAuthError } from '@/lib/auth-errors';
 import { initDB } from '@/lib/db';
@@ -150,6 +151,18 @@ export default function RootLayout() {
   useEffect(() => {
     // DB 初期化（ローカルキャッシュ）
     initDB().catch((e) => console.error('[initDB]', e));
+  }, []);
+
+  useEffect(() => {
+    // App Shortcuts（ホーム画面アイコン長押しメニュー等から登録）
+    // OEMのロック画面ショートカット選択もこの仕組みを参照する端末がある
+    QuickActions.setItems([
+      {
+        id: 'receipt-camera',
+        title: 'レシート撮影',
+        params: { href: '/screens/camera' },
+      },
+    ]).catch((e) => console.error('[QuickActions.setItems]', e));
   }, []);
 
   useEffect(() => {

@@ -17,7 +17,12 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
     case 'WIDGET_UPDATE':
     case 'WIDGET_RESIZED': {
       const cached = await getWidgetBudget();
-      props.renderWidget(<RemainingBudgetWidget budget={cached?.remaining ?? null} />);
+      props.renderWidget(
+        <RemainingBudgetWidget
+          budget={cached?.remaining ?? null}
+          recentTransactions={cached?.recentTransactions ?? []}
+        />
+      );
       break;
     }
     case 'WIDGET_DELETED':

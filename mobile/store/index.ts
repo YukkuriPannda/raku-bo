@@ -285,7 +285,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     // ホーム画面ウィジェットへ反映（ネットワーク非依存のキャッシュ書き込み）
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    saveWidgetBudget(balance, month);
+    const recentTransactions = transactions
+      .filter((t) => t.type === 'cash')
+      .slice()
+      .sort((a, b) => b.transacted_at.localeCompare(a.transacted_at))
+      .slice(0, 2)
+      .map((t) => ({ label: t.store_name ?? t.category, amount: t.amount }));
+    saveWidgetBudget(balance, month, recentTransactions);
   },
 
   // ============================================================

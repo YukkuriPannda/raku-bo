@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
+import { useQuickActionRouting } from 'expo-quick-actions/router';
 
 type TabIconProps = {
   emoji: string;
@@ -15,6 +16,9 @@ function TabIcon({ emoji, focused }: TabIconProps) {
 }
 
 export default function TabsLayout() {
+  // App Shortcuts（レシート撮影など）のタップ/起動をルーティングに反映
+  useQuickActionRouting();
+
   return (
     <Tabs
       screenOptions={{

@@ -47,6 +47,8 @@
               "label": "今月あと○○円",
               "minWidth": "180dp",
               "minHeight": "180dp",
+              "maxResizeWidth": "180dp",
+              "maxResizeHeight": "180dp",
               "targetCellWidth": 2,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
@@ -59,7 +61,8 @@
       ],
       "expo-font",
       "expo-sqlite",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-quick-actions"
     ],
     "experiments": {
       "typedRoutes": true

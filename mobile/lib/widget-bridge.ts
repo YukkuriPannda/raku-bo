@@ -17,25 +17,38 @@ import type { BalanceData } from '@/types';
 const WIDGET_CACHE_KEY = 'widget_remaining_budget';
 const WIDGET_NAME = 'RemainingBudget';
 
+/** ウィジェットに表示する支出1件分の要約 */
+export interface RecentTransactionSummary {
+  label: string;
+  amount: number;
+}
+
 interface WidgetBudgetCache {
   remaining: number;
   month: string;
   updatedAt: string;
+  recentTransactions: RecentTransactionSummary[];
 }
 
 /** 残高を SecureStore に保存し、ホーム画面上のウィジェットを即時更新する（fire-and-forget） */
-export function saveWidgetBudget(balance: BalanceData, month: string): void {
+export function saveWidgetBudget(
+  balance: BalanceData,
+  month: string,
+  recentTransactions: RecentTransactionSummary[]
+): void {
   const cache: WidgetBudgetCache = {
     remaining: balance.remaining,
     month,
     updatedAt: new Date().toISOString(),
+    recentTransactions,
   };
 
   SecureStore.setItemAsync(WIDGET_CACHE_KEY, JSON.stringify(cache))
     .then(() =>
       requestWidgetUpdate({
         widgetName: WIDGET_NAME,
-        renderWidget: () => RemainingBudgetWidget({ budget: cache.remaining }),
+        renderWidget: () =>
+          RemainingBudgetWidget({ budget: cache.remaining, recentTransactions: cache.recentTransactions }),
         widgetNotFound: () => {},
       })
     )
@@ -60,7 +73,7 @@ export function clearWidgetBudget(): void {
     .then(() =>
       requestWidgetUpdate({
         widgetName: WIDGET_NAME,
-        renderWidget: () => RemainingBudgetWidget({ budget: null }),
+        renderWidget: () => RemainingBudgetWidget({ budget: null, recentTransactions: [] }),
         widgetNotFound: () => {},
       })
     )

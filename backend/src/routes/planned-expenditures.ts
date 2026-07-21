@@ -206,6 +206,75 @@ plannedExpenditures.patch('/:id', async (c) => {
 });
 
 /**
+ * POST /planned-expenditures/:id/complete
+ *
+ * カレンダー連動型（entry_type='calendar'）の予定支出を「完了」させる。
+ * transactions に実績として1件insertし、planned_expenditures から削除する。
+ * サブスク型は繰り返し予定のため対象外（400）。
+ */
+plannedExpenditures.post('/:id/complete', async (c) => {
+  const userId = c.get('userId');
+  const id = c.req.param('id');
+
+  try {
+    const supabase = createSupabaseClient(c.env);
+
+    const { data: planned, error: fetchError } = await supabase
+      .from('planned_expenditures')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !planned) {
+      return c.json({ error: '予定支出が見つかりません' }, 404);
+    }
+
+    if (planned.entry_type !== 'calendar') {
+      return c.json({ error: 'カレンダー連動型の予定支出のみ完了できます' }, 400);
+    }
+
+    const { data: transaction, error: insertError } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        type: 'cash',
+        amount: planned.amount,
+        category: planned.category,
+        payment_method: planned.payment_method,
+        store_name: planned.calendar_event_title,
+        points_earned: 0,
+        transacted_at: `${planned.event_date}T00:00:00Z`,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('完了時のトランザクション作成エラー:', insertError);
+      return c.json({ error: '支出履歴への登録に失敗しました' }, 500);
+    }
+
+    const { error: deleteError } = await supabase
+      .from('planned_expenditures')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (deleteError) {
+      console.error('完了時の予定支出削除エラー:', deleteError);
+      // 補償削除: 作成済みのtransactionをロールバックする
+      await supabase.from('transactions').delete().eq('id', transaction.id);
+      return c.json({ error: '予定支出の完了処理に失敗しました' }, 500);
+    }
+
+    return c.json(transaction, 201);
+  } catch (error) {
+    console.error('予期しないエラー:', error);
+    return c.json({ error: '内部サーバーエラー' }, 500);
+  }
+});
+
+/**
  * DELETE /planned-expenditures/:id
  */
 plannedExpenditures.delete('/:id', async (c) => {

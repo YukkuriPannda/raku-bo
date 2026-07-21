@@ -62,10 +62,11 @@ interface AppState {
   updateTransaction: (id: string, data: UpdateTransactionData) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
 
-  // ---- 予定支出 追加・更新・削除 ----
+  // ---- 予定支出 追加・更新・削除・完了 ----
   addPlannedExpenditure: (data: CreateSubscriptionData | CreateCalendarExpenditureData) => Promise<void>;
   updatePlannedExpenditure: (id: string, data: Partial<CreateSubscriptionData> & { is_active?: boolean }) => Promise<void>;
   deletePlannedExpenditure: (id: string) => Promise<void>;
+  completePlannedExpenditure: (id: string) => Promise<void>;
 
   // ---- 撮影画像 ----
   setPendingImage: (base64: string) => void;
@@ -380,6 +381,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().calcBalance();
     } catch (error) {
       console.error('[deletePlannedExpenditure] エラー:', error);
+      throw error;
+    }
+  },
+
+  // ============================================================
+  // 予定支出の完了（カレンダー連動型のみ）
+  // 支出履歴（transactions）に1件追加し、予定支出からは除去する
+  // ============================================================
+  completePlannedExpenditure: async (id) => {
+    try {
+      const res = await plannedExpenditureApi.complete(id);
+      const newTx: Transaction = res.data;
+      set((state) => ({
+        transactions: [newTx, ...state.transactions],
+        plannedExpenditures: state.plannedExpenditures.filter((p) => p.id !== id),
+      }));
+      await cacheTransactions([newTx]);
+      get().calcBalance();
+    } catch (error) {
+      console.error('[completePlannedExpenditure] エラー:', error);
       throw error;
     }
   },

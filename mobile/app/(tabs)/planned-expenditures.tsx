@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -37,11 +37,13 @@ function PlannedItem({
   onEdit,
   onToggle,
   onDelete,
+  onComplete,
 }: {
   item: PlannedExpenditure;
   onEdit: (item: PlannedExpenditure) => void;
   onToggle: (item: PlannedExpenditure) => void;
   onDelete: (id: string, name: string) => void;
+  onComplete: (item: PlannedExpenditure) => void;
 }) {
   const isSubscription = item.entry_type === 'subscription';
   const icon = isSubscription ? '🔄' : '📅';
@@ -79,6 +81,11 @@ function PlannedItem({
                 <Text style={styles.editBtnText}>編集</Text>
               </TouchableOpacity>
             </>
+          )}
+          {!isSubscription && (
+            <TouchableOpacity onPress={() => onComplete(item)} style={styles.completeBtn} activeOpacity={0.7}>
+              <Text style={styles.completeBtnText}>完了</Text>
+            </TouchableOpacity>
           )}
           <TouchableOpacity onPress={() => onDelete(item.id, name ?? '')} style={styles.deleteBtn} activeOpacity={0.7}>
             <Text style={styles.deleteBtnText}>削除</Text>
@@ -281,7 +288,6 @@ function CalendarForm({ month, onAdd }: { month: string; onAdd: () => void }) {
   const { addPlannedExpenditure, fetchCalendarEvents, calendarEvents } = useAppStore();
   const today = new Date().toISOString().slice(0, 10);
   const futureEvents = calendarEvents.filter((ev) => ev.date >= today);
-  const [browseMonth, setBrowseMonth] = useState(month);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('その他');
@@ -292,26 +298,13 @@ function CalendarForm({ month, onAdd }: { month: string; onAdd: () => void }) {
 
   const loadEvents = useCallback(async () => {
     setEventsLoaded(false);
-    await fetchCalendarEvents(browseMonth);
+    await fetchCalendarEvents(month);
     setEventsLoaded(true);
-  }, [fetchCalendarEvents, browseMonth]);
+  }, [fetchCalendarEvents, month]);
 
   useFocusEffect(useCallback(() => { loadEvents(); }, [loadEvents]));
 
-  const handlePrevMonth = () => {
-    const prev = addMonths(browseMonth, -1);
-    if (prev >= month) {
-      setBrowseMonth(prev);
-      setSelectedEvent(null);
-    }
-  };
-
-  const handleNextMonth = () => {
-    setBrowseMonth((m) => {
-      setSelectedEvent(null);
-      return addMonths(m, 1);
-    });
-  };
+  useEffect(() => { setSelectedEvent(null); }, [month]);
 
   const handleAdd = async () => {
     if (!selectedEvent) { Alert.alert('選択エラー', 'カレンダーイベントを選択してください'); return; }
@@ -342,24 +335,10 @@ function CalendarForm({ month, onAdd }: { month: string; onAdd: () => void }) {
   return (
     <View style={styles.addCard}>
       <Text style={styles.addTitle}>📅 カレンダー連動（単発）を追加</Text>
-      <View style={styles.monthNav}>
-        <TouchableOpacity
-          onPress={handlePrevMonth}
-          disabled={addMonths(browseMonth, -1) < month}
-          style={[styles.monthNavBtn, addMonths(browseMonth, -1) < month && styles.monthNavBtnDisabled]}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.monthNavArrow}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.monthNavLabel}>{formatMonthLabel(browseMonth)}</Text>
-        <TouchableOpacity onPress={handleNextMonth} style={styles.monthNavBtn} activeOpacity={0.7}>
-          <Text style={styles.monthNavArrow}>›</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.eventPickerLabel}>イベントを選択</Text>
+      <Text style={styles.eventPickerLabel}>イベントを選択（{formatMonthLabel(month)}）</Text>
       {eventsLoaded && futureEvents.length === 0 ? (
         <View style={styles.eventNone}>
-          <Text style={styles.eventNoneText}>{formatMonthLabel(browseMonth)}の今後のイベントがありません</Text>
+          <Text style={styles.eventNoneText}>{formatMonthLabel(month)}の今後のイベントがありません</Text>
         </View>
       ) : (
         <ScrollView style={styles.eventList} nestedScrollEnabled>
@@ -410,14 +389,18 @@ function CalendarForm({ month, onAdd }: { month: string; onAdd: () => void }) {
 }
 
 export default function PlannedExpendituresScreen() {
-  const { plannedExpenditures, isLoading, fetchPlannedExpenditures, updatePlannedExpenditure, deletePlannedExpenditure } = useAppStore();
-  const month = getCurrentMonth();
+  const { plannedExpenditures, isLoading, fetchPlannedExpenditures, updatePlannedExpenditure, deletePlannedExpenditure, completePlannedExpenditure } = useAppStore();
+  const currentMonth = getCurrentMonth();
+  const [viewMonth, setViewMonth] = useState(currentMonth);
   const [activeTab, setActiveTab] = useState<'subscription' | 'calendar'>('subscription');
   const [editingItem, setEditingItem] = useState<PlannedExpenditure | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editBillingDay, setEditBillingDay] = useState('');
 
-  useFocusEffect(useCallback(() => { fetchPlannedExpenditures(month); }, [fetchPlannedExpenditures, month]));
+  useFocusEffect(useCallback(() => { fetchPlannedExpenditures(viewMonth); }, [fetchPlannedExpenditures, viewMonth]));
+
+  const handlePrevViewMonth = () => setViewMonth((m) => addMonths(m, -1));
+  const handleNextViewMonth = () => setViewMonth((m) => addMonths(m, 1));
 
   const total = plannedExpenditures.filter((p) => p.is_active).reduce((sum, p) => sum + p.amount, 0);
   const subscriptionCount = plannedExpenditures.filter((p) => p.entry_type === 'subscription').length;
@@ -442,6 +425,23 @@ export default function PlannedExpendituresScreen() {
             await deletePlannedExpenditure(id);
           } catch {
             Alert.alert('エラー', '削除に失敗しました');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleComplete = (item: PlannedExpenditure) => {
+    const name = item.calendar_event_title ?? '';
+    Alert.alert('完了確認', `「${name}」を完了して支出履歴に移動しますか？`, [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '完了',
+        onPress: async () => {
+          try {
+            await completePlannedExpenditure(item.id);
+          } catch {
+            Alert.alert('エラー', '完了処理に失敗しました');
           }
         },
       },
@@ -482,13 +482,25 @@ export default function PlannedExpendituresScreen() {
             onEdit={handleEdit}
             onToggle={handleToggle}
             onDelete={handleDelete}
+            onComplete={handleComplete}
           />
         )}
         ListHeaderComponent={
           <View>
+            {/* 月ナビゲーター */}
+            <View style={styles.pageMonthNav}>
+              <TouchableOpacity onPress={handlePrevViewMonth} style={styles.monthNavBtn} activeOpacity={0.7}>
+                <Text style={styles.monthNavArrow}>‹</Text>
+              </TouchableOpacity>
+              <Text style={styles.monthNavLabel}>{formatMonthLabel(viewMonth)}</Text>
+              <TouchableOpacity onPress={handleNextViewMonth} style={styles.monthNavBtn} activeOpacity={0.7}>
+                <Text style={styles.monthNavArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* サマリーカード */}
             <View style={styles.totalCard}>
-              <Text style={styles.totalLabel}>当月の予定支出合計</Text>
+              <Text style={styles.totalLabel}>{formatMonthLabel(viewMonth)}の予定支出合計</Text>
               <Text style={styles.totalAmount}>¥{total.toLocaleString('ja-JP')}</Text>
               <Text style={styles.totalSub}>
                 🔄 サブスク {subscriptionCount} 件 · 📅 カレンダー {calendarCount} 件
@@ -519,9 +531,9 @@ export default function PlannedExpendituresScreen() {
 
             {/* 追加フォーム */}
             {activeTab === 'subscription' ? (
-              <SubscriptionForm onAdd={() => fetchPlannedExpenditures(month)} />
+              <SubscriptionForm onAdd={() => fetchPlannedExpenditures(viewMonth)} />
             ) : (
-              <CalendarForm month={month} onAdd={() => fetchPlannedExpenditures(month)} />
+              <CalendarForm month={viewMonth} onAdd={() => fetchPlannedExpenditures(viewMonth)} />
             )}
 
             <Text style={styles.sectionLabel}>登録済み一覧</Text>
@@ -536,7 +548,7 @@ export default function PlannedExpendituresScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
-            onRefresh={() => fetchPlannedExpenditures(month)}
+            onRefresh={() => fetchPlannedExpenditures(viewMonth)}
             colors={[colors.primary]}
             tintColor={colors.primary}
           />

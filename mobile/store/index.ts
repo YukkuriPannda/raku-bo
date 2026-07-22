@@ -9,7 +9,7 @@ import { transactionApi, balanceApi, shiftApi, profileApi, plannedExpenditureApi
 import { signOut as authSignOut, loadGoogleRefreshToken, saveGoogleAccessToken } from '@/lib/auth';
 import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage } from '@/lib/auth-errors';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
-import { saveWidgetBudget, clearWidgetBudget } from '@/lib/widget-bridge';
+import { saveWidgetBudget, clearWidgetBudget, saveWidgetHeatmap, clearWidgetHeatmap } from '@/lib/widget-bridge';
 import type {
   User,
   Transaction,
@@ -57,6 +57,7 @@ interface AppState {
 
   // ---- 残高計算 ----
   calcBalance: () => void;
+  refreshHeatmapWidget: () => Promise<void>;
 
   // ---- トランザクション追加・更新・削除 ----
   addTransaction: (data: CreateTransactionData) => Promise<void>;
@@ -113,6 +114,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await authSignOut();
     await clearCache();
     clearWidgetBudget();
+    clearWidgetHeatmap();
     set({
       user: null,
       transactions: [],
@@ -291,7 +293,57 @@ export const useAppStore = create<AppState>((set, get) => ({
       .sort((a, b) => b.transacted_at.localeCompare(a.transacted_at))
       .slice(0, 2)
       .map((t) => ({ label: t.store_name ?? t.category, amount: t.amount }));
-    saveWidgetBudget(balance, month, recentTransactions);
+
+    // 直近の支出予定（サブスクを除く、カレンダー連動のみ・日付が近い順）
+    const todayStr = now.toISOString().slice(0, 10);
+    const upcomingPlanned = plannedExpenditures
+      .filter((p) => p.entry_type === 'calendar' && !!p.event_date && p.event_date >= todayStr)
+      .slice()
+      .sort((a, b) => (a.event_date ?? '').localeCompare(b.event_date ?? ''))
+      .slice(0, 2)
+      .map((p) => ({ label: p.calendar_event_title ?? p.category, amount: p.amount }));
+
+    saveWidgetBudget(balance, month, recentTransactions, upcomingPlanned);
+
+    // 草グラフウィジェット用の日別支出（直近約2ヶ月分）を非同期で更新
+    get().refreshHeatmapWidget();
+  },
+
+  // ============================================================
+  // 草グラフウィジェット用: 当月 + 前月の取引を取得し、直近63日分を日別集計する
+  // （calcBalance が持つ transactions は現在表示中の月のみのため、
+  //   前月分だけ追加で取得してマージする）
+  // ============================================================
+  refreshHeatmapWidget: async () => {
+    const { transactions } = get();
+    const now = new Date();
+    const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+    try {
+      const prevRes = await transactionApi.list(prevMonth);
+      const prevTransactions: Transaction[] = prevRes.data ?? [];
+
+      const dailyTotals = new Map<string, number>();
+      [...transactions, ...prevTransactions]
+        .filter((t) => t.type === 'cash')
+        .forEach((t) => {
+          const d = new Date(t.transacted_at);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + t.amount);
+        });
+
+      const ROLLING_DAYS = 63; // 約9週間（GitHubの草グラフ風、9〜10列）
+      const heatmapDays = Array.from({ length: ROLLING_DAYS }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (ROLLING_DAYS - 1 - i));
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return { date: key, total: dailyTotals.get(key) ?? 0 };
+      });
+
+      saveWidgetHeatmap(heatmapDays);
+    } catch (error) {
+      console.error('[refreshHeatmapWidget] エラー:', error);
+    }
   },
 
   // ============================================================

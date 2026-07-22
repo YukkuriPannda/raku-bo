@@ -13,12 +13,17 @@ import type { RecentTransactionSummary } from '@/lib/widget-bridge';
 interface RemainingBudgetWidgetProps {
   budget: number | null; // 残り使える額（円）。未ログイン/未取得時は null
   recentTransactions?: RecentTransactionSummary[]; // 直近の支出（最大2件）
+  upcomingPlanned?: RecentTransactionSummary[]; // 直近の支出予定（サブスクを除く、最大2件）
 }
 
 // ============================================================
 // ウィジェットコンポーネント
 // ============================================================
-export function RemainingBudgetWidget({ budget, recentTransactions = [] }: RemainingBudgetWidgetProps) {
+export function RemainingBudgetWidget({
+  budget,
+  recentTransactions = [],
+  upcomingPlanned = [],
+}: RemainingBudgetWidgetProps) {
   // 残額に応じて色を変更（正: 緑、負: 赤、未取得: グレー）
   const color = budget === null ? '#9ca3af' : budget >= 0 ? '#22c55e' : '#ef4444';
 
@@ -37,24 +42,25 @@ export function RemainingBudgetWidget({ budget, recentTransactions = [] }: Remai
       {/* 上部ラベル */}
       <TextWidget
         text="今月あと"
-        style={{ fontSize: 14, color: '#6b7280' }}
+        style={{ fontSize: 9, color: '#6b7280' }}
       />
 
       {/* 残額（メイン表示） */}
       <TextWidget
         text={budget === null ? '¥ ---' : `¥${budget.toLocaleString('ja-JP')}`}
-        style={{ fontSize: 32, fontWeight: 'bold', color }}
+        maxLines={1}
+        style={{ fontSize: 18, fontWeight: 'bold', color, adjustsFontSizeToFit: true }}
       />
 
       {/* 下部ラベル */}
       <TextWidget
         text={budget === null ? 'ひらいて更新' : '使える'}
-        style={{ fontSize: 14, color: '#6b7280' }}
+        style={{ fontSize: 9, color: '#6b7280' }}
       />
 
       {/* 直近の支出（最大2件） */}
       {recentTransactions.length > 0 && (
-        <FlexWidget style={{ width: 'match_parent', marginTop: 8 }}>
+        <FlexWidget style={{ width: 'match_parent', marginTop: 2 }}>
           {recentTransactions.slice(0, 2).map((tx, i) => (
             <FlexWidget
               key={i}
@@ -62,7 +68,7 @@ export function RemainingBudgetWidget({ budget, recentTransactions = [] }: Remai
                 width: 'match_parent',
                 flexDirection: 'row',
                 justifyContent: 'space-between',
-                paddingHorizontal: 14,
+                paddingHorizontal: 8,
               }}
             >
               <FlexWidget style={{ flex: 1 }}>
@@ -70,12 +76,42 @@ export function RemainingBudgetWidget({ budget, recentTransactions = [] }: Remai
                   text={tx.label}
                   truncate="END"
                   maxLines={1}
-                  style={{ fontSize: 11, color: '#9ca3af' }}
+                  style={{ fontSize: 8, color: '#9ca3af' }}
                 />
               </FlexWidget>
               <TextWidget
                 text={`¥${tx.amount.toLocaleString('ja-JP')}`}
-                style={{ fontSize: 11, color: '#6b7280' }}
+                style={{ fontSize: 8, color: '#6b7280' }}
+              />
+            </FlexWidget>
+          ))}
+        </FlexWidget>
+      )}
+
+      {/* 直近の支出予定（サブスクを除く、最大2件） */}
+      {upcomingPlanned.length > 0 && (
+        <FlexWidget style={{ width: 'match_parent', marginTop: 1 }}>
+          {upcomingPlanned.slice(0, 2).map((p, i) => (
+            <FlexWidget
+              key={i}
+              style={{
+                width: 'match_parent',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingHorizontal: 8,
+              }}
+            >
+              <FlexWidget style={{ flex: 1 }}>
+                <TextWidget
+                  text={p.label}
+                  truncate="END"
+                  maxLines={1}
+                  style={{ fontSize: 8, color: '#f59e0b' }}
+                />
+              </FlexWidget>
+              <TextWidget
+                text={`¥${p.amount.toLocaleString('ja-JP')}`}
+                style={{ fontSize: 8, color: '#E65100' }}
               />
             </FlexWidget>
           ))}
@@ -88,18 +124,18 @@ export function RemainingBudgetWidget({ budget, recentTransactions = [] }: Remai
         clickActionData={{ uri: 'rakubo://screens/camera' }}
         style={{
           width: 'match_parent',
-          marginTop: 10,
-          marginHorizontal: 14,
-          paddingVertical: 8,
+          marginTop: 3,
+          marginHorizontal: 8,
+          paddingVertical: 3,
           justifyContent: 'center',
           alignItems: 'center',
           backgroundColor: '#1B7F4F',
-          borderRadius: 10,
+          borderRadius: 8,
         }}
       >
         <TextWidget
           text="📷 レシートを撮影"
-          style={{ fontSize: 12, fontWeight: '600', color: '#ffffff' }}
+          style={{ fontSize: 9, fontWeight: '600', color: '#ffffff' }}
         />
       </FlexWidget>
     </FlexWidget>

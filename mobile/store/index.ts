@@ -25,6 +25,18 @@ import type {
 } from '@/types';
 
 // ============================================================
+// Googleカレンダー呼び出しが「Googleアクセストークンの期限切れ」で
+// 401になったかどうかを判定する。
+// 同じ401でもSupabaseセッション切れ（AUTH_SUPABASE_VERIFY_FAILED等）が
+// 原因のことがあり、その場合はGoogleトークンを更新しても解決しないため
+// ステータスコードだけでなくバックエンドが返すエラーコードも見る。
+// ============================================================
+function isGoogleTokenExpiredError(err: unknown): boolean {
+  const response = (err as { response?: { status?: number; data?: { code?: string } } }).response;
+  return response?.status === 401 && response.data?.code === AuthErrorCode.GOOGLE_API_ERROR;
+}
+
+// ============================================================
 // ストアの型定義
 // ============================================================
 interface AppState {
@@ -185,9 +197,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         res = await doFetch(token);
       } catch (firstErr: unknown) {
-        const status = (firstErr as { response?: { status?: number } }).response?.status;
-        if (status === 401) {
-          // トークン期限切れ → リフレッシュして1回リトライ
+        if (isGoogleTokenExpiredError(firstErr)) {
+          // Googleトークン期限切れ → リフレッシュして1回リトライ
           const refreshToken = await loadGoogleRefreshToken();
           if (!refreshToken) throw new AuthError(AuthErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
           const refreshRes = await authApi.refreshGoogleToken(refreshToken);
@@ -196,6 +207,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           set({ user: { ...user, googleAccessToken: token } });
           res = await doFetch(token);
         } else {
+          // Supabaseセッション切れなど、Google側の問題ではない401はそのまま投げる
+          // （ここでGoogleトークンをリフレッシュしても解決しないため）
           throw firstErr;
         }
       }
@@ -244,8 +257,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         res = await calendarEventApi.list(month, token);
       } catch (firstErr: unknown) {
-        const status = (firstErr as { response?: { status?: number } }).response?.status;
-        if (status === 401) {
+        if (isGoogleTokenExpiredError(firstErr)) {
           const refreshToken = await loadGoogleRefreshToken();
           if (!refreshToken) throw new AuthError(AuthErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
           const refreshRes = await authApi.refreshGoogleToken(refreshToken);

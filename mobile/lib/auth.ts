@@ -3,37 +3,98 @@
 // Supabase Auth + Google OAuth 認証ユーティリティ
 // ============================================================
 
+import { AppState } from 'react-native';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
+import * as aesjs from 'aes-js';
 import { createClient } from '@supabase/supabase-js';
 import { AuthError, AuthErrorCode } from './auth-errors';
+import { getKVItem, setKVItem, removeKVItem } from './db';
 
 // expo-auth-session がブラウザセッションを正しく閉じるために必要
 WebBrowser.maybeCompleteAuthSession();
 
 // ============================================================
 // Supabase クライアント（Auth のみ用途）
-// expo-secure-store をストレージとして使用し、セッション・PKCEコードを永続化する
+//
+// SecureStoreは1件あたり2048バイトまでという制限があり、Supabaseの
+// セッション（JWT + ユーザー情報 + プロバイダ情報を含むJSON）はこれを
+// 容易に超える。超えた場合SecureStoreは警告を出すだけで書き込みを続行
+// するため、書き込みが壊れたセッションがリフレッシュトークンごと失われ、
+// 「Invalid Refresh Token」で強制ログアウトになる不具合が実際に発生していた。
+//
+// そのため、セッション本体はサイズ上限のないexpo-sqlite（暗号化して保存）
+// に置き、SecureStoreにはその復号鍵（数十バイト）だけを保存する。
 // ============================================================
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-};
+class LargeSecureStore {
+  private async _encrypt(key: string, value: string): Promise<string> {
+    const encryptionKey = Crypto.getRandomBytes(256 / 8);
+    const cipher = new aesjs.ModeOfOperation.ctr(encryptionKey, new aesjs.Counter(1));
+    const encryptedBytes = cipher.encrypt(aesjs.utils.utf8.toBytes(value));
+
+    await SecureStore.setItemAsync(key, aesjs.utils.hex.fromBytes(encryptionKey));
+
+    return aesjs.utils.hex.fromBytes(encryptedBytes);
+  }
+
+  private async _decrypt(key: string, value: string): Promise<string | null> {
+    const encryptionKeyHex = await SecureStore.getItemAsync(key);
+    if (!encryptionKeyHex) return null;
+
+    const cipher = new aesjs.ModeOfOperation.ctr(aesjs.utils.hex.toBytes(encryptionKeyHex), new aesjs.Counter(1));
+    const decryptedBytes = cipher.decrypt(aesjs.utils.hex.toBytes(value));
+
+    return aesjs.utils.utf8.fromBytes(decryptedBytes);
+  }
+
+  async getItem(key: string): Promise<string | null> {
+    const encrypted = await getKVItem(key);
+    if (!encrypted) return null;
+    return this._decrypt(key, encrypted);
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    const encrypted = await this._encrypt(key, value);
+    await setKVItem(key, encrypted);
+  }
+
+  async removeItem(key: string): Promise<void> {
+    await removeKVItem(key);
+    await SecureStore.deleteItemAsync(key);
+  }
+}
 
 export const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_URL!,
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
   {
     auth: {
-      storage: ExpoSecureStoreAdapter,
+      storage: new LargeSecureStore(),
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
     },
   }
 );
+
+// ============================================================
+// トークンの自動リフレッシュ制御
+// RNではバックグラウンド中にJSタイマーが止まるため、supabase-jsの
+// プロアクティブなリフレッシュタイマーが機能しない。フォアグラウンド
+// 復帰時に明示的に再開させないと、アクセストークン（デフォルト有効期限
+// 1時間）が期限切れのまま放置され、リフレッシュトークンのローテーション
+// と絡んで「1時間おきに再ログインを求められる」不具合につながる
+// （Supabase公式のReact Native連携で推奨されている対応）。
+// ============================================================
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') {
+    supabase.auth.startAutoRefresh();
+  } else {
+    supabase.auth.stopAutoRefresh();
+  }
+});
 
 // ============================================================
 // リダイレクト URI の生成

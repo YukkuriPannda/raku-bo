@@ -15,38 +15,73 @@ const DB_NAME = 'rakubo.db';
 // ============================================================
 let db: SQLite.SQLiteDatabase | null = null;
 
+// テーブル作成はDB初回オープン時に済ませる（initDB()の呼び出し順に依存しないようにするため）。
+// lib/auth.ts の LargeSecureStore は initDB() を待たずに getDB() 経由で
+// kv_store テーブルへアクセスすることがある。
 async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (!db) {
-    db = await SQLite.openDatabaseAsync(DB_NAME);
+    const database = await SQLite.openDatabaseAsync(DB_NAME);
+    await database.execAsync(`
+      PRAGMA journal_mode = WAL;
+
+      CREATE TABLE IF NOT EXISTS transactions (
+        id              TEXT PRIMARY KEY,
+        user_id         TEXT NOT NULL,
+        type            TEXT NOT NULL,
+        amount          INTEGER NOT NULL,
+        category        TEXT NOT NULL,
+        payment_method  TEXT NOT NULL,
+        store_name      TEXT,
+        receipt_url     TEXT,
+        transacted_at   TEXT NOT NULL,
+        created_at      TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_transactions_transacted_at
+        ON transactions (transacted_at);
+
+      CREATE TABLE IF NOT EXISTS kv_store (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    db = database;
   }
   return db;
 }
 
 // ============================================================
 // テーブル初期化
-// アプリ起動時に一度呼び出す
+// アプリ起動時に一度呼び出す（省略してもgetDB()側で自動的に初期化される）
 // ============================================================
 export async function initDB(): Promise<void> {
+  await getDB();
+}
+
+// ============================================================
+// 汎用キー・バリューストア
+// SecureStore（Android/iOSで単一値2048バイト制限あり）に収まらない
+// 大きめの値（Supabaseセッションの暗号化データなど）を保存するために使う。
+// 値そのものはここでは暗号化しない（呼び出し側でSecureStore管理の鍵を
+// 使って暗号化した上で渡すこと）
+// ============================================================
+export async function getKVItem(key: string): Promise<string | null> {
   const database = await getDB();
-  await database.execAsync(`
-    PRAGMA journal_mode = WAL;
+  const row = await database.getFirstAsync<{ value: string }>(
+    'SELECT value FROM kv_store WHERE key = ?',
+    [key]
+  );
+  return row?.value ?? null;
+}
 
-    CREATE TABLE IF NOT EXISTS transactions (
-      id              TEXT PRIMARY KEY,
-      user_id         TEXT NOT NULL,
-      type            TEXT NOT NULL,
-      amount          INTEGER NOT NULL,
-      category        TEXT NOT NULL,
-      payment_method  TEXT NOT NULL,
-      store_name      TEXT,
-      receipt_url     TEXT,
-      transacted_at   TEXT NOT NULL,
-      created_at      TEXT NOT NULL
-    );
+export async function setKVItem(key: string, value: string): Promise<void> {
+  const database = await getDB();
+  await database.runAsync('INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)', [key, value]);
+}
 
-    CREATE INDEX IF NOT EXISTS idx_transactions_transacted_at
-      ON transactions (transacted_at);
-  `);
+export async function removeKVItem(key: string): Promise<void> {
+  const database = await getDB();
+  await database.runAsync('DELETE FROM kv_store WHERE key = ?', [key]);
 }
 
 // ============================================================

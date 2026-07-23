@@ -98,6 +98,63 @@ export const styles = StyleSheet.create({
     marginLeft: spacing.lg,
     marginTop: spacing.md,
   },
+
+  // 支出の草グラフ（ホーム画面）
+  heatmapCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  heatmapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  heatmapTitle: {
+    ...typography.label,
+    color: colors.textPrimary,
+  },
+  heatmapChevron: {
+    fontSize: 18,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  heatmapGrid: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  heatmapColumn: {
+    flexDirection: 'column',
+  },
+  heatmapCell: {
+    width: 12,
+    height: 12,
+    marginRight: 3,
+    marginBottom: 3,
+    borderRadius: 3,
+  },
+  heatmapLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: spacing.sm,
+  },
+  heatmapLegendLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginHorizontal: 2,
+  },
+  heatmapLegendSwatch: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+  },
   fabContainer: {
     position: 'absolute',
     bottom: 32,

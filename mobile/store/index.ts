@@ -10,6 +10,7 @@ import { signOut as authSignOut, loadGoogleRefreshToken, saveGoogleAccessToken }
 import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage } from '@/lib/auth-errors';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
 import { saveWidgetBudget, clearWidgetBudget, saveWidgetHeatmap, clearWidgetHeatmap } from '@/lib/widget-bridge';
+import type { DailySpend } from '@/lib/widget-bridge';
 import type {
   User,
   Transaction,
@@ -39,6 +40,7 @@ interface AppState {
   isLoading: boolean;
   pendingImageBase64: string | null; // 撮影直後の未アップロード画像
   calendarError: string | null;
+  heatmapDays: DailySpend[]; // 草グラフ用：直近約63日分の日別支出合計
 
   // ---- ユーザー ----
   setUser: (user: User | null) => void;
@@ -104,6 +106,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: false,
   pendingImageBase64: null,
   calendarError: null,
+  heatmapDays: [],
 
   // ============================================================
   // ユーザー設定
@@ -123,6 +126,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       calendarEvents: [],
       balance: initialBalance,
       pendingImageBase64: null,
+      heatmapDays: [],
     });
   },
 
@@ -340,6 +344,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         return { date: key, total: dailyTotals.get(key) ?? 0 };
       });
 
+      set({ heatmapDays });
       saveWidgetHeatmap(heatmapDays);
     } catch (error) {
       console.error('[refreshHeatmapWidget] エラー:', error);

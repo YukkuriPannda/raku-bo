@@ -14,6 +14,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAppStore } from '@/store';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/index.styles';
+import { buildRollingCells, chunkIntoWeeks, LEVEL_COLORS, OUT_OF_RANGE_COLOR } from '@/lib/heatmap';
+import type { DailySpend } from '@/lib/widget-bridge';
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -24,9 +26,50 @@ function formatCurrency(amount: number): string {
   return `¥${Math.abs(amount).toLocaleString('ja-JP')}`;
 }
 
+// 支出の草グラフ（GitHubの草グラフ風ヒートマップ）
+function SpendingHeatmap({ days }: { days: DailySpend[] }) {
+  const router = useRouter();
+  const columns = chunkIntoWeeks(buildRollingCells(days));
+
+  return (
+    <TouchableOpacity
+      style={styles.heatmapCard}
+      onPress={() => router.push('/history')}
+      activeOpacity={0.7}
+    >
+      <View style={styles.heatmapHeader}>
+        <Text style={styles.heatmapTitle}>🌱 支出の記録</Text>
+        <Text style={styles.heatmapChevron}>›</Text>
+      </View>
+      <View style={styles.heatmapGrid}>
+        {columns.map((column, ci) => (
+          <View key={ci} style={styles.heatmapColumn}>
+            {column.map((cell, ri) => (
+              <View
+                key={ri}
+                style={[
+                  styles.heatmapCell,
+                  { backgroundColor: cell === null ? OUT_OF_RANGE_COLOR : LEVEL_COLORS[cell.level] },
+                ]}
+              />
+            ))}
+          </View>
+        ))}
+      </View>
+      <View style={styles.heatmapLegend}>
+        <Text style={styles.heatmapLegendLabel}>少ない</Text>
+        {LEVEL_COLORS.map((color) => (
+          <View key={color} style={[styles.heatmapLegendSwatch, { backgroundColor: color }]} />
+        ))}
+        <Text style={styles.heatmapLegendLabel}>多い</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
-  const { balance, isLoading, fetchTransactions, fetchShifts, fetchPlannedExpenditures } = useAppStore();
+  const { balance, isLoading, fetchTransactions, fetchShifts, fetchPlannedExpenditures, heatmapDays } = useAppStore();
   const month = getCurrentMonth();
   const [fabOpen, setFabOpen] = useState(false);
 
@@ -103,6 +146,9 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* 支出の草グラフ */}
+        <SpendingHeatmap days={heatmapDays} />
 
         <Text style={styles.monthLabel}>{month.replace('-', '年')}月</Text>
       </ScrollView>

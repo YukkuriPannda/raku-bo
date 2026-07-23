@@ -64,3 +64,20 @@ export function chunkIntoWeeks(cells: HeatmapCell[]): HeatmapCell[][] {
   for (let i = 0; i < cells.length; i += 7) out.push(cells.slice(i, i + 7));
   return out;
 }
+
+/**
+ * 暦週（日曜始まり）に揃えず、直近 weeks*7 日を固定サイズのセル配列にする。
+ * buildRollingCells は開始日の曜日次第で列数が9〜10列とぶれるため、
+ * 列数を固定したいウィジェット表示ではこちらを使う（データ不足分は先頭を範囲外セルで埋める）。
+ */
+export function buildFixedCells(days: DailySpend[], weeks: number): HeatmapCell[] {
+  const totalDays = weeks * 7;
+  const max = Math.max(0, ...days.map((d) => d.total));
+  const recent = days.slice(-totalDays);
+  const padCount = totalDays - recent.length;
+
+  return [
+    ...Array.from({ length: padCount }, (): HeatmapCell => null),
+    ...recent.map((d): HeatmapCell => ({ level: levelFor(d.total, max) })),
+  ];
+}

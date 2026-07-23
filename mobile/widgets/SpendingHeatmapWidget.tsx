@@ -6,28 +6,28 @@
 
 import { FlexWidget } from 'react-native-android-widget';
 import type { DailySpend } from '@/lib/widget-bridge';
-import { buildRollingCells, chunkIntoWeeks, LEVEL_COLORS, OUT_OF_RANGE_COLOR, type HeatmapCell } from '@/lib/heatmap';
+import { buildFixedCells, chunkIntoWeeks, LEVEL_COLORS, OUT_OF_RANGE_COLOR, type HeatmapCell } from '@/lib/heatmap';
 
 // ============================================================
 // Props 定義
 // ============================================================
 interface SpendingHeatmapWidgetProps {
-  days: DailySpend[]; // 直近約63日分（日付昇順）の日別支出合計
+  days: DailySpend[]; // 直近WEEKS*7日分（日付昇順）の日別支出合計
 }
 
-// 90dp四方（2x1セル）に7行 × 9〜10週を収めるため小さめのマスにする
-const CELL_SIZE = 9;
-const CELL_GAP = 2;
+// 常に7行×15列に固定する（ウィジェットサイズに関わらずはみ出さないよう、
+// マス目は固定pxではなく flex の比率でウィジェット幅・高さいっぱいに配分する）
+const WEEKS = 15;
+const CELL_GAP = 1;
 
-function DaySquare({ cell }: { cell: HeatmapCell }) {
+function DaySquare({ cell, isLastRow }: { cell: HeatmapCell; isLastRow: boolean }) {
   return (
     <FlexWidget
       style={{
-        width: CELL_SIZE,
-        height: CELL_SIZE,
-        marginRight: CELL_GAP,
-        marginBottom: CELL_GAP,
-        borderRadius: 3,
+        flex: 1,
+        width: 'match_parent',
+        marginBottom: isLastRow ? 0 : CELL_GAP,
+        borderRadius: 2,
         backgroundColor: cell === null ? OUT_OF_RANGE_COLOR : LEVEL_COLORS[cell.level],
       }}
     />
@@ -38,8 +38,8 @@ function DaySquare({ cell }: { cell: HeatmapCell }) {
 // ウィジェットコンポーネント
 // ============================================================
 export function SpendingHeatmapWidget({ days }: SpendingHeatmapWidgetProps) {
-  const cells = buildRollingCells(days);
-  const columns = chunkIntoWeeks(cells); // 1列 = 1週間（7日）
+  const cells = buildFixedCells(days, WEEKS);
+  const columns = chunkIntoWeeks(cells); // 1列 = 1週間（7日）、常にWEEKS列
 
   return (
     <FlexWidget
@@ -48,16 +48,24 @@ export function SpendingHeatmapWidget({ days }: SpendingHeatmapWidgetProps) {
       style={{
         width: 'match_parent',
         height: 'match_parent',
-        justifyContent: 'center',
-        alignItems: 'center',
+        padding: 4,
       }}
     >
-      {/* 週×曜日のグリッド（GitHubの草グラフと同じく、マス目だけのシンプルな構成） */}
-      <FlexWidget style={{ flexDirection: 'row' }}>
+      {/* 週×曜日のグリッド。列・行とも flex:1 でウィジェット領域に比例配分するため、
+          サイズに関わらず常に7行×WEEKS列の枠内に収まる */}
+      <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', height: 'match_parent' }}>
         {columns.map((column, ci) => (
-          <FlexWidget key={ci} style={{ flexDirection: 'column' }}>
+          <FlexWidget
+            key={ci}
+            style={{
+              flex: 1,
+              flexDirection: 'column',
+              height: 'match_parent',
+              marginRight: ci === columns.length - 1 ? 0 : CELL_GAP,
+            }}
+          >
             {column.map((cell, ri) => (
-              <DaySquare key={ri} cell={cell} />
+              <DaySquare key={ri} cell={cell} isLastRow={ri === column.length - 1} />
             ))}
           </FlexWidget>
         ))}

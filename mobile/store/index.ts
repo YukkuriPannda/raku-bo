@@ -326,22 +326,35 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // ============================================================
-  // 草グラフウィジェット用: 当月 + 前月の取引を取得し、直近63日分を日別集計する
+  // 草グラフウィジェット用: 表示に必要な過去分の取引を取得し、日別集計する
   // （calcBalance が持つ transactions は現在表示中の月のみのため、
-  //   前月分だけ追加で取得してマージする）
+  //   不足する過去月だけ追加で取得してマージする）
+  // ホーム画面カードは直近63日分、Androidウィジェットは7行×15列固定で
+  // 表示するため直近105日分が必要。ウィジェット側の日数だけ多く取得する。
   // ============================================================
   refreshHeatmapWidget: async () => {
     const { transactions } = get();
     const now = new Date();
-    const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+    const ROLLING_DAYS = 63; // ホーム画面カード用（約9週間）
+    const WIDGET_ROLLING_DAYS = 15 * 7; // Androidウィジェット用（7行×15列固定）
+
+    // WIDGET_ROLLING_DAYS 分を賄うのに必要な過去月（当月除く）を求める
+    const earliestDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (WIDGET_ROLLING_DAYS - 1));
+    const earliestMonthStart = new Date(earliestDate.getFullYear(), earliestDate.getMonth(), 1);
+    const monthsNeeded: string[] = [];
+    const cursor = new Date(now.getFullYear(), now.getMonth(), 1);
+    while (cursor > earliestMonthStart) {
+      cursor.setMonth(cursor.getMonth() - 1);
+      monthsNeeded.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+    }
 
     try {
-      const prevRes = await transactionApi.list(prevMonth);
-      const prevTransactions: Transaction[] = prevRes.data ?? [];
+      const pastResults = await Promise.all(monthsNeeded.map((m) => transactionApi.list(m)));
+      const pastTransactions: Transaction[] = pastResults.flatMap((r) => r.data ?? []);
 
       const dailyTotals = new Map<string, number>();
-      [...transactions, ...prevTransactions]
+      [...transactions, ...pastTransactions]
         .filter((t) => t.type === 'cash')
         .forEach((t) => {
           const d = new Date(t.transacted_at);
@@ -349,15 +362,16 @@ export const useAppStore = create<AppState>((set, get) => ({
           dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + t.amount);
         });
 
-      const ROLLING_DAYS = 63; // 約9週間（GitHubの草グラフ風、9〜10列）
-      const heatmapDays = Array.from({ length: ROLLING_DAYS }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (ROLLING_DAYS - 1 - i));
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        return { date: key, total: dailyTotals.get(key) ?? 0 };
-      });
+      const buildDays = (rollingDays: number): DailySpend[] =>
+        Array.from({ length: rollingDays }, (_, i) => {
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (rollingDays - 1 - i));
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          return { date: key, total: dailyTotals.get(key) ?? 0 };
+        });
 
+      const heatmapDays = buildDays(ROLLING_DAYS);
       set({ heatmapDays });
-      saveWidgetHeatmap(heatmapDays);
+      saveWidgetHeatmap(buildDays(WIDGET_ROLLING_DAYS));
     } catch (error) {
       console.error('[refreshHeatmapWidget] エラー:', error);
     }

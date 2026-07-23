@@ -396,6 +396,7 @@ export default function PlannedExpendituresScreen() {
   const [editingItem, setEditingItem] = useState<PlannedExpenditure | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editBillingDay, setEditBillingDay] = useState('');
+  const [addModalVisible, setAddModalVisible] = useState(false);
 
   useFocusEffect(useCallback(() => { fetchPlannedExpenditures(viewMonth); }, [fetchPlannedExpenditures, viewMonth]));
 
@@ -507,34 +508,14 @@ export default function PlannedExpendituresScreen() {
               </Text>
             </View>
 
-            {/* タイプセレクタ */}
-            <View style={styles.typeSelector}>
-              <TouchableOpacity
-                style={[styles.typeSelectorItem, activeTab === 'subscription' && styles.typeSelectorActive]}
-                onPress={() => setActiveTab('subscription')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.typeSelectorText, activeTab === 'subscription' && styles.typeSelectorTextActive]}>
-                  🔄 サブスク
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeSelectorItem, activeTab === 'calendar' && styles.typeSelectorActive]}
-                onPress={() => setActiveTab('calendar')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.typeSelectorText, activeTab === 'calendar' && styles.typeSelectorTextActive]}>
-                  📅 カレンダー連動
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* 追加フォーム */}
-            {activeTab === 'subscription' ? (
-              <SubscriptionForm onAdd={() => fetchPlannedExpenditures(viewMonth)} />
-            ) : (
-              <CalendarForm month={viewMonth} onAdd={() => fetchPlannedExpenditures(viewMonth)} />
-            )}
+            {/* 追加モーダルを開くボタン */}
+            <TouchableOpacity
+              style={styles.openAddBtn}
+              onPress={() => setAddModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.openAddBtnText}>＋ 予定支出を追加</Text>
+            </TouchableOpacity>
 
             <Text style={styles.sectionLabel}>登録済み一覧</Text>
           </View>
@@ -592,6 +573,71 @@ export default function PlannedExpendituresScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* 予定支出追加モーダル */}
+      <Modal
+        visible={addModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAddModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.addModalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.addModalSheet}>
+            <View style={styles.addModalHeader}>
+              <Text style={styles.addModalTitle}>予定支出を追加</Text>
+              <TouchableOpacity onPress={() => setAddModalVisible(false)} activeOpacity={0.7}>
+                <Text style={styles.addModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* タイプセレクタ */}
+            <View style={styles.typeSelector}>
+              <TouchableOpacity
+                style={[styles.typeSelectorItem, activeTab === 'subscription' && styles.typeSelectorActive]}
+                onPress={() => setActiveTab('subscription')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.typeSelectorText, activeTab === 'subscription' && styles.typeSelectorTextActive]}>
+                  🔄 サブスク
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeSelectorItem, activeTab === 'calendar' && styles.typeSelectorActive]}
+                onPress={() => setActiveTab('calendar')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.typeSelectorText, activeTab === 'calendar' && styles.typeSelectorTextActive]}>
+                  📅 カレンダー連動
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {addModalVisible && (
+                activeTab === 'subscription' ? (
+                  <SubscriptionForm
+                    onAdd={() => {
+                      fetchPlannedExpenditures(viewMonth);
+                      setAddModalVisible(false);
+                    }}
+                  />
+                ) : (
+                  <CalendarForm
+                    month={viewMonth}
+                    onAdd={() => {
+                      fetchPlannedExpenditures(viewMonth);
+                      setAddModalVisible(false);
+                    }}
+                  />
+                )
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
   );

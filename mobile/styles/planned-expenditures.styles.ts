@@ -63,6 +63,58 @@ export const styles = StyleSheet.create({
     color: '#fff',
   },
 
+  // 追加モーダルを開くボタン
+  openAddBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E65100',
+    borderStyle: 'dashed',
+    borderRadius: radius.lg,
+    backgroundColor: '#FFF3E0',
+    paddingVertical: 14,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  openAddBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#E65100',
+  },
+
+  // 追加モーダル（下からせり出すシート）
+  addModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  addModalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    maxHeight: '88%',
+  },
+  addModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  addModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  addModalClose: {
+    fontSize: 18,
+    color: colors.textSecondary,
+    padding: spacing.xs,
+  },
+
   // 追加フォームカード
   addCard: {
     backgroundColor: colors.surface,

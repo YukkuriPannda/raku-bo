@@ -32,6 +32,50 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.sm,
   },
+  settingsGearBtn: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    right: spacing.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsGearIcon: {
+    fontSize: 18,
+  },
+  // 設定モーダル（時給設定・シフト検出キーワード・ログアウト、下からせり出すシート）
+  settingsModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  settingsModalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    maxHeight: '88%',
+  },
+  settingsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  settingsModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  settingsModalClose: {
+    fontSize: 18,
+    color: colors.textSecondary,
+    padding: spacing.xs,
+  },
   wageCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

@@ -27,7 +27,7 @@ function DaySquare({ cell, isLastRow }: { cell: HeatmapCell; isLastRow: boolean 
         flex: 1,
         width: 'match_parent',
         marginBottom: isLastRow ? 0 : CELL_GAP,
-        borderRadius: 2,
+        borderRadius: 4,
         backgroundColor: cell === null ? OUT_OF_RANGE_COLOR : LEVEL_COLORS[cell.level],
       }}
     />

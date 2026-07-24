@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { GestureDetector } from 'react-native-gesture-handler';
 
 import { useAppStore } from '@/store';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/index.styles';
-import { buildRollingCells, chunkIntoWeeks, LEVEL_COLORS, OUT_OF_RANGE_COLOR } from '@/lib/heatmap';
+import { buildRollingCells, buildMonthLabels, chunkIntoWeeks, LEVEL_COLORS, OUT_OF_RANGE_COLOR } from '@/lib/heatmap';
+import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import type { DailySpend } from '@/lib/widget-bridge';
 
 function getCurrentMonth(): string {
@@ -26,10 +28,14 @@ function formatCurrency(amount: number): string {
   return `¥${Math.abs(amount).toLocaleString('ja-JP')}`;
 }
 
+// 曜日ラベル（日曜始まり）。GitHubの草グラフに倣い月・水・金だけ表示する
+const DAY_LABELS = ['', '月', '', '水', '', '金', ''];
+
 // 支出の草グラフ（GitHubの草グラフ風ヒートマップ）
 function SpendingHeatmap({ days }: { days: DailySpend[] }) {
   const router = useRouter();
   const columns = chunkIntoWeeks(buildRollingCells(days));
+  const monthLabels = buildMonthLabels(days, columns.length);
 
   return (
     <TouchableOpacity
@@ -41,20 +47,42 @@ function SpendingHeatmap({ days }: { days: DailySpend[] }) {
         <Text style={styles.heatmapTitle}>🌱 支出の記録</Text>
         <Text style={styles.heatmapChevron}>›</Text>
       </View>
-      <View style={styles.heatmapGrid}>
-        {columns.map((column, ci) => (
-          <View key={ci} style={styles.heatmapColumn}>
-            {column.map((cell, ri) => (
-              <View
-                key={ri}
-                style={[
-                  styles.heatmapCell,
-                  { backgroundColor: cell === null ? OUT_OF_RANGE_COLOR : LEVEL_COLORS[cell.level] },
-                ]}
-              />
+      <View style={styles.heatmapBody}>
+        {/* 曜日ラベル */}
+        <View style={styles.heatmapDayLabels}>
+          {DAY_LABELS.map((label, i) => (
+            <Text key={i} style={styles.heatmapDayLabel}>{label}</Text>
+          ))}
+        </View>
+
+        <View style={{ flex: 1 }}>
+          {/* 月ラベル（列の開始位置に絶対配置） */}
+          <View style={styles.heatmapMonthLabels}>
+            {monthLabels.map((label, ci) =>
+              label ? (
+                <Text key={ci} style={[styles.heatmapMonthLabel, { left: ci * 15 }]}>
+                  {label}
+                </Text>
+              ) : null
+            )}
+          </View>
+
+          <View style={styles.heatmapGrid}>
+            {columns.map((column, ci) => (
+              <View key={ci} style={styles.heatmapColumn}>
+                {column.map((cell, ri) => (
+                  <View
+                    key={ri}
+                    style={[
+                      styles.heatmapCell,
+                      { backgroundColor: cell === null ? OUT_OF_RANGE_COLOR : LEVEL_COLORS[cell.level] },
+                    ]}
+                  />
+                ))}
+              </View>
             ))}
           </View>
-        ))}
+        </View>
       </View>
       <View style={styles.heatmapLegend}>
         <Text style={styles.heatmapLegendLabel}>少ない</Text>
@@ -72,6 +100,7 @@ export default function HomeScreen() {
   const { balance, isLoading, fetchTransactions, fetchShifts, fetchPlannedExpenditures, heatmapDays } = useAppStore();
   const month = getCurrentMonth();
   const [fabOpen, setFabOpen] = useState(false);
+  const swipeGesture = useSwipeTabNavigation();
 
   const loadData = useCallback(async () => {
     await Promise.all([fetchTransactions(month), fetchShifts(month), fetchPlannedExpenditures(month)]);
@@ -82,6 +111,7 @@ export default function HomeScreen() {
   const isPositive = balance.remaining >= 0;
 
   return (
+    <GestureDetector gesture={swipeGesture}>
     <View style={styles.screen}>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
@@ -197,5 +227,6 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
     </View>
+    </GestureDetector>
   );
 }

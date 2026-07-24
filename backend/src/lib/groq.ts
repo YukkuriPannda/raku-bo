@@ -1,7 +1,10 @@
 import type { OcrResult } from '../types';
 
 const ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+// meta-llama/llama-4-scout-17b-16e-instruct は2026-06-17にGroqが廃止。
+// 2026-07時点でvision(image_url)に対応する本番モデルはqwen/qwen3.6-27bのみ。
+// https://console.groq.com/docs/vision / https://console.groq.com/docs/deprecations
+const MODEL = 'qwen/qwen3.6-27b';
 
 const PROMPT = `このレシート画像を解析して、以下のフィールドを持つ有効なJSONオブジェクトのみを返してください。説明文やマークダウンは不要です。
 

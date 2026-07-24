@@ -15,6 +15,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import * as QuickActions from 'expo-quick-actions';
+import * as Notifications from 'expo-notifications';
 import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken, saveGoogleRefreshToken, loadGoogleRefreshToken, clearGoogleRefreshToken } from '@/lib/auth';
 import { AuthError, AuthErrorCode, formatAuthError } from '@/lib/auth-errors';
 import { initDB } from '@/lib/db';
@@ -145,8 +146,20 @@ export default function RootLayout() {
     // TODO: カスタムフォントが必要な場合はここに追加
     // 'Noto-Sans-JP': require('../assets/fonts/NotoSansJP-Regular.ttf'),
   });
+  const router = useRouter();
 
   useAuthGuard();
+
+  useEffect(() => {
+    // 常駐通知（レシート撮影）タップ時の遷移
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const screen = response.notification.request.content.data?.screen;
+      if (typeof screen === 'string') {
+        router.push(screen as never);
+      }
+    });
+    return () => sub.remove();
+  }, [router]);
 
   useEffect(() => {
     // DB 初期化（ローカルキャッシュ）

@@ -75,7 +75,8 @@
       "expo-font",
       "expo-sqlite",
       "expo-web-browser",
-      "expo-quick-actions"
+      "expo-quick-actions",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

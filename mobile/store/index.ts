@@ -10,6 +10,7 @@ import { signOut as authSignOut, loadGoogleRefreshToken, saveGoogleAccessToken }
 import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage } from '@/lib/auth-errors';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
 import { saveWidgetBudget, clearWidgetBudget, saveWidgetHeatmap, clearWidgetHeatmap } from '@/lib/widget-bridge';
+import { showReceiptQuickCaptureNotification, clearReceiptQuickCaptureNotification } from '@/lib/notifications';
 import type { DailySpend } from '@/lib/widget-bridge';
 import type {
   User,
@@ -130,6 +131,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await clearCache();
     clearWidgetBudget();
     clearWidgetHeatmap();
+    clearReceiptQuickCaptureNotification();
     set({
       user: null,
       transactions: [],
@@ -320,6 +322,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       .map((p) => ({ label: p.calendar_event_title ?? p.category, amount: p.amount }));
 
     saveWidgetBudget(balance, month, recentTransactions, upcomingPlanned);
+    showReceiptQuickCaptureNotification(remaining);
 
     // 草グラフウィジェット用の日別支出（直近約2ヶ月分）を非同期で更新
     get().refreshHeatmapWidget();

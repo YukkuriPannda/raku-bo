@@ -9,7 +9,7 @@ import {
   Alert,
   ListRenderItemInfo,
 } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { GestureDetector, Swipeable } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 
@@ -17,6 +17,7 @@ import { useAppStore } from '@/store';
 import { CATEGORY_EMOJI } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/history.styles';
+import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import type { Transaction } from '@/types';
 
 function getCurrentMonth(): string {
@@ -126,6 +127,7 @@ export default function HistoryScreen() {
   const month = getCurrentMonth();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [fabOpen, setFabOpen] = useState(false);
+  const swipeGesture = useSwipeTabNavigation();
 
   useFocusEffect(useCallback(() => { fetchTransactions(month); }, [month, fetchTransactions]));
 
@@ -147,11 +149,14 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.monthBar}>
-        <Text style={styles.monthBarText}>
-          {month.replace('-', '年')}月 （{transactions.length} 件）
-        </Text>
-      </View>
+      {/* 行ごとの削除スワイプと競合しないよう、タブ切替スワイプはヘッダー部分のみで受け付ける */}
+      <GestureDetector gesture={swipeGesture}>
+        <View style={styles.monthBar}>
+          <Text style={styles.monthBarText}>
+            {month.replace('-', '年')}月 （{transactions.length} 件）
+          </Text>
+        </View>
+      </GestureDetector>
 
       <FlatList
         data={transactions}

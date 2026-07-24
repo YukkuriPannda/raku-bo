@@ -13,11 +13,13 @@ import {
   ListRenderItemInfo,
   Alert,
 } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useAppStore } from '@/store';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/shifts.styles';
+import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import type { ShiftEvent } from '@/types';
 
 function getCurrentMonth(): string {
@@ -51,6 +53,7 @@ export default function ShiftsScreen() {
   const [wageInput, setWageInput] = useState(String(hourlyWage));
   const [keywordsInput, setKeywordsInput] = useState(shiftKeywords.join('\n'));
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const swipeGesture = useSwipeTabNavigation();
 
   useFocusEffect(
     useCallback(() => {
@@ -120,6 +123,7 @@ export default function ShiftsScreen() {
   );
 
   return (
+    <GestureDetector gesture={swipeGesture}>
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -213,5 +217,6 @@ export default function ShiftsScreen() {
         </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
+    </GestureDetector>
   );
 }

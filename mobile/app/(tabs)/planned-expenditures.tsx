@@ -13,11 +13,13 @@ import {
   ScrollView,
   ListRenderItemInfo,
 } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useAppStore } from '@/store';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/planned-expenditures.styles';
+import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import { ALL_CATEGORIES, CATEGORY_EMOJI } from '@/types';
 import type { PlannedExpenditure, Category, PaymentMethod, BillingCycle, CalendarEvent } from '@/types';
 
@@ -397,6 +399,7 @@ export default function PlannedExpendituresScreen() {
   const [editAmount, setEditAmount] = useState('');
   const [editBillingDay, setEditBillingDay] = useState('');
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const swipeGesture = useSwipeTabNavigation();
 
   useFocusEffect(useCallback(() => { fetchPlannedExpenditures(viewMonth); }, [fetchPlannedExpenditures, viewMonth]));
 
@@ -470,6 +473,7 @@ export default function PlannedExpendituresScreen() {
   };
 
   return (
+    <GestureDetector gesture={swipeGesture}>
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -640,5 +644,6 @@ export default function PlannedExpendituresScreen() {
         </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
+    </GestureDetector>
   );
 }

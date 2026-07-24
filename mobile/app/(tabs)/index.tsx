@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { GestureDetector } from 'react-native-gesture-handler';
 
 import { useAppStore } from '@/store';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/index.styles';
 import { buildRollingCells, buildMonthLabels, chunkIntoWeeks, LEVEL_COLORS, OUT_OF_RANGE_COLOR } from '@/lib/heatmap';
+import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import type { DailySpend } from '@/lib/widget-bridge';
 
 function getCurrentMonth(): string {
@@ -98,6 +100,7 @@ export default function HomeScreen() {
   const { balance, isLoading, fetchTransactions, fetchShifts, fetchPlannedExpenditures, heatmapDays } = useAppStore();
   const month = getCurrentMonth();
   const [fabOpen, setFabOpen] = useState(false);
+  const swipeGesture = useSwipeTabNavigation();
 
   const loadData = useCallback(async () => {
     await Promise.all([fetchTransactions(month), fetchShifts(month), fetchPlannedExpenditures(month)]);
@@ -108,6 +111,7 @@ export default function HomeScreen() {
   const isPositive = balance.remaining >= 0;
 
   return (
+    <GestureDetector gesture={swipeGesture}>
     <View style={styles.screen}>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
@@ -223,5 +227,6 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
     </View>
+    </GestureDetector>
   );
 }

@@ -8,6 +8,8 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  ScrollView,
   ListRenderItemInfo,
   Alert,
 } from 'react-native';
@@ -48,6 +50,7 @@ export default function ShiftsScreen() {
   const month = getCurrentMonth();
   const [wageInput, setWageInput] = useState(String(hourlyWage));
   const [keywordsInput, setKeywordsInput] = useState(shiftKeywords.join('\n'));
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -103,47 +106,12 @@ export default function ShiftsScreen() {
         <Text style={styles.forecastSub}>
           シフト {shifts.length} 件 · 合計 {shifts.reduce((s, i) => s + i.duration_hours, 0).toFixed(1)} 時間
         </Text>
-      </View>
-
-      <View style={styles.wageCard}>
-        <Text style={styles.wageTitle}>時給設定</Text>
-        <View style={styles.wageRow}>
-          <Text style={styles.wageCurrency}>¥</Text>
-          <TextInput
-            value={wageInput}
-            onChangeText={setWageInput}
-            keyboardType="number-pad"
-            style={styles.wageInput}
-            placeholder="1000"
-            placeholderTextColor={colors.textSecondary}
-            returnKeyType="done"
-            onSubmitEditing={handleSaveWage}
-          />
-          <TouchableOpacity onPress={handleSaveWage} style={styles.wageSaveBtn} activeOpacity={0.8}>
-            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>保存</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.keywordsCard}>
-        <Text style={styles.keywordsLabel}>シフト検出キーワード</Text>
-        <Text style={styles.keywordsHint}>1行に1つ入力してください</Text>
-        <TextInput
-          value={keywordsInput}
-          onChangeText={setKeywordsInput}
-          multiline
-          style={styles.keywordsInput}
-          placeholder={'バイト\nシフト\n出勤\n勤務'}
-          placeholderTextColor={colors.textSecondary}
-        />
-        <TouchableOpacity onPress={handleSaveKeywords} style={styles.keywordsSaveBtn} activeOpacity={0.8}>
-          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>保存</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.logoutCard}>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} activeOpacity={0.8}>
-          <Text style={styles.logoutText}>ログアウト</Text>
+        <TouchableOpacity
+          style={styles.settingsGearBtn}
+          onPress={() => setSettingsModalVisible(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.settingsGearIcon}>⚙️</Text>
         </TouchableOpacity>
       </View>
 
@@ -178,6 +146,72 @@ export default function ShiftsScreen() {
         }
         contentContainerStyle={{ paddingBottom: 32 }}
       />
+
+      {/* 設定モーダル（時給設定・シフト検出キーワード・ログアウト） */}
+      <Modal
+        visible={settingsModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSettingsModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.settingsModalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.settingsModalSheet}>
+            <View style={styles.settingsModalHeader}>
+              <Text style={styles.settingsModalTitle}>設定</Text>
+              <TouchableOpacity onPress={() => setSettingsModalVisible(false)} activeOpacity={0.7}>
+                <Text style={styles.settingsModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <View style={styles.wageCard}>
+                <Text style={styles.wageTitle}>時給設定</Text>
+                <View style={styles.wageRow}>
+                  <Text style={styles.wageCurrency}>¥</Text>
+                  <TextInput
+                    value={wageInput}
+                    onChangeText={setWageInput}
+                    keyboardType="number-pad"
+                    style={styles.wageInput}
+                    placeholder="1000"
+                    placeholderTextColor={colors.textSecondary}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveWage}
+                  />
+                  <TouchableOpacity onPress={handleSaveWage} style={styles.wageSaveBtn} activeOpacity={0.8}>
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>保存</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.keywordsCard}>
+                <Text style={styles.keywordsLabel}>シフト検出キーワード</Text>
+                <Text style={styles.keywordsHint}>1行に1つ入力してください</Text>
+                <TextInput
+                  value={keywordsInput}
+                  onChangeText={setKeywordsInput}
+                  multiline
+                  style={styles.keywordsInput}
+                  placeholder={'バイト\nシフト\n出勤\n勤務'}
+                  placeholderTextColor={colors.textSecondary}
+                />
+                <TouchableOpacity onPress={handleSaveKeywords} style={styles.keywordsSaveBtn} activeOpacity={0.8}>
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>保存</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.logoutCard}>
+                <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} activeOpacity={0.8}>
+                  <Text style={styles.logoutText}>ログアウト</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }

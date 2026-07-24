@@ -31,6 +31,14 @@ function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** daysの先頭日を含む週の開始日（直前の日曜）を返す */
+function computeGridStart(days: DailySpend[]): Date {
+  const startDate = parseDateKey(days[0].date);
+  const gridStart = new Date(startDate);
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+  return gridStart;
+}
+
 /** 実際の日付範囲（daysの先頭〜末尾）を、週境界（日曜始まり）に揃えたセル配列にする */
 export function buildRollingCells(days: DailySpend[]): HeatmapCell[] {
   if (days.length === 0) return [];
@@ -41,8 +49,7 @@ export function buildRollingCells(days: DailySpend[]): HeatmapCell[] {
   const startDate = parseDateKey(days[0].date);
   const endDate = parseDateKey(days[days.length - 1].date);
 
-  const gridStart = new Date(startDate);
-  gridStart.setDate(gridStart.getDate() - gridStart.getDay()); // 直前の日曜まで遡る
+  const gridStart = computeGridStart(days);
   const gridEnd = new Date(endDate);
   gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay())); // 直後の土曜まで進める
 
@@ -63,6 +70,26 @@ export function chunkIntoWeeks(cells: HeatmapCell[]): HeatmapCell[][] {
   const out: HeatmapCell[][] = [];
   for (let i = 0; i < cells.length; i += 7) out.push(cells.slice(i, i + 7));
   return out;
+}
+
+/**
+ * buildRollingCells が作る列（週）ごとに月ラベルを割り当てる。
+ * GitHubの草グラフと同じく、月が変わる列にだけラベルを立てる（それ以外はnull）。
+ */
+export function buildMonthLabels(days: DailySpend[], columnCount: number): (string | null)[] {
+  if (days.length === 0) return Array(columnCount).fill(null);
+
+  const gridStart = computeGridStart(days);
+  const labels: (string | null)[] = [];
+  let prevMonth = -1;
+  for (let i = 0; i < columnCount; i++) {
+    const d = new Date(gridStart);
+    d.setDate(d.getDate() + i * 7);
+    const month = d.getMonth();
+    labels.push(month !== prevMonth ? `${month + 1}月` : null);
+    prevMonth = month;
+  }
+  return labels;
 }
 
 /**

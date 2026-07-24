@@ -124,9 +124,31 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 18,
   },
-  heatmapGrid: {
+  heatmapBody: {
     flexDirection: 'row',
     justifyContent: 'center',
+  },
+  heatmapDayLabels: {
+    marginRight: 4,
+    marginTop: 14, // 月ラベル行ぶんだけ下げてグリッドと縦位置を合わせる
+  },
+  heatmapDayLabel: {
+    height: 15,
+    lineHeight: 15,
+    fontSize: 9,
+    color: colors.textSecondary,
+  },
+  heatmapMonthLabels: {
+    height: 14,
+  },
+  heatmapMonthLabel: {
+    position: 'absolute',
+    top: 0,
+    fontSize: 9,
+    color: colors.textSecondary,
+  },
+  heatmapGrid: {
+    flexDirection: 'row',
   },
   heatmapColumn: {
     flexDirection: 'column',

@@ -20,6 +20,7 @@ import { useAppStore } from '@/store';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/planned-expenditures.styles';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
+import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import { ALL_CATEGORIES, CATEGORY_EMOJI } from '@/types';
 import type { PlannedExpenditure, Category, PaymentMethod, BillingCycle, CalendarEvent } from '@/types';
 
@@ -402,6 +403,7 @@ export default function PlannedExpendituresScreen() {
   const swipeGesture = useSwipeTabNavigation();
 
   useFocusEffect(useCallback(() => { fetchPlannedExpenditures(viewMonth); }, [fetchPlannedExpenditures, viewMonth]));
+  useRefreshOnForeground(() => fetchPlannedExpenditures(viewMonth));
 
   const handlePrevViewMonth = () => setViewMonth((m) => addMonths(m, -1));
   const handleNextViewMonth = () => setViewMonth((m) => addMonths(m, 1));

@@ -20,6 +20,7 @@ import { useAppStore } from '@/store';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/shifts.styles';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
+import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import type { ShiftEvent } from '@/types';
 
 function getCurrentMonth(): string {
@@ -62,6 +63,7 @@ export default function ShiftsScreen() {
       setKeywordsInput(shiftKeywords.join('\n'));
     }, [month, fetchShifts, hourlyWage, shiftKeywords])
   );
+  useRefreshOnForeground(() => fetchShifts(month));
 
   const handleSaveWage = () => {
     const parsed = parseInt(wageInput, 10);

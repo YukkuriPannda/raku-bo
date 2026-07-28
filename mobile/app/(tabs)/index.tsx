@@ -17,6 +17,7 @@ import { colors } from '@/constants/theme';
 import { styles } from '@/styles/index.styles';
 import { buildRollingCells, buildMonthLabels, chunkIntoWeeks, LEVEL_COLORS, OUT_OF_RANGE_COLOR } from '@/lib/heatmap';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
+import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import type { DailySpend } from '@/lib/widget-bridge';
 
 function getCurrentMonth(): string {
@@ -107,6 +108,7 @@ export default function HomeScreen() {
   }, [month, fetchTransactions, fetchShifts, fetchPlannedExpenditures]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useRefreshOnForeground(loadData);
 
   const isPositive = balance.remaining >= 0;
 

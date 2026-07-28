@@ -18,6 +18,7 @@ import { CATEGORY_EMOJI } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/history.styles';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
+import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import type { Transaction } from '@/types';
 
 function getCurrentMonth(): string {
@@ -130,6 +131,7 @@ export default function HistoryScreen() {
   const swipeGesture = useSwipeTabNavigation();
 
   useFocusEffect(useCallback(() => { fetchTransactions(month); }, [month, fetchTransactions]));
+  useRefreshOnForeground(() => fetchTransactions(month));
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {

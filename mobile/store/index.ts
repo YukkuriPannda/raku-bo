@@ -26,15 +26,56 @@ import type {
 } from '@/types';
 
 // ============================================================
-// Googleカレンダー呼び出しが「Googleアクセストークンの期限切れ」で
-// 401になったかどうかを判定する。
+// Googleカレンダー呼び出しの失敗が「Googleアクセストークンを取り直せば
+// 解決する」種類のものかを判定する。
+//   401 + AUTH_GOOGLE_API_ERROR    … アクセストークンの期限切れ（1時間）
+//   400 + AUTH_GOOGLE_TOKEN_MISSING … 端末にトークンが無い状態で送信した
 // 同じ401でもSupabaseセッション切れ（AUTH_SUPABASE_VERIFY_FAILED等）が
 // 原因のことがあり、その場合はGoogleトークンを更新しても解決しないため
 // ステータスコードだけでなくバックエンドが返すエラーコードも見る。
 // ============================================================
-function isGoogleTokenExpiredError(err: unknown): boolean {
+function isGoogleTokenRefreshable(err: unknown): boolean {
   const response = (err as { response?: { status?: number; data?: { code?: string } } }).response;
-  return response?.status === 401 && response.data?.code === AuthErrorCode.GOOGLE_API_ERROR;
+  const code = response?.data?.code;
+  return (
+    (response?.status === 401 && code === AuthErrorCode.GOOGLE_API_ERROR) ||
+    (response?.status === 400 && code === AuthErrorCode.GOOGLE_TOKEN_MISSING)
+  );
+}
+
+// ============================================================
+// Googleアクセストークンを使うAPI呼び出しの共通ラッパー。
+// トークンが空、または期限切れだった場合はリフレッシュトークンで
+// 1回だけ取り直して再試行する。取り直したトークンはSecureStoreと
+// ストアの両方へ反映し、以降の呼び出しでも使えるようにする。
+// リフレッシュトークン自体が無い場合だけ再ログインが必要になる。
+// ============================================================
+async function callWithGoogleToken<T>(
+  user: User,
+  onTokenRefreshed: (token: string) => void,
+  request: (token: string) => Promise<T>,
+): Promise<T> {
+  const refresh = async (): Promise<string> => {
+    const refreshToken = await loadGoogleRefreshToken();
+    if (!refreshToken) throw new AuthError(AuthErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
+    const res = await authApi.refreshGoogleToken(refreshToken);
+    const token = res.data.access_token;
+    await saveGoogleAccessToken(token);
+    onTokenRefreshed(token);
+    return token;
+  };
+
+  // 再起動直後などトークンが空のまま叩くと400になるため、先に取り直す
+  if (!user.googleAccessToken) {
+    return request(await refresh());
+  }
+
+  try {
+    return await request(user.googleAccessToken);
+  } catch (err) {
+    if (!isGoogleTokenRefreshable(err)) throw err;
+    return request(await refresh());
+  }
 }
 
 // ============================================================
@@ -191,29 +232,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set({ isLoading: true, calendarError: null });
 
-    const doFetch = async (token: string) => shiftApi.list(month, token);
-
     try {
-      let token = user.googleAccessToken;
-      let res;
-      try {
-        res = await doFetch(token);
-      } catch (firstErr: unknown) {
-        if (isGoogleTokenExpiredError(firstErr)) {
-          // Googleトークン期限切れ → リフレッシュして1回リトライ
-          const refreshToken = await loadGoogleRefreshToken();
-          if (!refreshToken) throw new AuthError(AuthErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
-          const refreshRes = await authApi.refreshGoogleToken(refreshToken);
-          token = refreshRes.data.access_token;
-          await saveGoogleAccessToken(token);
-          set({ user: { ...user, googleAccessToken: token } });
-          res = await doFetch(token);
-        } else {
-          // Supabaseセッション切れなど、Google側の問題ではない401はそのまま投げる
-          // （ここでGoogleトークンをリフレッシュしても解決しないため）
-          throw firstErr;
-        }
-      }
+      // Supabaseセッション切れなど、Google側の問題ではないエラーは
+      // ラッパー内でリフレッシュせずそのまま投げられる
+      const res = await callWithGoogleToken(
+        user,
+        (token) => set({ user: { ...user, googleAccessToken: token } }),
+        (token) => shiftApi.list(month, token),
+      );
       const shifts: ShiftEvent[] = res.data.map((s: ShiftEvent) => ({
         ...s,
         estimated_wage: s.estimated_wage ?? Math.round(s.duration_hours * hourlyWage),
@@ -254,23 +280,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { user } = get();
     if (!user) return;
     try {
-      let token = user.googleAccessToken;
-      let res;
-      try {
-        res = await calendarEventApi.list(month, token);
-      } catch (firstErr: unknown) {
-        if (isGoogleTokenExpiredError(firstErr)) {
-          const refreshToken = await loadGoogleRefreshToken();
-          if (!refreshToken) throw new AuthError(AuthErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
-          const refreshRes = await authApi.refreshGoogleToken(refreshToken);
-          token = refreshRes.data.access_token;
-          await saveGoogleAccessToken(token);
-          set({ user: { ...user, googleAccessToken: token } });
-          res = await calendarEventApi.list(month, token);
-        } else {
-          throw firstErr;
-        }
-      }
+      const res = await callWithGoogleToken(
+        user,
+        (token) => set({ user: { ...user, googleAccessToken: token } }),
+        (token) => calendarEventApi.list(month, token),
+      );
       set({ calendarEvents: res.data });
     } catch (error) {
       const authErr = parseAuthError(error);

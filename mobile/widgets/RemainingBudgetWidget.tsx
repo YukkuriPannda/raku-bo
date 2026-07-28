@@ -14,6 +14,7 @@ interface RemainingBudgetWidgetProps {
   budget: number | null; // 残り使える額（円）。未ログイン/未取得時は null
   recentTransactions?: RecentTransactionSummary[]; // 直近の支出（最大2件）
   upcomingPlanned?: RecentTransactionSummary[]; // 直近の支出予定（サブスクを除く、最大2件）
+  unsettledAdvance?: number; // 未回収の建て替え合計（0 のときは表示しない）
 }
 
 // ============================================================
@@ -23,6 +24,7 @@ export function RemainingBudgetWidget({
   budget,
   recentTransactions = [],
   upcomingPlanned = [],
+  unsettledAdvance = 0,
 }: RemainingBudgetWidgetProps) {
   // 残額に応じて色を変更（正: 緑、負: 赤、未取得: グレー）
   const color = budget === null ? '#9ca3af' : budget >= 0 ? '#22c55e' : '#ef4444';
@@ -57,6 +59,25 @@ export function RemainingBudgetWidget({
         text={budget === null ? 'ひらいて更新' : '使える'}
         style={{ fontSize: 9, color: '#6b7280' }}
       />
+
+      {/* 未回収の建て替え（返してもらい忘れ防止） */}
+      {unsettledAdvance > 0 && (
+        <FlexWidget
+          style={{
+            width: 'match_parent',
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            paddingHorizontal: 8,
+            marginTop: 2,
+          }}
+        >
+          <TextWidget text="🤝 未回収" style={{ fontSize: 8, color: '#E65100' }} />
+          <TextWidget
+            text={`¥${unsettledAdvance.toLocaleString('ja-JP')}`}
+            style={{ fontSize: 8, fontWeight: '600', color: '#E65100' }}
+          />
+        </FlexWidget>
+      )}
 
       {/* 直近の支出（最大2件） */}
       {recentTransactions.length > 0 && (

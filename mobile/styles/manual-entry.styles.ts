@@ -3,6 +3,10 @@ import { colors, spacing, radius } from '@/constants/theme';
 
 const SELECTED_BG = '#E8F5EF';
 
+// 建て替え（未回収）を表す色。履歴・ホーム・ウィジェットと共通のオレンジ
+const ADVANCE_COLOR = '#E65100';
+const ADVANCE_BG = '#FFF3E0';
+
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -281,6 +285,32 @@ export const styles = StyleSheet.create({
   },
   paymentTextActive: {
     color: colors.primary,
+  },
+  advanceBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  advanceBtnActive: {
+    borderColor: ADVANCE_COLOR,
+    backgroundColor: ADVANCE_BG,
+  },
+  advanceText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  advanceTextActive: {
+    color: ADVANCE_COLOR,
+  },
+  advanceHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 17,
   },
   saveButtonDisabled: {
     opacity: 0.6,

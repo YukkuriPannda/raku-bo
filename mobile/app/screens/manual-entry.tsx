@@ -50,6 +50,7 @@ export default function ManualEntryScreen() {
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [newCategoryText, setNewCategoryText] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [isAdvance, setIsAdvance] = useState(false);
   const [date, setDate] = useState(todayString);
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(!!pendingImageBase64);
@@ -85,6 +86,7 @@ export default function ManualEntryScreen() {
     setAmount(String(tx.amount));
     setCategory(tx.category);
     setPaymentMethod(tx.payment_method);
+    setIsAdvance(tx.is_advance);
     setDate(tx.transacted_at.split('T')[0]);
     if (tx.items && tx.items.length > 0) {
       setItems(tx.items.map((it) => ({ name: it.name, price: String(it.price) })));
@@ -174,6 +176,7 @@ export default function ManualEntryScreen() {
           payment_method: paymentMethod,
           store_name: storeName.trim() || undefined,
           transacted_at: dateObj.toISOString(),
+          is_advance: isAdvance,
           items: validItems.length > 0 ? validItems : undefined,
         });
         router.back();
@@ -185,6 +188,7 @@ export default function ManualEntryScreen() {
           payment_method: paymentMethod,
           store_name: storeName.trim() || undefined,
           transacted_at: dateObj.toISOString(),
+          is_advance: isAdvance,
           items: validItems.length > 0 ? validItems : undefined,
         });
         router.replace('/(tabs)');
@@ -405,6 +409,25 @@ export default function ManualEntryScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+
+          {/* 建て替え（他人の分を立て替えた支出） */}
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>区分</Text>
+            <TouchableOpacity
+              onPress={() => setIsAdvance((v) => !v)}
+              activeOpacity={0.7}
+              style={[styles.advanceBtn, isAdvance && styles.advanceBtnActive]}
+            >
+              <Text style={[styles.advanceText, isAdvance && styles.advanceTextActive]}>
+                {isAdvance ? '🤝 建て替え' : '建て替えにする'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.advanceHint}>
+              {isAdvance
+                ? '自分の支出には含めません。履歴から「返済済み」にできます。'
+                : '他の人の分を立て替えたときにON。今月の支出と残額から除外されます。'}
+            </Text>
           </View>
 
         </ScrollView>

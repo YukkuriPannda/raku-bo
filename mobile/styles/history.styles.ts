@@ -1,6 +1,10 @@
 import { StyleSheet } from 'react-native';
 import { colors, spacing, typography, radius } from '@/constants/theme';
 
+// 建て替え（未回収）を表す色。記録画面・ホーム・ウィジェットと共通
+const ADVANCE_COLOR = '#E65100';
+const ADVANCE_BG = '#FFF3E0';
+
 export const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -72,6 +76,54 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: 80,
+  },
+  settleAction: {
+    backgroundColor: ADVANCE_COLOR,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+  },
+  settleActionUndo: {
+    backgroundColor: colors.textSecondary,
+  },
+  settleActionText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  advanceBadge: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '600',
+    color: ADVANCE_COLOR,
+  },
+  advanceBadgeSettled: {
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  itemAmountAdvance: {
+    color: ADVANCE_COLOR,
+  },
+  unsettledBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: ADVANCE_BG,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  unsettledLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: ADVANCE_COLOR,
+  },
+  unsettledAmount: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: ADVANCE_COLOR,
   },
   deleteActionText: {
     color: '#FFFFFF',

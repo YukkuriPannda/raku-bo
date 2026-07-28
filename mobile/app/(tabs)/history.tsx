@@ -49,22 +49,43 @@ function DeleteAction({ onPress }: { onPress: () => void }) {
   );
 }
 
+/** 建て替えの行だけに出る、返済済み／未返済を切り替えるスワイプアクション */
+function SettleAction({ settled, onPress }: { settled: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={[styles.settleAction, settled && styles.settleActionUndo]}
+    >
+      <Text style={styles.settleActionText}>{settled ? '未返済に\n戻す' : '返済\n済み'}</Text>
+    </TouchableOpacity>
+  );
+}
+
 function TransactionItem({
   item,
   expanded,
   onToggle,
   onLongPress,
   onDelete,
+  onSettle,
 }: {
   item: Transaction;
   expanded: boolean;
   onToggle: () => void;
   onLongPress: () => void;
   onDelete: (id: string) => void;
+  onSettle: (item: Transaction) => void;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
   const emoji = CATEGORY_EMOJI[item.category] ?? '💸';
   const hasItems = !!item.items && item.items.length > 0;
+  const isSettled = !!item.settled_at;
+
+  const handleSettle = () => {
+    swipeableRef.current?.close();
+    onSettle(item);
+  };
 
   const handleDelete = () => {
     swipeableRef.current?.close();
@@ -82,6 +103,11 @@ function TransactionItem({
     <Swipeable
       ref={swipeableRef}
       renderRightActions={() => <DeleteAction onPress={handleDelete} />}
+      renderLeftActions={
+        item.is_advance ? () => <SettleAction settled={isSettled} onPress={handleSettle} /> : undefined
+      }
+      leftThreshold={40}
+      overshootLeft={false}
       rightThreshold={40}
       overshootRight={false}
     >
@@ -98,8 +124,13 @@ function TransactionItem({
               {item.category} · {PAYMENT_LABEL[item.payment_method]} · {formatDate(item.transacted_at)}
               {hasItems ? `  · 🧾${item.items!.length}` : ''}
             </Text>
+            {item.is_advance && (
+              <Text style={[styles.advanceBadge, isSettled && styles.advanceBadgeSettled]}>
+                {isSettled ? '🤝 建て替え・返済済み' : '🤝 建て替え・未返済'}
+              </Text>
+            )}
           </View>
-          <Text style={styles.itemAmount}>
+          <Text style={[styles.itemAmount, item.is_advance && !isSettled && styles.itemAmountAdvance]}>
             ¥{item.amount.toLocaleString('ja-JP')}
           </Text>
         </View>
@@ -123,7 +154,7 @@ function TransactionItem({
 }
 
 export default function HistoryScreen() {
-  const { transactions, isLoading, fetchTransactions, deleteTransaction } = useAppStore();
+  const { transactions, balance, isLoading, fetchTransactions, deleteTransaction, settleAdvance } = useAppStore();
   const router = useRouter();
   const month = getCurrentMonth();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -149,6 +180,14 @@ export default function HistoryScreen() {
     }
   };
 
+  const handleSettle = async (item: Transaction) => {
+    try {
+      await settleAdvance(item.id, !item.settled_at);
+    } catch {
+      Alert.alert('エラー', '返済状態の更新に失敗しました。もう一度お試しください。');
+    }
+  };
+
   return (
     <View style={styles.screen}>
       {/* 行ごとの削除スワイプと競合しないよう、タブ切替スワイプはヘッダー部分のみで受け付ける */}
@@ -170,8 +209,19 @@ export default function HistoryScreen() {
             onToggle={() => toggleExpand(item.id)}
             onLongPress={() => router.push({ pathname: '/screens/manual-entry', params: { transactionId: item.id } })}
             onDelete={handleDelete}
+            onSettle={handleSettle}
           />
         )}
+        ListHeaderComponent={
+          balance.advance_unsettled_total > 0 ? (
+            <View style={styles.unsettledBar}>
+              <Text style={styles.unsettledLabel}>🤝 未回収の建て替え</Text>
+              <Text style={styles.unsettledAmount}>
+                ¥{balance.advance_unsettled_total.toLocaleString('ja-JP')}
+              </Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>📭</Text>

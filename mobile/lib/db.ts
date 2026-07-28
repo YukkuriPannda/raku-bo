@@ -13,15 +13,30 @@ const DB_NAME = 'rakubo.db';
 // ============================================================
 // DB 接続（シングルトン）
 // ============================================================
-let db: SQLite.SQLiteDatabase | null = null;
+// 完了した接続ではなく「開いている途中のPromise」を保持する。
+// getDB() は起動直後に複数箇所から並行で呼ばれる（セッション復元・キャッシュ読み書き・
+// initDB）ため、完了後にだけ代入する方式だと初期化が終わる前の呼び出しがそれぞれ
+// openDatabaseAsync を走らせてしまい、同じDBを何重にも開いて不安定になる。
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 // テーブル作成はDB初回オープン時に済ませる（initDB()の呼び出し順に依存しないようにするため）。
 // lib/auth.ts の LargeSecureStore は initDB() を待たずに getDB() 経由で
 // kv_store テーブルへアクセスすることがある。
-async function getDB(): Promise<SQLite.SQLiteDatabase> {
-  if (!db) {
-    const database = await SQLite.openDatabaseAsync(DB_NAME);
-    await database.execAsync(`
+function getDB(): Promise<SQLite.SQLiteDatabase> {
+  if (!dbPromise) {
+    dbPromise = openDatabase().catch((error) => {
+      // 失敗した Promise を握ったままにすると以降ずっと同じエラーを返し続けるため、
+      // 次の呼び出しでやり直せるようにリセットする
+      dbPromise = null;
+      throw error;
+    });
+  }
+  return dbPromise;
+}
+
+async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
+  const database = await SQLite.openDatabaseAsync(DB_NAME);
+  await database.execAsync(`
       PRAGMA journal_mode = WAL;
 
       CREATE TABLE IF NOT EXISTS transactions (
@@ -47,10 +62,8 @@ async function getDB(): Promise<SQLite.SQLiteDatabase> {
         value TEXT NOT NULL
       );
     `);
-    await migrateTransactionColumns(database);
-    db = database;
-  }
-  return db;
+  await migrateTransactionColumns(database);
+  return database;
 }
 
 // ============================================================
@@ -60,16 +73,30 @@ async function getDB(): Promise<SQLite.SQLiteDatabase> {
 // これを怠ると cacheTransactions の INSERT が
 // 「table transactions has no column named ...」で失敗し、
 // オフライン用のキャッシュが一切書けなくなる。
+//
+// 列の有無は PRAGMA table_info では調べない（Android の expo-sqlite で
+// prepareAsync が NullPointerException になることがあり、そこで初期化が
+// 止まると kv_store も読めなくなってセッションごと壊れる）。
+// 代わりに ALTER を実行し、既に存在する場合のエラーだけ握りつぶす。
 // ============================================================
 async function migrateTransactionColumns(database: SQLite.SQLiteDatabase): Promise<void> {
-  const columns = await database.getAllAsync<{ name: string }>('PRAGMA table_info(transactions)');
-  const existing = new Set(columns.map((c) => c.name));
+  const statements = [
+    'ALTER TABLE transactions ADD COLUMN is_advance INTEGER NOT NULL DEFAULT 0;',
+    'ALTER TABLE transactions ADD COLUMN settled_at TEXT;',
+  ];
 
-  if (!existing.has('is_advance')) {
-    await database.execAsync('ALTER TABLE transactions ADD COLUMN is_advance INTEGER NOT NULL DEFAULT 0;');
-  }
-  if (!existing.has('settled_at')) {
-    await database.execAsync('ALTER TABLE transactions ADD COLUMN settled_at TEXT;');
+  for (const sql of statements) {
+    try {
+      await database.execAsync(sql);
+    } catch (error) {
+      // "duplicate column name" は列が既にある場合なので想定内。
+      // それ以外の失敗も、ここで throw すると DB 全体が使えなくなるため
+      // ログだけ残して続行する（キャッシュが古い形式のまま動く）。
+      const message = String(error);
+      if (!message.includes('duplicate column name')) {
+        console.warn('[db] 列の追加に失敗:', message);
+      }
+    }
   }
 }
 

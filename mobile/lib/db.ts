@@ -33,6 +33,8 @@ async function getDB(): Promise<SQLite.SQLiteDatabase> {
         payment_method  TEXT NOT NULL,
         store_name      TEXT,
         receipt_url     TEXT,
+        is_advance      INTEGER NOT NULL DEFAULT 0,
+        settled_at      TEXT,
         transacted_at   TEXT NOT NULL,
         created_at      TEXT NOT NULL
       );
@@ -45,9 +47,30 @@ async function getDB(): Promise<SQLite.SQLiteDatabase> {
         value TEXT NOT NULL
       );
     `);
+    await migrateTransactionColumns(database);
     db = database;
   }
   return db;
+}
+
+// ============================================================
+// 既存インストール向けの列追加
+// CREATE TABLE IF NOT EXISTS は既にテーブルがある場合に何もしないため、
+// アップデートで増えた列は ALTER TABLE で足す必要がある。
+// これを怠ると cacheTransactions の INSERT が
+// 「table transactions has no column named ...」で失敗し、
+// オフライン用のキャッシュが一切書けなくなる。
+// ============================================================
+async function migrateTransactionColumns(database: SQLite.SQLiteDatabase): Promise<void> {
+  const columns = await database.getAllAsync<{ name: string }>('PRAGMA table_info(transactions)');
+  const existing = new Set(columns.map((c) => c.name));
+
+  if (!existing.has('is_advance')) {
+    await database.execAsync('ALTER TABLE transactions ADD COLUMN is_advance INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!existing.has('settled_at')) {
+    await database.execAsync('ALTER TABLE transactions ADD COLUMN settled_at TEXT;');
+  }
 }
 
 // ============================================================
@@ -98,8 +121,8 @@ export async function cacheTransactions(transactions: Transaction[]): Promise<vo
       await database.runAsync(
         `INSERT OR REPLACE INTO transactions
           (id, user_id, type, amount, category, payment_method,
-           store_name, receipt_url, transacted_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           store_name, receipt_url, is_advance, settled_at, transacted_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           tx.id,
           tx.user_id,
@@ -109,6 +132,8 @@ export async function cacheTransactions(transactions: Transaction[]): Promise<vo
           tx.payment_method,
           tx.store_name ?? null,
           tx.receipt_url ?? null,
+          tx.is_advance ? 1 : 0,
+          tx.settled_at ?? null,
           tx.transacted_at,
           tx.created_at,
         ]
@@ -125,14 +150,15 @@ export async function getCachedTransactions(month: string): Promise<Transaction[
   const database = await getDB();
 
   // YYYY-MM の範囲でフィルタリング
-  const rows = await database.getAllAsync<Transaction>(
+  const rows = await database.getAllAsync<Omit<Transaction, 'is_advance'> & { is_advance: number }>(
     `SELECT * FROM transactions
      WHERE transacted_at LIKE ?
      ORDER BY transacted_at DESC`,
     [`${month}%`]
   );
 
-  return rows;
+  // SQLite に真偽値型はないため 0/1 で保存している。boolean に戻す
+  return rows.map((row) => ({ ...row, is_advance: row.is_advance === 1 }));
 }
 
 // ============================================================

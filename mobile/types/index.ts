@@ -79,6 +79,10 @@ export interface Transaction {
   payment_method: PaymentMethod;
   store_name: string | null;
   receipt_url: string | null;
+  /** 建て替え払い（他人の分を立て替えた支出）。残額計算からは常に除外する */
+  is_advance: boolean;
+  /** 建て替えの返済日時。null のあいだは未回収 */
+  settled_at: string | null;
   transacted_at: string;
   created_at: string;
   items?: TransactionItem[];
@@ -96,10 +100,13 @@ export interface ShiftEvent {
 
 /** 残り使える額の内訳データ */
 export interface BalanceData {
-  expense_total: number;       // 今月支出合計
-  income_forecast: number;     // 月収見込み（シフトから計算）
-  planned_total: number;       // 予定された支出合計
-  remaining: number;           // 残り使える額
+  expense_total: number;           // 今月支出合計（建て替えを含む総額）
+  advance_total: number;           // うち建て替え分の合計
+  advance_unsettled_total: number; // うち未回収（返済されていない）建て替えの合計
+  net_expense_total: number;       // 実質の支出（expense_total - advance_total）
+  income_forecast: number;         // 月収見込み（シフトから計算）
+  planned_total: number;           // 予定された支出合計
+  remaining: number;               // 残り使える額
 }
 
 /** 予定された支出の種別 */
@@ -179,6 +186,7 @@ export interface UpdateTransactionData {
   payment_method: PaymentMethod;
   store_name?: string;
   transacted_at: string;
+  is_advance?: boolean;
   items?: { name: string; price: number }[];
 }
 
@@ -191,5 +199,6 @@ export interface CreateTransactionData {
   store_name?: string;
   receipt_url?: string;
   transacted_at: string;
+  is_advance?: boolean;
   items?: { name: string; price: number }[];
 }

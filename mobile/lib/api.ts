@@ -109,6 +109,12 @@ export const transactionApi = {
   update: (id: string, data: UpdateTransactionData) =>
     api.patch(`/transactions/${id}`, data),
 
+  /** 建て替えの返済状態を切り替える（他のフィールドや明細には触れない） */
+  settle: (id: string, settled: boolean) =>
+    api.patch<Transaction>(`/transactions/${id}`, {
+      settled_at: settled ? new Date().toISOString() : null,
+    }),
+
   /** トランザクションを削除 */
   delete: (id: string) => api.delete(`/transactions/${id}`),
 };

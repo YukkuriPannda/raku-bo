@@ -87,7 +87,7 @@ transactions.post('/', async (c) => {
     return c.json({ error: 'リクエストボディの解析に失敗しました' }, 400);
   }
 
-  const { type, amount, category, payment_method, store_name, receipt_id, receipt_url, transacted_at, items } = body;
+  const { type, amount, category, payment_method, store_name, receipt_id, receipt_url, transacted_at, items, is_advance } = body;
 
   // バリデーション
   if (!type || !amount || !category || !transacted_at) {
@@ -109,6 +109,7 @@ transactions.post('/', async (c) => {
         receipt_id: receipt_id ?? null,
         receipt_url: receipt_url ?? null,
         transacted_at,
+        is_advance: is_advance === true,
       })
       .select()
       .single();
@@ -158,7 +159,11 @@ transactions.post('/', async (c) => {
 
 /**
  * PATCH /transactions/:id
- * 指定IDのトランザクションを更新する。items は全削除→再 insert で置き換える。
+ * 指定IDのトランザクションを更新する。
+ *
+ * ボディに含まれるフィールドだけを更新する（部分更新）。
+ * 返済フラグ（settled_at）だけを送るケースがあるため、送られていない
+ * フィールドを null で潰したり、items を巻き添えで消したりしない。
  */
 transactions.patch('/:id', async (c) => {
   const userId = c.get('userId');
@@ -170,25 +175,42 @@ transactions.patch('/:id', async (c) => {
     return c.json({ error: 'リクエストボディの解析に失敗しました' }, 400);
   }
 
-  const { amount, category, payment_method, store_name, transacted_at, items } = body;
+  const allowedFields = [
+    'amount', 'category', 'payment_method', 'store_name',
+    'transacted_at', 'is_advance', 'settled_at',
+  ];
+  const updateData: Record<string, unknown> = {};
+  for (const field of allowedFields) {
+    if (field in body) updateData[field] = body[field];
+  }
+
+  const { items } = body;
+
+  if (Object.keys(updateData).length === 0 && !('items' in body)) {
+    return c.json({ error: '更新フィールドがありません' }, 400);
+  }
 
   try {
     const supabase = createSupabaseClient(c.env);
 
-    const { data, error } = await supabase
-      .from('transactions')
-      .update({ amount, category, payment_method, store_name: store_name ?? null, transacted_at })
-      .eq('id', id)
-      .eq('user_id', userId)
-      .select()
-      .single();
+    // 更新対象がなく items の置き換えだけの場合は、空の UPDATE を投げると
+    // PostgREST がエラーになるため現在の行を取得するだけにする
+    const query = Object.keys(updateData).length > 0
+      ? supabase.from('transactions').update(updateData).eq('id', id).eq('user_id', userId).select().single()
+      : supabase.from('transactions').select('*').eq('id', id).eq('user_id', userId).single();
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('トランザクション更新エラー:', error);
       return c.json({ error: '更新に失敗しました' }, 500);
     }
 
-    // items を全削除→再 insert（置き換え）
+    // items は指定されたときだけ全削除→再 insert（置き換え）
+    if (!('items' in body)) {
+      return c.json(data);
+    }
+
     await supabase.from('transaction_items').delete().eq('transaction_id', id);
 
     let savedItems: unknown[] = [];

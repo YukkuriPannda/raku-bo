@@ -1,6 +1,10 @@
 import type { OcrResult } from '../types';
 
-const MODEL = 'gemini-2.0-flash';
+// gemini-2.0-flash は無料枠の割り当てが 0 になり、
+// 「Quota exceeded ... limit: 0」で常に429を返すようになったため移行した
+// （時間を置いても回復しない）。gemini-flash-latest は常に現行の
+// flash 系を指すため、同じ理由で個別バージョンが打ち切られても影響を受けにくい。
+const MODEL = 'gemini-flash-latest';
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 /** Gemini への JSON Schema（構造化出力用） */
@@ -34,7 +38,7 @@ const RESPONSE_SCHEMA = {
 };
 
 /**
- * base64エンコードされたJPEG画像をGemini 2.5 Flash APIに送り、
+ * base64エンコードされたJPEG画像を Gemini Flash API に送り、
  * レシートのOCR結果を OcrResult 型で返す。
  */
 export async function analyzeReceiptWithGemini(

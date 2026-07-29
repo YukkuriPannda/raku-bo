@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { useAppStore } from '@/store';
 import { receiptApi } from '@/lib/api';
+import { describeError } from '@/lib/auth-errors';
 import { CATEGORY_EMOJI, ALL_CATEGORIES } from '@/types';
 import type { Category, PaymentMethod } from '@/types';
 import { styles } from '@/styles/manual-entry.styles';
@@ -129,7 +130,7 @@ export default function ManualEntryScreen() {
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error('[ManualEntry] OCRエラー:', err);
+        console.error('[ManualEntry] OCRエラー:', describeError(err));
         clearPendingImage();
       })
       .finally(() => {
@@ -194,7 +195,10 @@ export default function ManualEntryScreen() {
         router.replace('/(tabs)');
       }
     } catch (error) {
-      console.error('[ManualEntry] 保存エラー:', error);
+      // store の addTransaction / updateTransaction は raw な axios エラーを
+      // 再 throw する。そのまま console に渡すと config.headers.Authorization
+      // （Supabase JWT）まで出力されるため describeError を通す。
+      console.error('[ManualEntry] 保存エラー:', describeError(error));
       Alert.alert('エラー', '保存に失敗しました。もう一度お試しください。');
     } finally {
       setIsSaving(false);

@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 
 import { useAppStore } from '@/store';
+import { describeError } from '@/lib/auth-errors';
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function CameraScreen() {
       setPendingImage(photo.base64);
       router.replace('/screens/manual-entry');
     } catch (error) {
-      console.error('[Camera] エラー:', error);
+      console.error('[Camera] エラー:', describeError(error));
       Alert.alert('エラー', '撮影に失敗しました。もう一度お試しください。', [{ text: 'OK' }]);
       setIsCapturing(false);
     }

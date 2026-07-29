@@ -9,7 +9,7 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
-import { supabase, saveGoogleAccessToken, saveGoogleRefreshToken } from '@/lib/auth';
+import { supabase, saveGoogleAccessToken, saveGoogleRefreshToken, beginOAuthFlow, endOAuthFlow } from '@/lib/auth';
 import { AuthError, AuthErrorCode, formatAuthError } from '@/lib/auth-errors';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -29,6 +29,11 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     try {
+      // 「このアプリ自身が開始したログイン」であることを記録する。
+      // これが立っていないコールバックのディープリンクは
+      // app/_layout.tsx 側で破棄される（外部からのセッション注入対策）。
+      await beginOAuthFlow();
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -43,10 +48,13 @@ export default function LoginScreen() {
         throw new AuthError(AuthErrorCode.OAUTH_URL_FAILED, undefined, error?.message);
       }
 
-      console.log('[Login] REDIRECT_URI:', REDIRECT_URI);
-      console.log('[Login] OAuth URL:', data.url);
+      // 認証URL・コールバックURLはログに出さない。
+      // implicit フローだと result.url のフラグメントに access_token /
+      // refresh_token / provider_refresh_token が生で載るため、
+      // そのまま出力すると logcat・バグレポート経由で漏れる。
+      // PKCE でも code が載るので、URL 自体を出力しない方針にする。
       const result = await WebBrowser.openAuthSessionAsync(data.url, REDIRECT_URI);
-      console.log('[Login] result:', result.type, (result as any).url ?? '');
+      console.log('[Login] コールバック受信:', result.type);
 
       if (result.type !== 'success' || !(result as any).url) {
         // ユーザーが自発的にブラウザを閉じた/キャンセルしたケース
@@ -77,8 +85,9 @@ export default function LoginScreen() {
         const providerRefreshToken = hashParams.get('provider_refresh_token') ?? queryParams.get('provider_refresh_token');
         if (providerRefreshToken) await saveGoogleRefreshToken(providerRefreshToken);
       } else {
-        // コールバックURLに code も access_token も含まれない想定外のケース
-        throw new AuthError(AuthErrorCode.OAUTH_NO_PARAMS, undefined, resultUrl);
+        // コールバックURLに code も access_token も含まれない想定外のケース。
+        // detail に resultUrl を入れるとトークンがログに載るため入れない。
+        throw new AuthError(AuthErrorCode.OAUTH_NO_PARAMS);
       }
     } catch (err) {
       const authErr = err instanceof AuthError ? err : new AuthError(AuthErrorCode.UNKNOWN, undefined, String(err));
@@ -88,6 +97,10 @@ export default function LoginScreen() {
         Alert.alert(title, message);
       }
     } finally {
+      // 成功・失敗・キャンセルのいずれでも進行中フラグを落とす。
+      // 残したままにすると、その後に届いた外部からのディープリンクを
+      // 受け入れてしまう余地が残る。
+      await endOAuthFlow();
       setIsLoading(false);
     }
   };

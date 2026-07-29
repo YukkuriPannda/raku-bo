@@ -16,7 +16,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import * as QuickActions from 'expo-quick-actions';
 import * as Notifications from 'expo-notifications';
-import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken, saveGoogleRefreshToken, loadGoogleRefreshToken, clearGoogleRefreshToken } from '@/lib/auth';
+import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken, saveGoogleRefreshToken, loadGoogleRefreshToken, clearGoogleRefreshToken, isOAuthFlowPending, endOAuthFlow } from '@/lib/auth';
 import { AuthError, AuthErrorCode, formatAuthError } from '@/lib/auth-errors';
 import { initDB } from '@/lib/db';
 import { useAppStore } from '@/store';
@@ -61,8 +61,31 @@ function useAuthGuard() {
     });
 
     // exp:// ディープリンクを処理し、provider_token を保持してからセッションを設定
+    //
+    // このハンドラは他アプリや Web ページからも起動できる（rakubo:// は
+    // Android では誰でも登録できるカスタムスキーム）。URL 内のトークンを
+    // 無条件に setSession() へ渡すと、攻撃者が自分のセッションを送り込んで
+    // 被害者のアプリを乗り換えさせられ、以後の入力が攻撃者のアカウントへ
+    // 保存される。そのため処理する前に2つの条件を確認する:
+    //   1. まだログインしていない（ログイン済みなら差し替えを一切受け付けない）
+    //   2. このアプリ自身が開始したログインが進行中である
     const handleUrl = async (url: string) => {
       if (!url.includes('auth/callback')) return;
+
+      // 1. 既にセッションがあるなら、外から来たトークンで差し替えない
+      const { data: { session: existingSession } } = await supabase.auth.getSession();
+      if (existingSession) {
+        console.warn('[Layout] ログイン済みのため認証ディープリンクを無視しました');
+        return;
+      }
+
+      // 2. 自分が開始したログインの応答でなければ無視する
+      if (!(await isOAuthFlowPending())) {
+        console.warn('[Layout] 進行中のログインがないため認証ディープリンクを無視しました');
+        return;
+      }
+      await endOAuthFlow();
+
       const q = new URLSearchParams(url.split('?')[1] ?? '');
       const h = new URLSearchParams(url.split('#')[1] ?? '');
       const code = q.get('code');

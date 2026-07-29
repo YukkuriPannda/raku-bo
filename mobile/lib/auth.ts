@@ -75,6 +75,13 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      // PKCE を明示する。supabase-js の既定は 'implicit' で、その場合
+      // コールバックURLのフラグメントに access_token / refresh_token /
+      // provider_refresh_token が生で載る。カスタムスキーム（rakubo://）は
+      // Android で他アプリも登録できるため、生トークンを URL に流さない
+      // PKCE にしておく。code は1回しか使えず、交換には端末内に保存された
+      // code_verifier が必要なので、URL を横取りされても交換できない。
+      flowType: 'pkce',
     },
   }
 );
@@ -103,6 +110,51 @@ export const redirectUri = makeRedirectUri({
   scheme: 'rakubo',
   path: 'auth/callback',
 });
+
+// ============================================================
+// ログイン進行中フラグ
+//
+// 認証コールバックのディープリンク（rakubo://auth/callback?...）は、
+// 他アプリや Web ページからでも自由に投げ込める。中のトークンを無条件に
+// setSession() へ渡すと、攻撃者が自分のセッションを送り込んで被害者の
+// アプリを乗り換えさせられる（以後の入力が攻撃者のアカウントに入る）。
+//
+// そのため「このアプリ自身が開始したログインの応答か」を判定できるように、
+// ログイン開始時にフラグを立てて SecureStore に永続化する。
+// コールバック処理側はこのフラグが立っているときだけ処理する。
+// 永続化するのは、OAuth 中にアプリが落とされてコールドスタートで
+// 復帰する経路があるため（モジュール変数では失われる）。
+// ============================================================
+const OAUTH_PENDING_KEY = 'oauth_flow_pending_at';
+
+/** このフラグが有効と見なす時間。放置された古いフラグを使い回させない */
+const OAUTH_PENDING_TTL_MS = 10 * 60 * 1000;
+
+/** ログイン開始を記録する */
+export async function beginOAuthFlow(): Promise<void> {
+  await SecureStore.setItemAsync(OAUTH_PENDING_KEY, String(Date.now()));
+}
+
+/** 進行中フラグを消す（成功・失敗・キャンセルのいずれでも呼ぶ） */
+export async function endOAuthFlow(): Promise<void> {
+  await SecureStore.deleteItemAsync(OAUTH_PENDING_KEY);
+}
+
+/**
+ * 自分が開始したログインが進行中か。
+ * TTL を超えた古いフラグは無効として消す。
+ */
+export async function isOAuthFlowPending(): Promise<boolean> {
+  const startedAt = await SecureStore.getItemAsync(OAUTH_PENDING_KEY);
+  if (!startedAt) return false;
+
+  const elapsed = Date.now() - Number(startedAt);
+  if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > OAUTH_PENDING_TTL_MS) {
+    await endOAuthFlow();
+    return false;
+  }
+  return true;
+}
 
 // ============================================================
 // Google Access Token の永続化
@@ -152,6 +204,7 @@ export async function signInWithGoogle(code: string): Promise<void> {
 export async function signOut(): Promise<void> {
   await clearGoogleAccessToken();
   await clearGoogleRefreshToken();
+  await endOAuthFlow();
   const { error } = await supabase.auth.signOut();
   if (error) {
     throw new AuthError(AuthErrorCode.SIGNOUT_FAILED, undefined, error.message, error);

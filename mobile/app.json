@@ -16,8 +16,7 @@
       "package": "com.rakubo.app",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.INTERNET",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.INTERNET"
       ]
     },
     "ios": {
@@ -35,7 +34,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "レシートを撮影して家計簿に記録するためにカメラを使用します。"
+          "cameraPermission": "レシートを撮影して家計簿に記録するためにカメラを使用します。",
+          "recordAudioAndroid": false
         }
       ],
       [

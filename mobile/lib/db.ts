@@ -171,17 +171,26 @@ export async function cacheTransactions(transactions: Transaction[]): Promise<vo
 
 // ============================================================
 // キャッシュされたトランザクションを取得
-// @param month "YYYY-MM" 形式
+//
+// user_id で必ず絞る。1台の端末を複数アカウントで使った場合
+// （セッション失効後に別アカウントでログインしたケースを含む）、
+// 絞らないと前のユーザーの支出履歴が表示され、さらに calcBalance が
+// その金額で残高を計算してしまう。
+//
+// @param month  "YYYY-MM" 形式
+// @param userId 現在ログイン中のユーザーID。無い場合は何も返さない
 // ============================================================
-export async function getCachedTransactions(month: string): Promise<Transaction[]> {
+export async function getCachedTransactions(month: string, userId: string | null): Promise<Transaction[]> {
+  // 誰のキャッシュか特定できないときは表示しない（fail closed）
+  if (!userId) return [];
+
   const database = await getDB();
 
-  // YYYY-MM の範囲でフィルタリング
   const rows = await database.getAllAsync<Omit<Transaction, 'is_advance'> & { is_advance: number }>(
     `SELECT * FROM transactions
-     WHERE transacted_at LIKE ?
+     WHERE user_id = ? AND transacted_at LIKE ?
      ORDER BY transacted_at DESC`,
-    [`${month}%`]
+    [userId, `${month}%`]
   );
 
   // SQLite に真偽値型はないため 0/1 で保存している。boolean に戻す
@@ -189,7 +198,12 @@ export async function getCachedTransactions(month: string): Promise<Transaction[
 }
 
 // ============================================================
-// キャッシュをすべてクリア（ログアウト時などに使用）
+// キャッシュをすべてクリア
+//
+// 明示的なログアウト（store.logout）だけでなく、セッション失効による
+// サインアウト経路（app/_layout.tsx の onAuthStateChange）からも呼ぶこと。
+// 片方だけだと、失効後に別アカウントでログインしたときに前のユーザーの
+// キャッシュが残る。
 // ============================================================
 export async function clearCache(): Promise<void> {
   const database = await getDB();

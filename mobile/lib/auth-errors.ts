@@ -118,6 +118,31 @@ export function parseAuthError(err: unknown): AuthError {
   return new AuthError(AuthErrorCode.UNKNOWN, undefined, err instanceof Error ? err.message : String(err), err);
 }
 
+/**
+ * 例外をログ出力用の安全な1行に変換する。
+ *
+ * axios のエラーオブジェクトを console にそのまま渡してはいけない。
+ * AxiosError は `config` を自身のプロパティとして持ち、その中の
+ * `headers.Authorization` に Supabase の JWT が入っている。
+ * `util.inspect` 相当のシリアライズや `toJSON()` はこれを展開するため、
+ * `console.error('...', error)` と書くとアクセストークンが logcat に出る
+ * （実測で確認済み）。
+ *
+ * ログに出すのはコード・HTTPステータス・メッセージだけに限定する。
+ */
+export function describeError(err: unknown): string {
+  const authErr = parseAuthError(err);
+  const status = isAxiosError(err) ? err.response?.status : undefined;
+
+  return [
+    authErr.code,
+    status !== undefined ? `status ${status}` : null,
+    authErr.detail ?? authErr.message,
+  ]
+    .filter(Boolean)
+    .join(' / ');
+}
+
 /** UI 表示用に「メッセージ + エラーコード」を組み立てる */
 export function formatAuthError(err: unknown): { title: string; message: string } {
   const authErr = parseAuthError(err);

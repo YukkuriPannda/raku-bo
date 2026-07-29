@@ -17,8 +17,8 @@ import * as Linking from 'expo-linking';
 import * as QuickActions from 'expo-quick-actions';
 import * as Notifications from 'expo-notifications';
 import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken, saveGoogleRefreshToken, loadGoogleRefreshToken, clearGoogleRefreshToken, isOAuthFlowPending, endOAuthFlow } from '@/lib/auth';
-import { AuthError, AuthErrorCode, formatAuthError } from '@/lib/auth-errors';
-import { initDB } from '@/lib/db';
+import { AuthError, AuthErrorCode, formatAuthError, describeError } from '@/lib/auth-errors';
+import { initDB, clearCache } from '@/lib/db';
 import { useAppStore } from '@/store';
 
 // スプラッシュスクリーンを手動制御
@@ -147,6 +147,11 @@ function useAuthGuard() {
         } else {
           await clearGoogleAccessToken();
           await clearGoogleRefreshToken();
+          // セッション失効による自動サインアウトもここを通る。
+          // store.logout() とは別経路なのでキャッシュ削除もここで行う。
+          // 消し忘れると、別アカウントでログインしたあとオフラインに
+          // なったときに前のユーザーの支出履歴が表示される。
+          await clearCache().catch((e) => console.error('[Layout] キャッシュ削除に失敗:', describeError(e)));
           router.replace('/(auth)/login');
         }
       }

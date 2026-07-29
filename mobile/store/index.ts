@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { transactionApi, balanceApi, shiftApi, profileApi, plannedExpenditureApi, calendarEventApi, authApi } from '@/lib/api';
 import { signOut as authSignOut, loadGoogleRefreshToken, saveGoogleAccessToken } from '@/lib/auth';
-import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage } from '@/lib/auth-errors';
+import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage, describeError } from '@/lib/auth-errors';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
 import { saveWidgetBudget, clearWidgetBudget, saveWidgetHeatmap, clearWidgetHeatmap } from '@/lib/widget-bridge';
 import { showReceiptQuickCaptureNotification, clearReceiptQuickCaptureNotification } from '@/lib/notifications';
@@ -199,7 +199,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (data.hourly_wage) set({ hourlyWage: data.hourly_wage });
       if (data.shift_keywords?.length > 0) set({ shiftKeywords: data.shift_keywords });
     } catch (error) {
-      console.error('[fetchProfile] エラー:', error);
+      console.error('[fetchProfile] エラー:', describeError(error));
     }
   },
 
@@ -217,9 +217,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       // ローカルキャッシュに保存
       await cacheTransactions(data);
     } catch (error) {
-      console.warn('[fetchTransactions] API エラー、キャッシュから取得:', error);
-      // オフライン時はキャッシュから読み込む
-      const cached = await getCachedTransactions(month);
+      console.warn('[fetchTransactions] API エラー、キャッシュから取得:', describeError(error));
+      // オフライン時はキャッシュから読み込む。
+      // 他アカウントのキャッシュを混ぜないよう、必ず現在のユーザーIDで絞る
+      const cached = await getCachedTransactions(month, get().user?.id ?? null);
       set({ transactions: cached });
     } finally {
       set({ isLoading: false });
@@ -270,7 +271,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const res = await plannedExpenditureApi.list(month);
       set({ plannedExpenditures: res.data });
     } catch (error) {
-      console.error('[fetchPlannedExpenditures] エラー:', error);
+      console.error('[fetchPlannedExpenditures] エラー:', describeError(error));
     } finally {
       set({ isLoading: false });
       get().calcBalance();
@@ -412,7 +413,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ heatmapDays });
       saveWidgetHeatmap(buildDays(WIDGET_ROLLING_DAYS));
     } catch (error) {
-      console.error('[refreshHeatmapWidget] エラー:', error);
+      console.error('[refreshHeatmapWidget] エラー:', describeError(error));
     }
   },
 
@@ -437,7 +438,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // 残高を再計算
       get().calcBalance();
     } catch (error) {
-      console.error('[addTransaction] エラー:', error);
+      console.error('[addTransaction] エラー:', describeError(error));
       throw error; // 呼び出し元でハンドリングする
     } finally {
       set({ isLoading: false });
@@ -467,7 +468,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
       get().calcBalance();
     } catch (error) {
-      console.error('[deleteTransaction] エラー:', error);
+      console.error('[deleteTransaction] エラー:', describeError(error));
       throw error;
     }
   },
@@ -486,7 +487,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await cacheTransactions([updated]);
       get().calcBalance();
     } catch (error) {
-      console.error('[settleAdvance] エラー:', error);
+      console.error('[settleAdvance] エラー:', describeError(error));
       throw error;
     }
   },
@@ -504,7 +505,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
       get().calcBalance();
     } catch (error) {
-      console.error('[addPlannedExpenditure] エラー:', error);
+      console.error('[addPlannedExpenditure] エラー:', describeError(error));
       throw error;
     } finally {
       set({ isLoading: false });
@@ -528,7 +529,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
       get().calcBalance();
     } catch (error) {
-      console.error('[deletePlannedExpenditure] エラー:', error);
+      console.error('[deletePlannedExpenditure] エラー:', describeError(error));
       throw error;
     }
   },
@@ -548,7 +549,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await cacheTransactions([newTx]);
       get().calcBalance();
     } catch (error) {
-      console.error('[completePlannedExpenditure] エラー:', error);
+      console.error('[completePlannedExpenditure] エラー:', describeError(error));
       throw error;
     }
   },
@@ -574,7 +575,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().calcBalance();
     // DBに非同期で保存（失敗してもUIは更新済み）
     profileApi.update({ hourly_wage: wage }).catch((e) =>
-      console.error('[setHourlyWage] DB保存エラー:', e)
+      console.error('[setHourlyWage] DB保存エラー:', describeError(e))
     );
   },
 
@@ -586,7 +587,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       await profileApi.update({ shift_keywords: keywords });
     } catch (error) {
-      console.error('[setShiftKeywords] DB保存エラー:', error);
+      console.error('[setShiftKeywords] DB保存エラー:', describeError(error));
     }
   },
 }));

@@ -22,7 +22,6 @@ binding = "AI"
 # 設定が必要な secrets:
 #   wrangler secret put SUPABASE_URL
 #   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-#   wrangler secret put SUPABASE_JWT_SECRET
 #   wrangler secret put GEMINI_API_KEY
 #   wrangler secret put GROQ_API_KEY    (Gemini クォータ切れ時のフォールバック)
 #   wrangler secret put GOOGLE_CLIENT_ID

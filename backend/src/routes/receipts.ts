@@ -8,6 +8,11 @@ import type { OcrResult } from '../types';
 
 const receipts = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+/** レシート画像のデコード後サイズ上限（10MB） */
+const MAX_IMAGE_BASE64_BYTES = 10 * 1024 * 1024;
+/** base64 は元データの約4/3の長さになる */
+const MAX_IMAGE_BASE64_LENGTH = Math.ceil((MAX_IMAGE_BASE64_BYTES * 4) / 3);
+
 /**
  * POST /receipts
  * Content-Type: multipart/form-data
@@ -28,18 +33,35 @@ receipts.post('/', async (c) => {
   try {
     const body = await c.req.json<{ image: string }>();
     imageBase64 = body.image;
-    if (!imageBase64) throw new Error('image field missing');
+    if (typeof imageBase64 !== 'string' || imageBase64.length === 0) {
+      throw new Error('image field missing');
+    }
   } catch {
     return c.json({ error: '画像データが含まれていません（フィールド: image, base64文字列）' }, 400);
   }
 
-  // base64 → ArrayBuffer
-  const binaryString = atob(imageBase64);
-  const uint8Array = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    uint8Array[i] = binaryString.charCodeAt(i);
+  // サイズ上限。デコード処理は1バイトずつのループなので、
+  // 上限がないと巨大な入力で Worker の CPU 時間を使い切れてしまう。
+  if (imageBase64.length > MAX_IMAGE_BASE64_LENGTH) {
+    return c.json(
+      { error: `画像が大きすぎます（上限 ${Math.floor(MAX_IMAGE_BASE64_BYTES / 1024 / 1024)}MB）` },
+      413,
+    );
   }
-  const imageBuffer = uint8Array.buffer;
+
+  // base64 → ArrayBuffer
+  // 不正な base64 では atob が例外を投げるため、400 で返す（未捕捉だと 500 になる）
+  let imageBuffer: ArrayBuffer;
+  try {
+    const binaryString = atob(imageBase64);
+    const uint8Array = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      uint8Array[i] = binaryString.charCodeAt(i);
+    }
+    imageBuffer = uint8Array.buffer;
+  } catch {
+    return c.json({ error: '画像データが正しい base64 形式ではありません' }, 400);
+  }
 
   try {
     // 1. R2 にアップロード
@@ -92,9 +114,10 @@ receipts.post('/', async (c) => {
       ocr_result: ocrResult,
     }, 201);
   } catch (error) {
+    // 詳細（R2 / Supabase の生のエラー文）はログにのみ残す。
+    // クライアントに返すとテーブル名やエラーコードが外部に漏れる。
     console.error('レシート処理エラー:', error);
-    const message = error instanceof Error ? error.message : '不明なエラー';
-    return c.json({ error: `処理中にエラーが発生しました: ${message}` }, 500);
+    return c.json({ error: '処理中にエラーが発生しました' }, 500);
   }
 });
 

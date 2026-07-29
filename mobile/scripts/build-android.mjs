@@ -333,7 +333,12 @@ if (!isDebug) {
 }
 
 console.log('\n--- gradle ---');
-const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+// カレントディレクトリを明示する（'gradlew.bat' だけだと解決できない環境がある）。
+// 環境変数 NoDefaultCurrentDirectoryInExePath=1 が設定されていると cmd.exe は
+// 実行ファイルの探索にカレントディレクトリを含めないため、
+// 「'gradlew.bat' は、内部コマンドまたは外部コマンド……として認識されていません」
+// で失敗する。POSIX 側と同じく先頭にカレントディレクトリを付ける。
+const gradlew = process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew';
 const task = isDebug ? 'assembleDebug' : 'assembleRelease';
 run(gradlew, [task], { cwd: androidDir, env: buildEnv });
 

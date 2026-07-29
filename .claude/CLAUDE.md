@@ -25,6 +25,8 @@
 `cd mobile && npm run build:android`（リリースAPK。`-- --debug` でデバッグ、`-- --clean` で android/ を作り直し）
 
 - 成果物は `mobile/build/rakubo-release-YYYYMMDD.apk`。`adb install -r <path>` で導入
+- ビルド後に `G:\マイドライブ\raku-bo\apk\` へ自動コピーされ、Googleドライブが同期する
+  （スマホから直接ダウンロード可能。保存先は `RAKUBO_DRIVE_DIR`、無効化は `-- --no-upload`）
 - JDKとAndroid SDKはスクリプトが自動で探す（PATHのjavaが古くても可）。Android Studio が必要
 - リリースビルドは接続先を本番Workerに固定する（`.env` の開発機URLは使わない）
 - `eas build --local` はWindows非対応のため、`expo prebuild` + Gradle を直接実行している

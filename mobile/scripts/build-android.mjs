@@ -6,13 +6,16 @@
 //   npm run build:android          リリースAPK（配布用・本番バックエンド）
 //   npm run build:android -- --debug   デバッグAPK（Metro必須・開発用）
 //   npm run build:android -- --clean   android/ を作り直してからビルド
+//   npm run build:android -- --no-upload  Googleドライブへのコピーをしない
 //
 // EAS の `--local` は Windows 非対応のため、prebuild + Gradle を直接叩く。
 // PATH 上の java が古くても動くよう、JDK と Android SDK は自前で探す。
+// できあがったAPKは Google ドライブ（デスクトップ版のマウント先）にも
+// 置いて、スマホから直接ダウンロードできるようにする。
 // ============================================================
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, copyFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync, readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
@@ -20,6 +23,10 @@ const projectRoot = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
 const isDebug = args.includes('--debug');
 const isClean = args.includes('--clean');
+const skipUpload = args.includes('--no-upload');
+
+// Google ドライブ内の保存先。RAKUBO_DRIVE_DIR で上書きできる
+const DRIVE_SUBDIR = path.join('raku-bo', 'apk');
 
 // 配布ビルドの接続先。開発機（.env の Tailscale/LAN アドレス）を
 // 焼き込まないよう、リリース時は明示的に本番URLを渡す。
@@ -177,3 +184,50 @@ copyFileSync(path.join(outputDir, apk), destination);
 
 console.log(`\n✓ 完成: ${destination}`);
 console.log('  端末にインストール: adb install -r "' + destination + '"');
+
+// ------------------------------------------------------------
+// Google ドライブへコピー（デスクトップ版がマウントしたドライブに置くだけ。
+// 実体のアップロードは Google Drive 側が非同期でやる）
+// ------------------------------------------------------------
+function resolveDriveDir() {
+  const candidates = [
+    process.env.RAKUBO_DRIVE_DIR,
+    'G:\\マイドライブ',
+    'G:\\My Drive',
+    path.join(os.homedir(), 'Google Drive'),
+    path.join(os.homedir(), 'マイドライブ'),
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+}
+
+if (!skipUpload) {
+  const driveRoot = resolveDriveDir();
+
+  if (!driveRoot) {
+    // ドライブが無くてもビルド自体は成功しているので、警告だけにする
+    console.log('\n! Googleドライブが見つかりませんでした（コピーをスキップ）');
+    console.log('  保存先を指定する場合は RAKUBO_DRIVE_DIR に設定してください');
+  } else {
+    const driveDir = path.join(driveRoot, DRIVE_SUBDIR);
+    mkdirSync(driveDir, { recursive: true });
+
+    // 同じ日に複数回ビルドしても上書きしないよう、時刻とコミットを付ける
+    const time = new Date().toTimeString().slice(0, 5).replace(':', '');
+    const revision = spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+    }).stdout?.trim();
+    const driveName = `rakubo-${isDebug ? 'debug' : 'release'}-${stamp}-${time}${revision ? `-${revision}` : ''}.apk`;
+    const driveDestination = path.join(driveDir, driveName);
+
+    console.log('\n--- Googleドライブへコピー ---');
+    copyFileSync(destination, driveDestination);
+
+    const apks = readdirSync(driveDir).filter((file) => file.endsWith('.apk'));
+    const totalMb = apks.reduce((sum, file) => sum + statSync(path.join(driveDir, file)).size, 0) / 1024 / 1024;
+
+    console.log(`✓ 保存: ${driveDestination}`);
+    console.log(`  同期はGoogleドライブ側が自動で行う（フォルダ内 ${apks.length}件 / ${totalMb.toFixed(0)}MB）`);
+  }
+}

@@ -34,6 +34,164 @@ const DRIVE_SUBDIR = path.join('raku-bo', 'apk');
 // 開発機のURLを入れないためにここで上書きする。
 const PRODUCTION_API_URL = 'https://raku-bo-backend.funa-hayate.workers.dev';
 
+// ------------------------------------------------------------
+// リリース署名
+//
+// expo prebuild が生成する android/app/build.gradle は、React Native の
+// テンプレートのまま release を signingConfigs.debug で署名する
+// （テンプレート自身が "Caution! In production, you need to generate
+// your own keystore file." と警告している）。
+//
+// その debug.keystore は RN テンプレート同梱の公開鍵で、秘密鍵は
+// react-native リポジトリで誰でも入手できる。つまりリリースAPKを
+// そのまま配ると、第三者が同じ鍵で署名した偽アプリを「更新」として
+// インストールでき、アプリの識別情報・プライベート領域・Keystore に
+// 紐づく SecureStore の中身（Google リフレッシュトークン、Supabase
+// セッション）をそのまま引き継がれてしまう。
+//
+// そのため release では独自キーストアを必須とし、環境変数で受け取る。
+// 値をディスクに書かず、gradle の build.gradle 側で System.getenv() から
+// 読ませる（プロセス一覧に載る -P 渡しも避ける）。
+// ------------------------------------------------------------
+const KEYSTORE_ENV_VARS = [
+  'RAKUBO_KEYSTORE_PATH',
+  'RAKUBO_KEYSTORE_PASSWORD',
+  'RAKUBO_KEY_ALIAS',
+  'RAKUBO_KEY_PASSWORD',
+];
+
+/** RN テンプレート同梱 debug.keystore の SHA-256（これで署名されていたら失敗させる） */
+const RN_DEBUG_KEY_SHA256 =
+  'FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C';
+
+function requireReleaseKeystore() {
+  const missing = KEYSTORE_ENV_VARS.filter((name) => !process.env[name]);
+  if (missing.length === 0) {
+    if (!existsSync(process.env.RAKUBO_KEYSTORE_PATH)) {
+      fail(`キーストアが見つかりません: ${process.env.RAKUBO_KEYSTORE_PATH}`);
+    }
+    return;
+  }
+
+  fail(
+    `リリースビルドには独自の署名鍵が必要です。未設定: ${missing.join(', ')}\n\n` +
+      '  そのままビルドすると RN テンプレート同梱の公開デバッグ鍵で署名され、\n' +
+      '  第三者が同じ鍵で署名した偽アプリを「更新」として入れられる状態になります。\n\n' +
+      '  1) キーストアを作る（リポジトリ外に置き、必ずバックアップする。\n' +
+      '     失くすとアプリを更新できなくなります）:\n' +
+      '     keytool -genkeypair -v -keystore rakubo-release.jks \\\n' +
+      '       -alias rakubo -keyalg RSA -keysize 4096 -validity 10000\n\n' +
+      '  2) 環境変数を設定してから再実行:\n' +
+      '     RAKUBO_KEYSTORE_PATH=<jksの絶対パス>\n' +
+      '     RAKUBO_KEYSTORE_PASSWORD=<ストアのパスワード>\n' +
+      '     RAKUBO_KEY_ALIAS=rakubo\n' +
+      '     RAKUBO_KEY_PASSWORD=<鍵のパスワード>\n\n' +
+      '  デバッグAPK（--debug）にはこの制限はかかりません。',
+  );
+}
+
+/**
+ * prebuild が生成した build.gradle に release 用の署名設定を注入する。
+ * prebuild は build.gradle を作り直すため、毎回このパッチを当て直す必要がある
+ * （package.json の scripts を戻しているのと同じ理由）。冪等に動く。
+ */
+function patchReleaseSigning(androidDir) {
+  const gradlePath = path.join(androidDir, 'app', 'build.gradle');
+  let gradle = readFileSync(gradlePath, 'utf8');
+
+  if (gradle.includes('RAKUBO_KEYSTORE_PATH')) return; // 既に適用済み
+
+  const releaseSigningConfig = `        release {
+            storeFile file(System.getenv("RAKUBO_KEYSTORE_PATH"))
+            storePassword System.getenv("RAKUBO_KEYSTORE_PASSWORD")
+            keyAlias System.getenv("RAKUBO_KEY_ALIAS")
+            keyPassword System.getenv("RAKUBO_KEY_PASSWORD")
+        }
+`;
+
+  // 対応する閉じ括弧の位置を返す（openAt は '{' の位置）
+  const matchingBrace = (text, openAt) => {
+    let depth = 0;
+    for (let i = openAt; i < text.length; i++) {
+      if (text[i] === '{') depth++;
+      else if (text[i] === '}' && --depth === 0) return i;
+    }
+    return -1;
+  };
+
+  // --- 手順1: buildTypes.release の signingConfig を先に差し替える ---
+  //
+  // 正規表現で 'release {' を探すと、あとで signingConfigs 内に足す
+  // release ブロックにも一致してしまい、buildTypes.debug 側を
+  // 誤って書き換える。ブロックの範囲を括弧対応で特定して、
+  // buildTypes.release の内側だけを書き換える。
+  const buildTypesAt = gradle.indexOf('buildTypes {');
+  if (buildTypesAt === -1) fail('build.gradle の buildTypes を認識できませんでした');
+
+  const releaseAt = gradle.indexOf('release {', buildTypesAt);
+  if (releaseAt === -1) fail('build.gradle の buildTypes.release を認識できませんでした');
+
+  const releaseEnd = matchingBrace(gradle, gradle.indexOf('{', releaseAt));
+  const DEBUG_REF = 'signingConfig signingConfigs.debug';
+  const debugRefAt = gradle.indexOf(DEBUG_REF, releaseAt);
+  if (debugRefAt === -1 || releaseEnd === -1 || debugRefAt > releaseEnd) {
+    fail('buildTypes.release 内の signingConfig を特定できませんでした');
+  }
+
+  gradle =
+    gradle.slice(0, debugRefAt) +
+    'signingConfig signingConfigs.release' +
+    gradle.slice(debugRefAt + DEBUG_REF.length);
+
+  // --- 手順2: signingConfigs に release を足す ---
+  // signingConfigs は buildTypes より前にあるため、手順1のあとに挿入しても
+  // 手順1で使った位置は影響を受けない
+  const signingConfigsAt = gradle.indexOf('signingConfigs {');
+  if (signingConfigsAt === -1) fail('build.gradle の signingConfigs を認識できませんでした');
+  const signingConfigsEnd = matchingBrace(gradle, gradle.indexOf('{', signingConfigsAt));
+  if (signingConfigsEnd === -1) fail('signingConfigs の範囲を特定できませんでした');
+
+  gradle = `${gradle.slice(0, signingConfigsEnd)}${releaseSigningConfig}${gradle.slice(signingConfigsEnd)}`;
+
+  writeFileSync(gradlePath, gradle);
+  console.log('（build.gradle に release 用の署名設定を注入しました）');
+}
+
+/**
+ * できあがったAPKの署名者を確認し、公開デバッグ鍵で署名されていたら失敗させる。
+ * 設定ミスで気付かないまま配布するのを防ぐ最後の関門。
+ */
+function assertNotDebugSigned(apkPath, androidHome) {
+  const buildToolsRoot = path.join(androidHome, 'build-tools');
+  if (!existsSync(buildToolsRoot)) {
+    console.log('! build-tools が見つからず署名を検証できませんでした（手動で確認してください）');
+    return;
+  }
+  const version = readdirSync(buildToolsRoot).sort().reverse()[0];
+  const apksigner = path.join(buildToolsRoot, version, process.platform === 'win32' ? 'apksigner.bat' : 'apksigner');
+  if (!existsSync(apksigner)) {
+    console.log('! apksigner が見つからず署名を検証できませんでした（手動で確認してください）');
+    return;
+  }
+
+  const result = spawnSync(apksigner, ['verify', '--print-certs', apkPath], {
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+  });
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  const normalized = output.replace(/\s/g, '').toUpperCase();
+
+  if (normalized.includes(RN_DEBUG_KEY_SHA256.replace(/:/g, ''))) {
+    fail(
+      'このAPKは RN テンプレート同梱の公開デバッグ鍵で署名されています。配布してはいけません。\n' +
+        '  署名設定の注入が効いていない可能性があります。--clean を付けて作り直してください。',
+    );
+  }
+
+  const fingerprint = output.match(/SHA-256 digest:\s*([0-9a-f]+)/i)?.[1];
+  console.log(`✓ 署名を確認（デバッグ鍵ではありません）${fingerprint ? ` SHA-256: ${fingerprint.slice(0, 16)}…` : ''}`);
+}
+
 function fail(message) {
   console.error(`\n✗ ${message}\n`);
   process.exit(1);
@@ -122,6 +280,11 @@ function resolveAndroidHome() {
 // ------------------------------------------------------------
 // ビルド
 // ------------------------------------------------------------
+// リリースは独自の署名鍵が揃っていないと先に進ませない（ビルド前に検査する）
+if (!isDebug) {
+  requireReleaseKeystore();
+}
+
 const javaHome = resolveJavaHome();
 const androidHome = resolveAndroidHome();
 
@@ -163,6 +326,12 @@ if (isClean || !existsSync(androidDir)) {
   }
 }
 
+// prebuild は build.gradle を作り直すため、既存の android/ を使う場合も含めて
+// 毎回パッチを当て直す（適用済みなら何もしない）
+if (!isDebug) {
+  patchReleaseSigning(androidDir);
+}
+
 console.log('\n--- gradle ---');
 const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 const task = isDebug ? 'assembleDebug' : 'assembleRelease';
@@ -181,6 +350,11 @@ mkdirSync(distDir, { recursive: true });
 const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 const destination = path.join(distDir, `rakubo-${isDebug ? 'debug' : 'release'}-${stamp}.apk`);
 copyFileSync(path.join(outputDir, apk), destination);
+
+// 配布前の最後の関門。デバッグ鍵で署名されていたらここで止める
+if (!isDebug) {
+  assertNotDebugSigned(destination, androidHome);
+}
 
 console.log(`\n✓ 完成: ${destination}`);
 console.log('  端末にインストール: adb install -r "' + destination + '"');

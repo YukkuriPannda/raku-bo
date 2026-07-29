@@ -14,6 +14,10 @@ npm-debug.*
 *.mobileprovision
 
 # 環境変数（機密情報）
+# .env にも EXPO_TOKEN や開発機のURLが入るため明示的に除外する。
+# ルートの .gitignore でも拾えているが、この階層だけを見て判断される
+# ことがあるため、ここにも書いておく（.easignore と同じ方針）。
+.env
 .env.local
 .env.production
 

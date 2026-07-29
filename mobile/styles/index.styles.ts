@@ -72,6 +72,11 @@ export const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
   },
+  subRowNote: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
   subRowValue: {
     fontSize: 15,
     fontWeight: '600',

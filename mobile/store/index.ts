@@ -119,6 +119,7 @@ interface AppState {
   addTransaction: (data: CreateTransactionData) => Promise<void>;
   updateTransaction: (id: string, data: UpdateTransactionData) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  settleAdvance: (id: string, settled: boolean) => Promise<void>;
 
   // ---- 予定支出 追加・更新・削除・完了 ----
   addPlannedExpenditure: (data: CreateSubscriptionData | CreateCalendarExpenditureData) => Promise<void>;
@@ -139,6 +140,9 @@ interface AppState {
 // ============================================================
 const initialBalance: BalanceData = {
   expense_total: 0,
+  advance_total: 0,
+  advance_unsettled_total: 0,
+  net_expense_total: 0,
   income_forecast: 0,
   planned_total: 0,
   remaining: 0,
@@ -303,24 +307,41 @@ export const useAppStore = create<AppState>((set, get) => ({
   calcBalance: () => {
     const { transactions, shifts, plannedExpenditures } = get();
 
-    const expense_total = transactions
-      .filter((t) => t.type === 'cash')
+    const cashTransactions = transactions.filter((t) => t.type === 'cash');
+
+    const expense_total = cashTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    // 建て替えは自分の支出ではないため、返済済みかどうかに関係なく実質支出から除く。
+    // 未回収分は「返してもらい忘れ」を防ぐための表示用に別途集計する。
+    const advanceTransactions = cashTransactions.filter((t) => t.is_advance);
+    const advance_total = advanceTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const advance_unsettled_total = advanceTransactions
+      .filter((t) => !t.settled_at)
       .reduce((sum, t) => sum + t.amount, 0);
+    const net_expense_total = expense_total - advance_total;
 
     const income_forecast = shifts.reduce((sum, s) => sum + s.estimated_wage, 0);
 
     const planned_total = plannedExpenditures.reduce((sum, p) => sum + p.amount, 0);
 
-    const remaining = income_forecast - expense_total - planned_total;
+    const remaining = income_forecast - net_expense_total - planned_total;
 
-    const balance = { expense_total, income_forecast, planned_total, remaining };
+    const balance = {
+      expense_total,
+      advance_total,
+      advance_unsettled_total,
+      net_expense_total,
+      income_forecast,
+      planned_total,
+      remaining,
+    };
     set({ balance });
 
     // ホーム画面ウィジェットへ反映（ネットワーク非依存のキャッシュ書き込み）
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const recentTransactions = transactions
-      .filter((t) => t.type === 'cash')
+      .filter((t) => t.type === 'cash' && !t.is_advance)
       .slice()
       .sort((a, b) => b.transacted_at.localeCompare(a.transacted_at))
       .slice(0, 2)
@@ -371,8 +392,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const pastTransactions: Transaction[] = pastResults.flatMap((r) => r.data ?? []);
 
       const dailyTotals = new Map<string, number>();
+      // 建て替えは自分の支出ではないため草グラフにも積まない（残額計算と定義を揃える）
       [...transactions, ...pastTransactions]
-        .filter((t) => t.type === 'cash')
+        .filter((t) => t.type === 'cash' && !t.is_advance)
         .forEach((t) => {
           const d = new Date(t.transacted_at);
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -446,6 +468,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().calcBalance();
     } catch (error) {
       console.error('[deleteTransaction] エラー:', error);
+      throw error;
+    }
+  },
+
+  // ============================================================
+  // 建て替えの返済状態を切り替える
+  // 金額や明細には触れず settled_at だけを更新する
+  // ============================================================
+  settleAdvance: async (id, settled) => {
+    try {
+      const res = await transactionApi.settle(id, settled);
+      const updated: Transaction = res.data;
+      set((state) => ({
+        transactions: state.transactions.map((t) => (t.id === id ? { ...t, ...updated } : t)),
+      }));
+      await cacheTransactions([updated]);
+      get().calcBalance();
+    } catch (error) {
+      console.error('[settleAdvance] エラー:', error);
       throw error;
     }
   },

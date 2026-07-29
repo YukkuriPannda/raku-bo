@@ -20,6 +20,9 @@ import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import type { DailySpend } from '@/lib/widget-bridge';
 
+// 建て替え（未回収）を表す色。記録画面・履歴・ウィジェットと共通
+const ADVANCE_COLOR = '#E65100';
+
 function getCurrentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -146,13 +149,35 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.subRow} onPress={() => router.push('/history')} activeOpacity={0.6}>
             <View style={styles.subRowLeft}>
               <Text style={styles.subRowEmoji}>💸</Text>
-              <Text style={styles.subRowLabel}>今月の支出</Text>
+              <View>
+                <Text style={styles.subRowLabel}>今月の支出</Text>
+                {balance.advance_total > 0 && (
+                  <Text style={styles.subRowNote}>
+                    建て替え {formatCurrency(balance.advance_total)} を除く
+                  </Text>
+                )}
+              </View>
             </View>
             <View style={styles.subRowRight}>
-              <Text style={styles.subRowValue}>{formatCurrency(balance.expense_total)}</Text>
+              <Text style={styles.subRowValue}>{formatCurrency(balance.net_expense_total)}</Text>
               <Text style={styles.subRowChevron}>›</Text>
             </View>
           </TouchableOpacity>
+
+          {balance.advance_unsettled_total > 0 && (
+            <TouchableOpacity style={styles.subRow} onPress={() => router.push('/history')} activeOpacity={0.6}>
+              <View style={styles.subRowLeft}>
+                <Text style={styles.subRowEmoji}>🤝</Text>
+                <Text style={styles.subRowLabel}>建て替え・未回収</Text>
+              </View>
+              <View style={styles.subRowRight}>
+                <Text style={[styles.subRowValue, { color: ADVANCE_COLOR }]}>
+                  {formatCurrency(balance.advance_unsettled_total)}
+                </Text>
+                <Text style={styles.subRowChevron}>›</Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.subRow} onPress={() => router.push('/shifts')} activeOpacity={0.6}>
             <View style={styles.subRowLeft}>

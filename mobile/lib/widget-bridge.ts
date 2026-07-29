@@ -33,6 +33,8 @@ interface WidgetBudgetCache {
   updatedAt: string;
   recentTransactions: RecentTransactionSummary[];
   upcomingPlanned: RecentTransactionSummary[];
+  /** 未回収の建て替え合計。アップデート前に書かれたキャッシュには存在しない */
+  unsettledAdvance?: number;
 }
 
 /** 残高を SecureStore に保存し、ホーム画面上のウィジェットを即時更新する（fire-and-forget） */
@@ -48,6 +50,7 @@ export function saveWidgetBudget(
     updatedAt: new Date().toISOString(),
     recentTransactions,
     upcomingPlanned,
+    unsettledAdvance: balance.advance_unsettled_total,
   };
 
   SecureStore.setItemAsync(WIDGET_CACHE_KEY, JSON.stringify(cache))
@@ -59,6 +62,7 @@ export function saveWidgetBudget(
             budget: cache.remaining,
             recentTransactions: cache.recentTransactions,
             upcomingPlanned: cache.upcomingPlanned,
+            unsettledAdvance: cache.unsettledAdvance,
           }),
         widgetNotFound: () => {},
       })

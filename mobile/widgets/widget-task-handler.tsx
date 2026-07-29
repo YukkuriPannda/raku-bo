@@ -19,6 +19,7 @@ async function renderRemainingBudget(props: WidgetTaskHandlerProps) {
       budget={cached?.remaining ?? null}
       recentTransactions={cached?.recentTransactions ?? []}
       upcomingPlanned={cached?.upcomingPlanned ?? []}
+      unsettledAdvance={cached?.unsettledAdvance ?? 0}
     />
   );
 }

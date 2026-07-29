@@ -13,15 +13,30 @@ const DB_NAME = 'rakubo.db';
 // ============================================================
 // DB 接続（シングルトン）
 // ============================================================
-let db: SQLite.SQLiteDatabase | null = null;
+// 完了した接続ではなく「開いている途中のPromise」を保持する。
+// getDB() は起動直後に複数箇所から並行で呼ばれる（セッション復元・キャッシュ読み書き・
+// initDB）ため、完了後にだけ代入する方式だと初期化が終わる前の呼び出しがそれぞれ
+// openDatabaseAsync を走らせてしまい、同じDBを何重にも開いて不安定になる。
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 // テーブル作成はDB初回オープン時に済ませる（initDB()の呼び出し順に依存しないようにするため）。
 // lib/auth.ts の LargeSecureStore は initDB() を待たずに getDB() 経由で
 // kv_store テーブルへアクセスすることがある。
-async function getDB(): Promise<SQLite.SQLiteDatabase> {
-  if (!db) {
-    const database = await SQLite.openDatabaseAsync(DB_NAME);
-    await database.execAsync(`
+function getDB(): Promise<SQLite.SQLiteDatabase> {
+  if (!dbPromise) {
+    dbPromise = openDatabase().catch((error) => {
+      // 失敗した Promise を握ったままにすると以降ずっと同じエラーを返し続けるため、
+      // 次の呼び出しでやり直せるようにリセットする
+      dbPromise = null;
+      throw error;
+    });
+  }
+  return dbPromise;
+}
+
+async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
+  const database = await SQLite.openDatabaseAsync(DB_NAME);
+  await database.execAsync(`
       PRAGMA journal_mode = WAL;
 
       CREATE TABLE IF NOT EXISTS transactions (
@@ -33,6 +48,8 @@ async function getDB(): Promise<SQLite.SQLiteDatabase> {
         payment_method  TEXT NOT NULL,
         store_name      TEXT,
         receipt_url     TEXT,
+        is_advance      INTEGER NOT NULL DEFAULT 0,
+        settled_at      TEXT,
         transacted_at   TEXT NOT NULL,
         created_at      TEXT NOT NULL
       );
@@ -45,9 +62,42 @@ async function getDB(): Promise<SQLite.SQLiteDatabase> {
         value TEXT NOT NULL
       );
     `);
-    db = database;
+  await migrateTransactionColumns(database);
+  return database;
+}
+
+// ============================================================
+// 既存インストール向けの列追加
+// CREATE TABLE IF NOT EXISTS は既にテーブルがある場合に何もしないため、
+// アップデートで増えた列は ALTER TABLE で足す必要がある。
+// これを怠ると cacheTransactions の INSERT が
+// 「table transactions has no column named ...」で失敗し、
+// オフライン用のキャッシュが一切書けなくなる。
+//
+// 列の有無は PRAGMA table_info では調べない（Android の expo-sqlite で
+// prepareAsync が NullPointerException になることがあり、そこで初期化が
+// 止まると kv_store も読めなくなってセッションごと壊れる）。
+// 代わりに ALTER を実行し、既に存在する場合のエラーだけ握りつぶす。
+// ============================================================
+async function migrateTransactionColumns(database: SQLite.SQLiteDatabase): Promise<void> {
+  const statements = [
+    'ALTER TABLE transactions ADD COLUMN is_advance INTEGER NOT NULL DEFAULT 0;',
+    'ALTER TABLE transactions ADD COLUMN settled_at TEXT;',
+  ];
+
+  for (const sql of statements) {
+    try {
+      await database.execAsync(sql);
+    } catch (error) {
+      // "duplicate column name" は列が既にある場合なので想定内。
+      // それ以外の失敗も、ここで throw すると DB 全体が使えなくなるため
+      // ログだけ残して続行する（キャッシュが古い形式のまま動く）。
+      const message = String(error);
+      if (!message.includes('duplicate column name')) {
+        console.warn('[db] 列の追加に失敗:', message);
+      }
+    }
   }
-  return db;
 }
 
 // ============================================================
@@ -98,8 +148,8 @@ export async function cacheTransactions(transactions: Transaction[]): Promise<vo
       await database.runAsync(
         `INSERT OR REPLACE INTO transactions
           (id, user_id, type, amount, category, payment_method,
-           store_name, receipt_url, transacted_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           store_name, receipt_url, is_advance, settled_at, transacted_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           tx.id,
           tx.user_id,
@@ -109,6 +159,8 @@ export async function cacheTransactions(transactions: Transaction[]): Promise<vo
           tx.payment_method,
           tx.store_name ?? null,
           tx.receipt_url ?? null,
+          tx.is_advance ? 1 : 0,
+          tx.settled_at ?? null,
           tx.transacted_at,
           tx.created_at,
         ]
@@ -125,14 +177,15 @@ export async function getCachedTransactions(month: string): Promise<Transaction[
   const database = await getDB();
 
   // YYYY-MM の範囲でフィルタリング
-  const rows = await database.getAllAsync<Transaction>(
+  const rows = await database.getAllAsync<Omit<Transaction, 'is_advance'> & { is_advance: number }>(
     `SELECT * FROM transactions
      WHERE transacted_at LIKE ?
      ORDER BY transacted_at DESC`,
     [`${month}%`]
   );
 
-  return rows;
+  // SQLite に真偽値型はないため 0/1 で保存している。boolean に戻す
+  return rows.map((row) => ({ ...row, is_advance: row.is_advance === 1 }));
 }
 
 // ============================================================

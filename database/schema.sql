@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   receipt_id      UUID REFERENCES public.receipts(id) ON DELETE SET NULL,
   receipt_url     TEXT,                -- R2 の URL キャッシュ
   points_earned   INTEGER DEFAULT 0,  -- 獲得ポイント数
+  is_advance      BOOLEAN NOT NULL DEFAULT FALSE,  -- 建て替え払い（残額計算から除外する）
+  settled_at      TIMESTAMPTZ,        -- 建て替えの返済日時。NULL なら未回収
   transacted_at   TIMESTAMPTZ NOT NULL,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   updated_at      TIMESTAMPTZ DEFAULT NOW()
@@ -88,6 +90,11 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user_id
 -- transactions: 月絞り込み用
 CREATE INDEX IF NOT EXISTS idx_transactions_transacted_at
   ON public.transactions(transacted_at);
+
+-- transactions: 建て替え（未回収）絞り込み用
+CREATE INDEX IF NOT EXISTS idx_transactions_user_advance
+  ON public.transactions(user_id, is_advance)
+  WHERE is_advance;
 
 -- transaction_items: transaction_id 絞り込み
 CREATE INDEX IF NOT EXISTS idx_transaction_items_transaction_id

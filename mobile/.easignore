@@ -1,0 +1,40 @@
+# EAS Build にアップロードしないファイル
+#
+# .easignore がある場合、EAS は .gitignore ではなくこちらを見る。
+# そのため .gitignore の内容もすべてここに書き写しておくこと。
+#
+# 最大の目的は .env を持ち込まないこと。.env には開発機
+# （Tailscale/LAN 上の wrangler dev）のURLが入っており、配布ビルドが
+# それを拾うと開発機を探しに行ってしまう。接続先は eas.json の env で渡す。
+
+# 環境変数（機密情報・開発機のURL）
+.env
+.env.local
+.env.production
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Node
+node_modules/
+npm-debug.*
+
+# 署名鍵・証明書
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Android / iOS ビルド成果物
+android/
+ios/
+
+# macOS
+.DS_Store
+
+# VSCode
+.vscode/

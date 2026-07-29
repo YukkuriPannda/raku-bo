@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 import { supabase } from './auth';
+import { API_BASE_URL } from '@/constants/api';
 import type {
   CreateTransactionData,
   UpdateTransactionData,
@@ -17,7 +18,7 @@ import type {
 // axios インスタンス
 // ============================================================
 export const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8787',
+  baseURL: API_BASE_URL,
   timeout: 30_000,
   headers: {
     'Content-Type': 'application/json',
@@ -67,15 +68,14 @@ export const authApi = {
 
 // ============================================================
 // レシート API（base64 JSON 送信 - Expo Go の file:// URI 制限を回避）
+// axios を通さず fetch を直接使うため、ベースURLは共通の定数を参照する
 // ============================================================
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8787';
-
 export const receiptApi = {
   upload: async (base64: string) => {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token ?? '';
 
-    const res = await fetch(`${BASE_URL}/receipts`, {
+    const res = await fetch(`${API_BASE_URL}/receipts`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

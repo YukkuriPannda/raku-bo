@@ -13,11 +13,17 @@
         "resourceClass": "medium"
       },
       "distribution": "internal",
-      "node": "20.18.0"
+      "node": "20.18.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://raku-bo-backend.funa-hayate.workers.dev"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "node": "20.18.0"
+      "node": "20.18.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://raku-bo-backend.funa-hayate.workers.dev"
+      }
     }
   },
   "submit": {

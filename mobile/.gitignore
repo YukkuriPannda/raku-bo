@@ -26,3 +26,4 @@ npm-debug.*
 # Android / iOS ビルド成果物
 android/
 ios/
+build/

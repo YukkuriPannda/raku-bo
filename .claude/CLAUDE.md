@@ -19,3 +19,13 @@
 - iOS production:
   `cd mobile && npx eas build --profile production --platform ios`
 - ビルド後はQRコードまたはリンクからインストール可能
+
+## ローカルビルド（EASを使わない）
+
+`cd mobile && npm run build:android`（リリースAPK。`-- --debug` でデバッグ、`-- --clean` で android/ を作り直し）
+
+- 成果物は `mobile/build/rakubo-release-YYYYMMDD.apk`。`adb install -r <path>` で導入
+- JDKとAndroid SDKはスクリプトが自動で探す（PATHのjavaが古くても可）。Android Studio が必要
+- リリースビルドは接続先を本番Workerに固定する（`.env` の開発機URLは使わない）
+- `eas build --local` はWindows非対応のため、`expo prebuild` + Gradle を直接実行している
+- EASビルドとは署名鍵が異なるため、入れ替える際は一度アンインストールが必要

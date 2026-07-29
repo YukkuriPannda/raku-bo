@@ -2,6 +2,14 @@ name = "raku-bo-backend"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
+# ログの保持（Workers Logs）
+# 有効にしないと `wrangler tail` のライブ観測しかできず、
+# 「本番でいつエラーが出たか」を後から追えない。
+# 確認: npx wrangler tail（ライブ）/ Cloudflareダッシュボードの Workers > Logs（過去分）
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "raku-bo-receipts"

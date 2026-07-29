@@ -13,11 +13,35 @@ import calendarEvents from './routes/calendar-events';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// CORSミドルウェア（Expo（React Native）からのアクセスを許可）
+/**
+ * ブラウザからのアクセスを許可するオリジン。
+ *
+ * - Web（Cloudflare Pages: raku-bo-web）の本番とプレビューデプロイ
+ * - ローカル開発（docker-compose の web は 5173）
+ *
+ * モバイル（React Native）は Origin ヘッダを送らないため、この判定の対象外。
+ * つまりここを絞ってもモバイルには影響しない。
+ * 新しい配信元を追加するときはこの関数に足すこと。
+ */
+function resolveAllowedOrigin(origin: string): string | null {
+  if (origin === 'http://localhost:5173' || origin === 'http://127.0.0.1:5173') {
+    return origin;
+  }
+  if (origin === 'https://raku-bo-web.pages.dev') {
+    return origin;
+  }
+  // Cloudflare Pages のプレビューデプロイ（<branch>.raku-bo-web.pages.dev）
+  if (/^https:\/\/[a-z0-9-]+\.raku-bo-web\.pages\.dev$/.test(origin)) {
+    return origin;
+  }
+  return null;
+}
+
+// CORSミドルウェア
 app.use(
   '*',
   cors({
-    origin: '*', // 本番では Expo のオリジンに絞ること
+    origin: (origin) => resolveAllowedOrigin(origin),
     allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: [
       'Content-Type',

@@ -45,8 +45,6 @@ export async function analyzeReceiptWithGemini(
   apiKey: string,
   imageBase64: string,
 ): Promise<OcrResult> {
-  const url = `${ENDPOINT}?key=${apiKey}`;
-
   const body = {
     contents: [
       {
@@ -77,9 +75,15 @@ export async function analyzeReceiptWithGemini(
     },
   };
 
-  const response = await fetch(url, {
+  // APIキーは ?key= ではなくヘッダで渡す。
+  // クエリに載せるとログやトレースにURLごと残る可能性がある
+  // （wrangler.toml で Workers Logs の保持を有効にしている）。
+  const response = await fetch(ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
     body: JSON.stringify(body),
   });
 

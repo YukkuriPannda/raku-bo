@@ -42,7 +42,6 @@ export interface TransactionItem {
 export interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
-  SUPABASE_JWT_SECRET: string;
   GEMINI_API_KEY: string;
   GROQ_API_KEY?: string;
   AI: Ai;
@@ -53,4 +52,10 @@ export interface Env {
 
 export interface Variables {
   userId: string;
+  /**
+   * 呼び出し元の Google アカウント識別子（OIDC の sub）。
+   * Google 連携のないアカウントでは null。
+   * Google のトークンが呼び出し元本人のものか照合するために使う。
+   */
+  googleSub: string | null;
 }

@@ -14,12 +14,15 @@ import type {
   Transaction,
 } from '@/types';
 
+/** 通信のタイムアウト。axios と、fetch を直接使う経路で同じ値を使う */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 // ============================================================
 // axios インスタンス
 // ============================================================
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30_000,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -73,16 +76,38 @@ export const authApi = {
 export const receiptApi = {
   upload: async (base64: string) => {
     const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token ?? '';
+    const token = data.session?.access_token;
 
-    const res = await fetch(`${API_BASE_URL}/receipts`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ image: base64 }),
-    });
+    // セッションが無いまま空の Bearer を送ると、原因のわかりにくい 401 になる。
+    // 呼び出し側が扱える形で先に落とす。
+    if (!token) {
+      throw Object.assign(new Error('ログインが必要です'), { response: { status: 401, data: { code: 'AUTH_NO_TOKEN' } } });
+    }
+
+    // axios 経由（timeout 30秒）ではなく fetch を直接使っているため、
+    // タイムアウトを自前で用意する。無いと通信が固まったまま復帰しない。
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE_URL}/receipts`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: base64 }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw Object.assign(new Error('アップロードがタイムアウトしました'), { code: 'ECONNABORTED' });
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));

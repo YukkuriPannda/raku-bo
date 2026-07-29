@@ -33,12 +33,22 @@ function fail(message) {
 }
 
 function run(command, commandArgs, options = {}) {
-  const result = spawnSync(command, commandArgs, {
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
-    cwd: projectRoot,
-    ...options,
-  });
+  // Windows では npx / gradlew.bat をシェル経由でしか起動できない。
+  // シェル利用時に引数配列を渡すと Node が警告を出すため、1本の文字列にまとめる
+  // （引数はこのスクリプト内の固定値のみで、外部入力は含まれない）。
+  const useShell = process.platform === 'win32';
+  const result = useShell
+    ? spawnSync([command, ...commandArgs].join(' '), {
+        stdio: 'inherit',
+        shell: true,
+        cwd: projectRoot,
+        ...options,
+      })
+    : spawnSync(command, commandArgs, {
+        stdio: 'inherit',
+        cwd: projectRoot,
+        ...options,
+      });
   if (result.status !== 0) {
     fail(`コマンドが失敗しました: ${command} ${commandArgs.join(' ')}`);
   }

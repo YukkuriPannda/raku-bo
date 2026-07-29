@@ -106,18 +106,79 @@ interface WidgetHeatmapCache {
   updatedAt: string;
 }
 
+/**
+ * SecureStore の1件あたりの上限。
+ * expo-secure-store はこれを超えると
+ * 「larger than 2048 bytes and it may not be stored successfully.
+ *  In a future SDK version, this call may throw an error.」
+ * と警告するだけで続行するため、保存が壊れても気付けない
+ * （lib/auth.ts がセッション保存で踏んだのと同じ罠）。
+ */
+const SECURE_STORE_BYTES_LIMIT = 2048;
+
+/**
+ * ヒートマップの保存形式（v2）。
+ *
+ * `[{date:"2026-07-05", total:1234}, ...]` をそのまま JSON にすると
+ * 105日分で約3,800バイトになり上限を超える。日付は連続した範囲なので、
+ * 基準日と「基準日からの日数」に置き換えて圧縮する。
+ * 展開後は元の DailySpend[] と完全に一致する（ウィジェット側は無変更）。
+ */
+interface WidgetHeatmapCacheV2 {
+  v: 2;
+  base: string;                  // 基準日 "YYYY-MM-DD"
+  entries: [number, number][];   // [基準日からの日数, 合計]
+  updatedAt: string;
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const toUtcDay = (date: string): number => Date.parse(`${date}T00:00:00Z`) / MS_PER_DAY;
+const fromUtcDay = (day: number): string => new Date(day * MS_PER_DAY).toISOString().slice(0, 10);
+
+function compactHeatmap(days: DailySpend[], updatedAt: string): WidgetHeatmapCacheV2 {
+  const base = days.length > 0 ? days[0].date : fromUtcDay(Math.floor(Date.now() / MS_PER_DAY));
+  const baseDay = toUtcDay(base);
+
+  return {
+    v: 2,
+    base,
+    entries: days.map((d) => [toUtcDay(d.date) - baseDay, d.total]),
+    updatedAt,
+  };
+}
+
+function expandHeatmap(cache: WidgetHeatmapCacheV2): WidgetHeatmapCache {
+  const baseDay = toUtcDay(cache.base);
+  return {
+    days: cache.entries.map(([offset, total]) => ({ date: fromUtcDay(baseDay + offset), total })),
+    updatedAt: cache.updatedAt,
+  };
+}
+
 /** 日別支出（草グラフ用）を SecureStore に保存し、ウィジェットを即時更新する（fire-and-forget） */
 export function saveWidgetHeatmap(days: DailySpend[]): void {
-  const cache: WidgetHeatmapCache = {
-    days,
-    updatedAt: new Date().toISOString(),
-  };
+  const updatedAt = new Date().toISOString();
 
-  SecureStore.setItemAsync(HEATMAP_CACHE_KEY, JSON.stringify(cache))
+  // 上限に収まるまで古い日から落とす。
+  // 表示は新しい日ほど重要なので、古い側を切る。
+  let payload = days;
+  let serialized = JSON.stringify(compactHeatmap(payload, updatedAt));
+  while (serialized.length > SECURE_STORE_BYTES_LIMIT && payload.length > 0) {
+    payload = payload.slice(1);
+    serialized = JSON.stringify(compactHeatmap(payload, updatedAt));
+  }
+  if (payload.length !== days.length) {
+    console.warn(
+      `[saveWidgetHeatmap] SecureStore の上限に収めるため ${days.length - payload.length} 日分を古い側から省きました`,
+    );
+  }
+
+  SecureStore.setItemAsync(HEATMAP_CACHE_KEY, serialized)
     .then(() =>
       requestWidgetUpdate({
         widgetName: HEATMAP_WIDGET_NAME,
-        renderWidget: () => SpendingHeatmapWidget({ days: cache.days }),
+        renderWidget: () => SpendingHeatmapWidget({ days: payload }),
         widgetNotFound: () => {},
       })
     )
@@ -129,7 +190,12 @@ export async function getWidgetHeatmap(): Promise<WidgetHeatmapCache | null> {
   try {
     const raw = await SecureStore.getItemAsync(HEATMAP_CACHE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as WidgetHeatmapCache;
+
+    const parsed = JSON.parse(raw) as WidgetHeatmapCacheV2 | WidgetHeatmapCache;
+
+    // アップデート前に書かれた旧形式（days をそのまま持つ）も読めるようにする
+    if ('v' in parsed && parsed.v === 2) return expandHeatmap(parsed);
+    return parsed as WidgetHeatmapCache;
   } catch (error) {
     console.error('[getWidgetHeatmap] エラー:', error);
     return null;

@@ -19,6 +19,8 @@ import * as Notifications from 'expo-notifications';
 import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken, saveGoogleRefreshToken, loadGoogleRefreshToken, clearGoogleRefreshToken, isOAuthFlowPending, endOAuthFlow } from '@/lib/auth';
 import { AuthError, AuthErrorCode, formatAuthError, describeError } from '@/lib/auth-errors';
 import { initDB, clearCache } from '@/lib/db';
+import { clearWidgetBudget, clearWidgetHeatmap } from '@/lib/widget-bridge';
+import { clearReceiptQuickCaptureNotification } from '@/lib/notifications';
 import { useAppStore } from '@/store';
 
 // スプラッシュスクリーンを手動制御
@@ -148,10 +150,23 @@ function useAuthGuard() {
           await clearGoogleAccessToken();
           await clearGoogleRefreshToken();
           // セッション失効による自動サインアウトもここを通る。
-          // store.logout() とは別経路なのでキャッシュ削除もここで行う。
-          // 消し忘れると、別アカウントでログインしたあとオフラインに
-          // なったときに前のユーザーの支出履歴が表示される。
-          await clearCache().catch((e) => console.error('[Layout] キャッシュ削除に失敗:', describeError(e)));
+          // store.logout() とは別経路なので、端末に残る表示物の後片付けを
+          // ここでも行う。消し忘れると次の3箇所に前のユーザーの家計情報が
+          // 残り続ける:
+          //   - SQLite のキャッシュ（別アカウントでオフライン時に表示される）
+          //   - ホーム画面ウィジェット（残額・直近の店名。ロック解除不要で見える）
+          //   - 常駐通知（ロック画面に残額が出たまま）
+          await Promise.allSettled([
+            clearCache(),
+            clearReceiptQuickCaptureNotification(),
+          ]).then((results) => {
+            const failed = results.find((r) => r.status === 'rejected');
+            if (failed?.status === 'rejected') {
+              console.error('[Layout] サインアウト後の後片付けに失敗:', describeError(failed.reason));
+            }
+          });
+          clearWidgetBudget();
+          clearWidgetHeatmap();
           router.replace('/(auth)/login');
         }
       }

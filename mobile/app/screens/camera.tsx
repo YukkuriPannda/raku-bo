@@ -41,7 +41,7 @@ export default function CameraScreen() {
 
       if (!photo?.base64) throw new Error('撮影に失敗しました');
 
-      // 撮影完了 → 即座に遷移（アップロードは confirm 画面で行う）
+      // 撮影完了 → 即座に遷移（アップロードは manual-entry 画面で行う）
       setPendingImage(photo.base64);
       router.replace('/screens/manual-entry');
     } catch (error) {

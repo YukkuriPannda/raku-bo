@@ -227,10 +227,11 @@ export default function RootLayout() {
           name="screens/camera"
           options={{ presentation: 'modal', headerShown: true, title: 'レシートを撮影' }}
         />
-        <Stack.Screen
-          name="screens/confirm"
-          options={{ presentation: 'modal', headerShown: true, title: '内容を確認' }}
-        />
+        {/* screens/confirm は登録しない。app/screens/confirm.tsx が存在せず、
+            expo-router が起動ごとに
+            「No route named "screens/confirm" exists in nested children」
+            を警告していた。撮影後の確認は screens/manual-entry が担っており、
+            この画面への遷移はコード上どこにも無い（初期設計の名残） */}
         <Stack.Screen
           name="screens/manual-entry"
           options={{ presentation: 'modal', headerShown: false }}

@@ -10,7 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as aesjs from 'aes-js';
 import { createClient } from '@supabase/supabase-js';
-import { AuthError, AuthErrorCode } from './auth-errors';
+import { AuthError, AuthErrorCode, parseAuthError } from './auth-errors';
 import { getKVItem, setKVItem, removeKVItem } from './db';
 
 // expo-auth-session がブラウザセッションを正しく閉じるために必要
@@ -196,6 +196,195 @@ export async function loadGoogleRefreshToken(): Promise<string | null> {
 
 export async function clearGoogleRefreshToken(): Promise<void> {
   await SecureStore.deleteItemAsync(GOOGLE_REFRESH_TOKEN_KEY);
+}
+
+// ============================================================
+// 認証コールバックの処理（唯一の入口）
+//
+// rakubo://auth/callback?code=... という1つのURLに対して、次の3箇所が
+// ほぼ同時に反応する:
+//   A. app/(auth)/login.tsx        openAuthSessionAsync の戻り
+//   B. app/_layout.tsx handleUrl   Linking の url イベント
+//   C. app/auth/callback.tsx       expo-router がこの画面へ遷移
+//
+// PKCE の code は使い捨てなので、3箇所がそれぞれ交換を試みると2箇所は
+// 必ず失敗する。以前は各々が「ログイン進行中フラグ」を直接読み書きして
+// 分岐していたため、それが交錯して「誰も交換していないのに全員が
+// 『進行中ではない』と判断する」状態が起きていた（実機ログで確認）:
+//
+//   18.718 [AuthCallback] 受信パラメータ: code     ← C が code を受け取る
+//   18.747 [Login] コールバック受信: dismiss       ← A は success ではなく dismiss
+//   18.747 [Login] エラー: OAUTH_CANCELLED        ← A の finally がフラグを消す
+//   18.761 [AuthCallback] 進行中のログインがないため破棄  ← C が誤判定してログインへ戻す
+//   18.871 [Layout] 進行中のログインがないため無視        ← B も誤判定
+//
+// そこで、判定と交換はこの関数だけが行う。呼び出し側は結果を見て
+// 画面遷移とエラー表示を決めるだけにする:
+//   - 直列化: 同時に呼ばれても1件ずつ順に処理する
+//   - 冪等:   同じ code は一度しか交換を試みない
+//   - フラグ: ここでだけ読み、フローが決着したときにだけ消す
+// ============================================================
+
+/** コールバックURLから取り出した認証パラメータ */
+export type OAuthCallbackInput = {
+  code?: string | null;
+  accessToken?: string | null;
+  refreshToken?: string | null;
+  providerToken?: string | null;
+  providerRefreshToken?: string | null;
+};
+
+export type OAuthCallbackResult =
+  /** この呼び出しがセッションを確立した */
+  | { status: 'signed-in' }
+  /** 既にセッションがある（他のハンドラが確立した、またはログイン済み） */
+  | { status: 'already-done' }
+  /** 自分が開始したログインの応答ではない（外部から投げ込まれたURL） */
+  | { status: 'not-pending' }
+  /** 認証パラメータが無い。他のハンドラが持っている可能性があるので何もしない */
+  | { status: 'no-params' }
+  /** 交換を試みて失敗した。この時点で code は使えなくなっている */
+  | { status: 'failed'; error: AuthError };
+
+/** 直列化用のチェーン。3箇所から同時に呼ばれても1件ずつ処理する */
+let callbackQueue: Promise<unknown> = Promise.resolve();
+
+/** 交換を試みた code。使い捨てなので二度目は試さない */
+const attemptedCodes = new Set<string>();
+
+/**
+ * 認証コールバックを処理する。3箇所の呼び出し口はすべてこれを使う。
+ * 同時に呼ばれても安全（順に処理され、勝った1つだけが実際に交換する）。
+ */
+export function handleOAuthCallback(input: OAuthCallbackInput): Promise<OAuthCallbackResult> {
+  // 前の処理の成否にかかわらず次を実行する
+  const run = callbackQueue.then(
+    () => processOAuthCallback(input),
+    () => processOAuthCallback(input),
+  );
+  // チェーン自体は例外で止めない
+  callbackQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+async function processOAuthCallback(input: OAuthCallbackInput): Promise<OAuthCallbackResult> {
+  // 1. 既にセッションがあるなら、外から来たトークンで差し替えない
+  const { data: { session: existing } } = await supabase.auth.getSession();
+  if (existing) {
+    return { status: 'already-done' };
+  }
+
+  // 2. 自分が開始したログインの応答か。ここではまだフラグを消さない
+  if (!(await isOAuthFlowPending())) {
+    return { status: 'not-pending' };
+  }
+
+  const code = input.code ?? null;
+  const accessToken = input.accessToken ?? null;
+  const refreshToken = input.refreshToken ?? null;
+
+  // 3. パラメータが無い場合はフラグを残したまま何もしない。
+  //    別のハンドラが完全なURLを持っていることがあるため、
+  //    ここでフラグを消すとその処理を妨害してしまう。
+  if (!code && !(accessToken && refreshToken)) {
+    return { status: 'no-params' };
+  }
+
+  // 4. 同じ code での二度目の交換は必ず失敗するので試さない
+  if (code && attemptedCodes.has(code)) {
+    return { status: 'already-done' };
+  }
+
+  // URL に provider_token が載っている場合は交換より先に保存する。
+  // exchange / setSession は onAuthStateChange を即座に発火させるため、
+  // 後で保存すると app/_layout.tsx 側が空の値を読んでしまう。
+  if (input.providerToken) await saveGoogleAccessToken(input.providerToken);
+  if (input.providerRefreshToken) await saveGoogleRefreshToken(input.providerRefreshToken);
+
+  try {
+    if (code) {
+      attemptedCodes.add(code);
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        await endOAuthFlow();
+        return {
+          status: 'failed',
+          error: new AuthError(AuthErrorCode.CODE_EXCHANGE_FAILED, undefined, error.message, error),
+        };
+      }
+      // 交換で得られた値のほうが確実なので上書きする
+      if (data.session?.provider_token) await saveGoogleAccessToken(data.session.provider_token);
+      if (data.session?.provider_refresh_token) await saveGoogleRefreshToken(data.session.provider_refresh_token);
+    } else {
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken!,
+        refresh_token: refreshToken!,
+      });
+      if (error) {
+        await endOAuthFlow();
+        return {
+          status: 'failed',
+          error: new AuthError(AuthErrorCode.SET_SESSION_FAILED, undefined, error.message, error),
+        };
+      }
+      // setSession は provider_token を返さないため、上で保存した URL の値をそのまま使う
+    }
+
+    await endOAuthFlow();
+    return { status: 'signed-in' };
+  } catch (err) {
+    await endOAuthFlow();
+    return { status: 'failed', error: parseAuthError(err) };
+  }
+}
+
+/**
+ * コールバックURLから認証パラメータを取り出す。
+ * トークンを含むため、戻り値の中身はログに出さないこと。
+ */
+export function parseOAuthCallbackUrl(url: string): OAuthCallbackInput {
+  // フラグメントを先に切り離す。`?a=b#c=d` を単純に '?' で分割すると
+  // クエリ側にフラグメントが混入する
+  const [beforeHash, afterHash = ''] = url.split('#');
+  const query = new URLSearchParams(beforeHash.split('?')[1] ?? '');
+  const hash = new URLSearchParams(afterHash);
+  const pick = (name: string) => hash.get(name) ?? query.get(name);
+
+  return {
+    code: query.get('code'),
+    accessToken: pick('access_token'),
+    refreshToken: pick('refresh_token'),
+    providerToken: pick('provider_token'),
+    providerRefreshToken: pick('provider_refresh_token'),
+  };
+}
+
+/**
+ * 進行中のログインが決着するのを待つ。
+ *
+ * Android では、コールバックのディープリンクが LAUNCH_SINGLE_TASK で
+ * アプリを前面に戻すためカスタムタブが閉じられ、openAuthSessionAsync は
+ * 'success' ではなく 'dismiss' を返す（実機ログで確認）。
+ * つまり 'dismiss' は「ユーザーがキャンセルした」とは限らず、
+ * B/C 側がコールバックを処理中の可能性がある。そこで少し待って確かめる。
+ *
+ * @returns セッションが確立できたら true
+ */
+export async function waitForOAuthConclusion(timeoutMs = 3000, intervalMs = 200): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) return true;
+
+    // フラグが消えているなら、どこかで決着している（失敗確定）
+    if (!(await isOAuthFlowPending())) return false;
+
+    if (Date.now() >= deadline) return false;
+    await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
+  }
 }
 
 // ============================================================

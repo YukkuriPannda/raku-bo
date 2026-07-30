@@ -9,7 +9,14 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
-import { supabase, saveGoogleAccessToken, saveGoogleRefreshToken, beginOAuthFlow, endOAuthFlow } from '@/lib/auth';
+import {
+  supabase,
+  beginOAuthFlow,
+  endOAuthFlow,
+  handleOAuthCallback,
+  parseOAuthCallbackUrl,
+  waitForOAuthConclusion,
+} from '@/lib/auth';
 import { AuthError, AuthErrorCode, formatAuthError } from '@/lib/auth-errors';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -45,6 +52,8 @@ export default function LoginScreen() {
       });
 
       if (error || !data.url) {
+        // ブラウザを開く前の失敗。進行中フラグを残す理由がないので片付ける
+        await endOAuthFlow();
         throw new AuthError(AuthErrorCode.OAUTH_URL_FAILED, undefined, error?.message);
       }
 
@@ -56,56 +65,42 @@ export default function LoginScreen() {
       const result = await WebBrowser.openAuthSessionAsync(data.url, REDIRECT_URI);
       console.log('[Login] コールバック受信:', result.type);
 
-      if (result.type !== 'success' || !(result as any).url) {
-        // ユーザーが自発的にブラウザを閉じた/キャンセルしたケース
-        throw new AuthError(AuthErrorCode.OAUTH_CANCELLED, undefined, result.type);
+      // 認証パラメータはこのハンドラだけのものではない。同じURLに
+      // app/_layout.tsx と app/auth/callback.tsx も反応するため、
+      // 実際の判定と交換は lib/auth.ts の handleOAuthCallback に任せる
+      // （直列化・冪等・フラグ管理を1箇所に集約している）。
+      if (result.type === 'success' && (result as any).url) {
+        const outcome = await handleOAuthCallback(parseOAuthCallbackUrl((result as any).url));
+        console.log('[Login] コールバック処理:', outcome.status);
+        if (outcome.status === 'failed') {
+          throw outcome.error;
+        }
+        return;
       }
 
-      const resultUrl: string = (result as any).url;
-      const queryParams = new URLSearchParams(resultUrl.split('?')[1] ?? '');
-      const hashParams = new URLSearchParams(resultUrl.split('#')[1] ?? '');
-      const code = queryParams.get('code');
-      const accessToken = hashParams.get('access_token') ?? queryParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
-
-      // 同じコールバックURLには app/_layout.tsx のディープリンクハンドラと
-      // app/auth/callback.tsx の画面も反応する。PKCE の code は使い捨てなので、
-      // 先に他方が消費していればここでの交換は失敗する。それは本当の失敗では
-      // ないため、セッションができていれば成功として扱う（エラーダイアログを
-      // 出すとユーザーには失敗に見え、ログイン画面に留まってしまう）。
-      const alreadySignedIn = async (): Promise<boolean> => {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session !== null;
-      };
-
-      if (code) {
-        const { data: exchData, error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchErr) {
-          if (!(await alreadySignedIn())) {
-            throw new AuthError(AuthErrorCode.CODE_EXCHANGE_FAILED, undefined, exchErr.message, exchErr);
-          }
-          console.warn('[Login] code は他のハンドラが処理済み（セッションあり）');
-        }
-        const providerToken = exchData?.session?.provider_token;
-        if (providerToken) await saveGoogleAccessToken(providerToken);
-        const providerRefreshToken = exchData?.session?.provider_refresh_token;
-        if (providerRefreshToken) await saveGoogleRefreshToken(providerRefreshToken);
-      } else if (accessToken && refreshToken) {
-        const { error: sessErr } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        if (sessErr && !(await alreadySignedIn())) {
-          throw new AuthError(AuthErrorCode.SET_SESSION_FAILED, undefined, sessErr.message, sessErr);
-        }
-        // setSession はGoogleのprovider_token/provider_refresh_tokenを返さないため、
-        // コールバックURLに含まれていれば直接保存する
-        const providerToken = hashParams.get('provider_token') ?? queryParams.get('provider_token');
-        if (providerToken) await saveGoogleAccessToken(providerToken);
-        const providerRefreshToken = hashParams.get('provider_refresh_token') ?? queryParams.get('provider_refresh_token');
-        if (providerRefreshToken) await saveGoogleRefreshToken(providerRefreshToken);
-      } else {
-        // コールバックURLに code も access_token も含まれない想定外のケース。
-        // detail に resultUrl を入れるとトークンがログに載るため入れない。
-        throw new AuthError(AuthErrorCode.OAUTH_NO_PARAMS);
+      // ここに来たのは result.type が 'dismiss' / 'cancel' のとき。
+      //
+      // Android では rakubo:// のディープリンクが LAUNCH_SINGLE_TASK で
+      // アプリを前面に戻すためカスタムタブが閉じられ、
+      // openAuthSessionAsync は 'success' ではなく 'dismiss' を返す。
+      // openAuthSessionAsync に渡す redirectUrl は https の中継URLで、
+      // 実際の最終URLは rakubo:// なので 'success' にはならない。
+      // つまりこの経路は正常なログインでも必ず通る。
+      //
+      // かつてここで無条件に endOAuthFlow() を呼んでいたため、
+      // 処理中だった _layout.tsx / auth/callback.tsx が
+      // 「進行中のログインがない」と誤判定してログイン画面へ戻し、
+      // 誰も code を交換しないままループしていた。
+      // そのため、決着を待ってから本当のキャンセルか判断する。
+      const signedIn = await waitForOAuthConclusion();
+      if (signedIn) {
+        console.log('[Login] 他のハンドラがセッションを確立しました');
+        return;
       }
+
+      // セッションができず、フラグも残っている＝実際にキャンセルされた
+      await endOAuthFlow();
+      throw new AuthError(AuthErrorCode.OAUTH_CANCELLED, undefined, result.type);
     } catch (err) {
       const authErr = err instanceof AuthError ? err : new AuthError(AuthErrorCode.UNKNOWN, undefined, String(err));
       console.error('[Login] エラー:', authErr.code, authErr.detail ?? authErr.message);
@@ -114,10 +109,6 @@ export default function LoginScreen() {
         Alert.alert(title, message);
       }
     } finally {
-      // 成功・失敗・キャンセルのいずれでも進行中フラグを落とす。
-      // 残したままにすると、その後に届いた外部からのディープリンクを
-      // 受け入れてしまう余地が残る。
-      await endOAuthFlow();
       setIsLoading(false);
     }
   };

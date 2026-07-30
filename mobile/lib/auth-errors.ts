@@ -16,6 +16,12 @@ export const AuthErrorCode = {
   GOOGLE_REFRESH_FAILED: 'AUTH_GOOGLE_REFRESH_FAILED',
   GOOGLE_TOKEN_MISSING: 'AUTH_GOOGLE_TOKEN_MISSING',
   GOOGLE_API_ERROR: 'AUTH_GOOGLE_API_ERROR',
+  /** ログイン中のアカウントに Google 連携がない */
+  GOOGLE_IDENTITY_MISSING: 'AUTH_GOOGLE_IDENTITY_MISSING',
+  /** 送ったリフレッシュトークンの持ち主が呼び出し元と一致しない */
+  GOOGLE_IDENTITY_MISMATCH: 'AUTH_GOOGLE_IDENTITY_MISMATCH',
+  /** トークンの持ち主を Google に確認できなかった */
+  GOOGLE_IDENTITY_UNVERIFIABLE: 'AUTH_GOOGLE_IDENTITY_UNVERIFIABLE',
   // --- モバイル側のみで正規化するもの ---
   OAUTH_URL_FAILED: 'AUTH_OAUTH_URL_FAILED',
   OAUTH_CANCELLED: 'AUTH_OAUTH_CANCELLED',
@@ -41,6 +47,9 @@ const AUTH_ERROR_MESSAGES: Partial<Record<string, string>> = {
   [AuthErrorCode.GOOGLE_REFRESH_FAILED]: 'Google連携の有効期限が切れました。再ログインしてください。',
   [AuthErrorCode.GOOGLE_TOKEN_MISSING]: 'Google連携情報が見つかりません。再ログインしてください。',
   [AuthErrorCode.GOOGLE_API_ERROR]: 'Googleカレンダーとの通信に失敗しました。',
+  [AuthErrorCode.GOOGLE_IDENTITY_MISSING]: 'このアカウントにはGoogle連携がありません。Googleでログインし直してください。',
+  [AuthErrorCode.GOOGLE_IDENTITY_MISMATCH]: 'Google連携の情報が一致しません。再ログインしてください。',
+  [AuthErrorCode.GOOGLE_IDENTITY_UNVERIFIABLE]: 'Google連携の確認ができませんでした。しばらくしてからお試しください。',
   [AuthErrorCode.OAUTH_URL_FAILED]: 'ログインURLの取得に失敗しました。',
   [AuthErrorCode.OAUTH_CANCELLED]: 'ログインがキャンセルされました。',
   [AuthErrorCode.OAUTH_NO_PARAMS]: 'ログイン処理を完了できませんでした。もう一度お試しください。',

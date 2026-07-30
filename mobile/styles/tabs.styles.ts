@@ -38,13 +38,15 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // 展開中に画面全体を覆う背景（タップで閉じる）
+  // 展開中に画面全体を覆う背景（タップで閉じる）。
+  // 半透明の黒でグレーアウトさせ、メニューが開いていることを示す。
   backdrop: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     left: 0,
     right: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
 
   // FABの位置決めの基準。幅をFABと同じにして中央に置く。
@@ -95,6 +97,21 @@ export const styles = StyleSheet.create({
 
   actionButtonSecondary: {
     backgroundColor: colors.textSecondary,
+  },
+
+  // 長押し＋ドラッグ中、いま選択されている側を強調する。
+  // transformでの拡大はレイアウトサイズを変えないため、ラベルの位置は
+  // ずれない（見た目だけ大きくなる）。
+  actionButtonHighlighted: {
+    transform: [{ scale: 1.2 }],
+    borderWidth: 3,
+    borderColor: colors.textPrimary,
+    elevation: 8,
+  },
+
+  // 選択されていない側は薄くして、どちらが選ばれているか分かりやすくする。
+  actionButtonDimmed: {
+    opacity: 0.4,
   },
 
   // ラベルはボタンの「上」に置く。

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Text, View, Pressable, TouchableOpacity } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuickActionRouting } from 'expo-quick-actions/router';
 
-import { styles as fabStyles, TAB_BAR_HEIGHT, FAB_LIFT } from '@/styles/tabs.styles';
+import { styles as fabStyles, TAB_BAR_HEIGHT, FAB_LIFT, FAB_SIZE } from '@/styles/tabs.styles';
 
 type TabIconProps = {
   emoji: string;
@@ -35,14 +36,84 @@ function TabIcon({ emoji, focused }: TabIconProps) {
 // タブバー側には押せない空きスロット（Tabs.Screen name="add"）だけを
 // 置いて、中央の場所を確保している。
 // ============================================================
+// 長押し中にFABの中心から左右どちらへ寄っているかを判定する際の
+// 「どちらでもない」帯の半径。FABの半径と同じにして、FAB自体の上で
+// 離したときは何も発火しないようにする。
+const DEAD_ZONE_RADIUS = FAB_SIZE / 2;
+
 function AddButtonOverlay() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // 長押し→ドラッグ中、いまどちら側に寄っているか（強調表示に使う）。
+  // null = デッドゾーン（FAB付近）にいて、まだどちらにも寄っていない。
+  const [dragSide, setDragSide] = useState<'left' | 'right' | null>(null);
+
+  // FABの画面上での中心X座標（絶対座標）。onLayoutで一度測って保持する。
+  // スタイル定数から逆算する方法もあるが、実測値を直接使うほうが
+  // 将来スタイルが変わっても壊れにくい。
+  const fabRef = useRef<View>(null);
+  const fabCenterXRef = useRef<number | null>(null);
+  const measureFabCenter = () => {
+    fabRef.current?.measureInWindow((x, _y, width) => {
+      fabCenterXRef.current = x + width / 2;
+    });
+  };
+
+  // 離した（または現在の）絶対X座標から、どちらのサブボタンに近いかを判定する。
+  // デッドゾーン内（FABの半径程度）は null＝「どちらでもない」。
+  const resolveSide = (absoluteX: number): 'left' | 'right' | null => {
+    const centerX = fabCenterXRef.current;
+    if (centerX == null) return null;
+    const dx = absoluteX - centerX;
+    if (dx <= -DEAD_ZONE_RADIUS) return 'left';
+    if (dx >= DEAD_ZONE_RADIUS) return 'right';
+    return null;
+  };
 
   const go = (path: '/screens/camera' | '/screens/manual-entry') => {
     setOpen(false);
     router.push(path);
   };
+
+  // 長押し＋ドラッグでの選択ジェスチャー。
+  // activateAfterLongPress により、素早いタップではこのPanは発火せず
+  // （後述のTapGestureに譲る)、一定時間押し続けたときだけ有効化される。
+  // 有効化後の指の移動はドラッグとして扱われ、離した座標の左右どちらに
+  // 寄っているかで発火先を決める。
+  const longPressDragGesture = Gesture.Pan()
+    .activateAfterLongPress(350)
+    .runOnJS(true)
+    .onStart(() => {
+      setOpen(true);
+      setDragSide(null);
+    })
+    .onUpdate((e) => {
+      const next = resolveSide(e.absoluteX);
+      setDragSide((prev) => (prev === next ? prev : next));
+    })
+    .onEnd((e) => {
+      const side = resolveSide(e.absoluteX);
+      if (side === 'left') {
+        go('/screens/camera');
+      } else if (side === 'right') {
+        go('/screens/manual-entry');
+      }
+      // どちらでもない場合（FAB上や、ほとんど動かさなかった場合）は
+      // 何もしない＝メニューは開いたままにする。
+    })
+    .onFinalize(() => {
+      setDragSide(null);
+    });
+
+  // 従来通りのタップでの開閉。長押しが発火しなかった場合はこちらが
+  // 有効化される（Gesture.Raceで先に有効化した方が勝つ）。
+  const tapToggleGesture = Gesture.Tap()
+    .runOnJS(true)
+    .onEnd(() => {
+      setOpen((o) => !o);
+    });
+
+  const fabGesture = Gesture.Race(longPressDragGesture, tapToggleGesture);
 
   return (
     <>
@@ -71,7 +142,12 @@ function AddButtonOverlay() {
               </View>
               <TouchableOpacity
                 onPress={() => go('/screens/camera')}
-                style={[fabStyles.actionButton, fabStyles.actionButtonPrimary]}
+                style={[
+                  fabStyles.actionButton,
+                  fabStyles.actionButtonPrimary,
+                  dragSide === 'left' && fabStyles.actionButtonHighlighted,
+                  dragSide === 'right' && fabStyles.actionButtonDimmed,
+                ]}
                 activeOpacity={0.8}
                 accessibilityLabel="レシート撮影"
               >
@@ -80,14 +156,22 @@ function AddButtonOverlay() {
             </View>
           )}
 
-          <TouchableOpacity
-            onPress={() => setOpen((o) => !o)}
-            style={fabStyles.fab}
-            activeOpacity={0.8}
-            accessibilityLabel={open ? '閉じる' : '記録を追加'}
-          >
-            <Text style={{ fontSize: 24 }}>{open ? '✕' : '➕'}</Text>
-          </TouchableOpacity>
+          {/* FAB本体。タップでの開閉と、長押し＋ドラッグでの選択の
+              両方をここに集約する（Gesture.Raceで排他的に解決）。
+              TouchableOpacityは使わず、GestureDetectorのTapGestureに
+              置き換えている（同じViewにRNのタッチレスポンダとRNGHの
+              ネイティブジェスチャーを重ねると認識が競合するため）。 */}
+          <GestureDetector gesture={fabGesture}>
+            <View
+              ref={fabRef}
+              onLayout={measureFabCenter}
+              style={fabStyles.fab}
+              accessibilityRole="button"
+              accessibilityLabel={open ? '閉じる' : '記録を追加'}
+            >
+              <Text style={{ fontSize: 24 }}>{open ? '✕' : '➕'}</Text>
+            </View>
+          </GestureDetector>
 
           {open && (
             <View style={[fabStyles.action, fabStyles.actionRight]}>
@@ -96,7 +180,12 @@ function AddButtonOverlay() {
               </View>
               <TouchableOpacity
                 onPress={() => go('/screens/manual-entry')}
-                style={[fabStyles.actionButton, fabStyles.actionButtonSecondary]}
+                style={[
+                  fabStyles.actionButton,
+                  fabStyles.actionButtonSecondary,
+                  dragSide === 'right' && fabStyles.actionButtonHighlighted,
+                  dragSide === 'left' && fabStyles.actionButtonDimmed,
+                ]}
                 activeOpacity={0.8}
                 accessibilityLabel="手動入力"
               >

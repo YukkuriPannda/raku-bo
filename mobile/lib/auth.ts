@@ -3,12 +3,6 @@
 // Supabase Auth + Google OAuth 認証ユーティリティ
 // ============================================================
 
-// crypto.subtle.digest を埋める副作用のみのインポート。
-// supabase-js が PKCE の code_challenge を作る前に評価される必要があるため、
-// createClient より先＝インポートの先頭に置く（これが無いと
-// code_challenge_method が plain にフォールバックする）。
-import './crypto-polyfill';
-
 import { AppState } from 'react-native';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';

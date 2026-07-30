@@ -4,7 +4,7 @@ import { Text, View, Pressable, TouchableOpacity } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuickActionRouting } from 'expo-quick-actions/router';
 
-import { styles as fabStyles, TAB_BAR_HEIGHT, FAB_LIFT, FAB_SIZE } from '@/styles/tabs.styles';
+import { styles as fabStyles, TAB_BAR_HEIGHT, FAB_LIFT, FAB_SINK, FAB_SIZE } from '@/styles/tabs.styles';
 
 type TabIconProps = {
   emoji: string;
@@ -132,7 +132,7 @@ function AddButtonOverlay() {
           （実測: FAB下端がタブバー上端の 8px 上、ずれ 23.8dp ≒ インセット値）。 */}
       <View
         pointerEvents="box-none"
-        style={[fabStyles.overlay, { bottom: TAB_BAR_HEIGHT - FAB_LIFT }]}
+        style={[fabStyles.overlay, { bottom: TAB_BAR_HEIGHT - FAB_LIFT - FAB_SINK }]}
       >
         <View pointerEvents="box-none" style={fabStyles.anchor}>
           {open && (

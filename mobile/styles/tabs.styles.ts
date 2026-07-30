@@ -23,6 +23,13 @@ export const FAB_ACTION_SIZE = 48;
 /** FABの中心をタブバー上端に置くための持ち上げ量 */
 export const FAB_LIFT = FAB_SIZE / 2;
 
+/**
+ * FABをタブバー側へ沈める量。
+ * 0 だと円の中心がちょうどタブバー上端に来る（上半分が飛び出す）。
+ * 値を増やすとタブバーに深く埋まり、飛び出す量が減る。
+ */
+export const FAB_SINK = 8;
+
 export const styles = StyleSheet.create({
   // タブバー内に確保する空きスロット（押せない）
   slot: {
@@ -63,12 +70,15 @@ export const styles = StyleSheet.create({
   },
 
   // サブボタン1つ分（上のラベル + アイコン）。
-  // bottom に FAB_LIFT を入れると、下端がちょうどタブバーの上端に来る
-  // （FABは中心がバー上端なので、その下端はバー上端から FAB_LIFT 下）。
-  // これを入れないとボタンがタブのアイコンに重なる。
+  //
+  // bottom で下端をタブバーの上端に合わせる。これを入れないとボタンが
+  // タブのアイコンに重なる。
+  // FAB_SINK を足しているのは、FABを沈めた分だけアンカーの下端も
+  // 下がるため。足さないとサブボタンも一緒に下がってタブバーに食い込む
+  // （FAB_SINK=8dp のとき、余裕が28px→7pxまで詰まる）。
   action: {
     position: 'absolute',
-    bottom: FAB_LIFT,
+    bottom: FAB_LIFT + FAB_SINK,
     width: 112,
     alignItems: 'center',
   },
@@ -102,11 +112,11 @@ export const styles = StyleSheet.create({
   // 長押し＋ドラッグ中、いま選択されている側を強調する。
   // transformでの拡大はレイアウトサイズを変えないため、ラベルの位置は
   // ずれない（見た目だけ大きくなる）。
+  //
+  // 枠線と影は付けない。反対側を actionButtonDimmed で薄くしているので
+  // 拡大だけで十分に分かる。
   actionButtonHighlighted: {
     transform: [{ scale: 1.2 }],
-    borderWidth: 3,
-    borderColor: colors.textPrimary,
-    elevation: 8,
   },
 
   // 選択されていない側は薄くして、どちらが選ばれているか分かりやすくする。

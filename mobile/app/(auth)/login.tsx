@@ -68,16 +68,33 @@ export default function LoginScreen() {
       const accessToken = hashParams.get('access_token') ?? queryParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
 
+      // 同じコールバックURLには app/_layout.tsx のディープリンクハンドラと
+      // app/auth/callback.tsx の画面も反応する。PKCE の code は使い捨てなので、
+      // 先に他方が消費していればここでの交換は失敗する。それは本当の失敗では
+      // ないため、セッションができていれば成功として扱う（エラーダイアログを
+      // 出すとユーザーには失敗に見え、ログイン画面に留まってしまう）。
+      const alreadySignedIn = async (): Promise<boolean> => {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session !== null;
+      };
+
       if (code) {
         const { data: exchData, error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchErr) throw new AuthError(AuthErrorCode.CODE_EXCHANGE_FAILED, undefined, exchErr.message, exchErr);
-        const providerToken = exchData.session?.provider_token;
+        if (exchErr) {
+          if (!(await alreadySignedIn())) {
+            throw new AuthError(AuthErrorCode.CODE_EXCHANGE_FAILED, undefined, exchErr.message, exchErr);
+          }
+          console.warn('[Login] code は他のハンドラが処理済み（セッションあり）');
+        }
+        const providerToken = exchData?.session?.provider_token;
         if (providerToken) await saveGoogleAccessToken(providerToken);
-        const providerRefreshToken = exchData.session?.provider_refresh_token;
+        const providerRefreshToken = exchData?.session?.provider_refresh_token;
         if (providerRefreshToken) await saveGoogleRefreshToken(providerRefreshToken);
       } else if (accessToken && refreshToken) {
         const { error: sessErr } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        if (sessErr) throw new AuthError(AuthErrorCode.SET_SESSION_FAILED, undefined, sessErr.message, sessErr);
+        if (sessErr && !(await alreadySignedIn())) {
+          throw new AuthError(AuthErrorCode.SET_SESSION_FAILED, undefined, sessErr.message, sessErr);
+        }
         // setSession はGoogleのprovider_token/provider_refresh_tokenを返さないため、
         // コールバックURLに含まれていれば直接保存する
         const providerToken = hashParams.get('provider_token') ?? queryParams.get('provider_token');

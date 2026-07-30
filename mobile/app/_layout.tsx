@@ -81,12 +81,14 @@ function useAuthGuard() {
         return;
       }
 
-      // 2. 自分が開始したログインの応答でなければ無視する
+      // 2. 自分が開始したログインの応答でなければ無視する。
+      //    ここでフラグを消してはいけない（同じURLに login.tsx と
+      //    app/auth/callback.tsx も反応するため、消すと残りが
+      //    「進行中ではない」と誤判定する）。消すのはセッション確立後。
       if (!(await isOAuthFlowPending())) {
         console.warn('[Layout] 進行中のログインがないため認証ディープリンクを無視しました');
         return;
       }
-      await endOAuthFlow();
 
       const q = new URLSearchParams(url.split('?')[1] ?? '');
       const h = new URLSearchParams(url.split('#')[1] ?? '');
@@ -99,19 +101,40 @@ function useAuthGuard() {
       if (providerToken) pendingGoogleToken = providerToken;
       if (providerRefreshToken) pendingGoogleRefreshToken = providerRefreshToken;
 
+      // 同じコールバックURLに複数のハンドラが反応するため、
+      // PKCE の code（使い捨て）を先に他方が消費していることがある。
+      // その場合の失敗は「本当の失敗」ではないので、セッションが
+      // できていればエラー扱いにしない。
+      const failedButSignedIn = async (): Promise<boolean> => {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session !== null;
+      };
+
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
+        if (!error) {
+          await endOAuthFlow();
+        } else if (await failedButSignedIn()) {
+          console.warn('[Layout] code は他のハンドラが処理済み（セッションあり）。エラー扱いにしません');
+          await endOAuthFlow();
+        } else {
           const authErr = new AuthError(AuthErrorCode.CODE_EXCHANGE_FAILED, undefined, error.message, error);
           console.error('[Layout] exchange error:', authErr.code, error.message);
+          await endOAuthFlow();
           const { title, message } = formatAuthError(authErr);
           Alert.alert(title, message);
         }
       } else if (accessToken && refreshToken) {
         const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        if (error) {
+        if (!error) {
+          await endOAuthFlow();
+        } else if (await failedButSignedIn()) {
+          console.warn('[Layout] セッションは他のハンドラが確立済み。エラー扱いにしません');
+          await endOAuthFlow();
+        } else {
           const authErr = new AuthError(AuthErrorCode.SET_SESSION_FAILED, undefined, error.message, error);
           console.error('[Layout] setSession error:', authErr.code, error.message);
+          await endOAuthFlow();
           const { title, message } = formatAuthError(authErr);
           Alert.alert(title, message);
         }

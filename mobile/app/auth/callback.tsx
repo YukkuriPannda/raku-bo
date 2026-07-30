@@ -23,27 +23,55 @@ export default function AuthCallbackScreen() {
       // 自分が開始したログインの応答でなければ処理しない。
       // このスキーム（rakubo://）は他アプリからも起動できるため、
       // 外部から送り込まれたトークンでセッションを作らせない。
+      //
+      // フラグはここで消さない。同じURLに login.tsx と _layout.tsx の
+      // ディープリンクハンドラも反応するため、消すと残りが誤判定する。
       if (!(await isOAuthFlowPending())) {
         console.warn('[AuthCallback] 進行中のログインがないため破棄しました');
         router.replace('/(auth)/login');
         return;
       }
-      await endOAuthFlow();
 
       const { access_token, refresh_token, code } = params;
+
+      // パラメータが無いのは想定外。ログインに戻す
+      if (!code && !(access_token && refresh_token)) {
+        router.replace('/(auth)/login');
+        return;
+      }
+
       try {
-        if (access_token && refresh_token) {
-          const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-          console.log('[AuthCallback] setSession:', error ? 'failed' : 'ok');
-        } else if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          console.log('[AuthCallback] exchange:', error ? 'failed' : 'ok');
-        } else {
-          router.replace('/(auth)/login');
+        const { error } = access_token && refresh_token
+          ? await supabase.auth.setSession({ access_token, refresh_token })
+          : await supabase.auth.exchangeCodeForSession(code!);
+
+        if (!error) {
+          await endOAuthFlow();
+          console.log('[AuthCallback] セッション確立');
+          return; // 遷移は onAuthStateChange に任せる
         }
+
+        // 失敗しても、他のハンドラが先に処理を終えていればセッションはある。
+        // PKCE の code は使い捨てなので、この経路は正常時にも起こりうる。
+        // ここでログイン画面へ戻すとログインループになるため戻さない。
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await endOAuthFlow();
+          console.warn('[AuthCallback] 他のハンドラが処理済み（セッションあり）');
+          return;
+        }
+
+        console.error('[AuthCallback] セッションを確立できませんでした:', error.message);
+        await endOAuthFlow();
+        router.replace('/(auth)/login');
       } catch (err) {
         console.error('[AuthCallback] エラー:', err instanceof Error ? err.message : 'unknown');
-        router.replace('/(auth)/login');
+        // 例外時も、セッションができているなら戻さない
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          await endOAuthFlow();
+          router.replace('/(auth)/login');
+        }
       }
     };
     handle();

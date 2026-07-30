@@ -130,7 +130,18 @@ const OAUTH_PENDING_KEY = 'oauth_flow_pending_at';
 /** このフラグが有効と見なす時間。放置された古いフラグを使い回させない */
 const OAUTH_PENDING_TTL_MS = 10 * 60 * 1000;
 
-/** ログイン開始を記録する */
+/**
+ * ログイン開始を記録する。
+ *
+ * 注意: このフラグの確認は「消費」してはいけない。
+ * 1つのコールバックURLに対して3箇所（login.tsx / _layout.tsx の
+ * ディープリンクハンドラ / app/auth/callback.tsx の画面）が反応するため、
+ * 確認と同時に消すと最初に走った1つだけが処理でき、残りは
+ * 「進行中ではない」と誤判定してログイン画面へ戻してしまう
+ * （ログインループの原因になる）。
+ * 消すのは endOAuthFlow() を呼ぶ側の責務とし、
+ * セッション確立後・失敗後・キャンセル後にのみ消す。
+ */
 export async function beginOAuthFlow(): Promise<void> {
   await SecureStore.setItemAsync(OAUTH_PENDING_KEY, String(Date.now()));
 }

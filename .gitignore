@@ -3,9 +3,17 @@ node_modules/
 */node_modules/
 
 # Environment variables
+# 派生ファイル（.env.production / .dev.vars.bak など）もまとめて除外する。
+# 末尾に何か付いただけのコピーが追跡対象になると、SERVICE_ROLE_KEY や
+# GOOGLE_CLIENT_SECRET がそのままコミットされてしまう。
 .env
-.env.local
+.env.*
 .dev.vars
+.dev.vars.*
+
+# ただし雛形は追跡する
+!.env.example
+!.dev.vars.example
 
 # Cloudflare Workers
 .wrangler/

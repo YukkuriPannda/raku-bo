@@ -97,9 +97,13 @@ function AddButtonOverlay() {
         go('/screens/camera');
       } else if (side === 'right') {
         go('/screens/manual-entry');
+      } else {
+        // どちらにも寄っていない位置（FAB上や、ほとんど動かさなかった場合）で
+        // 離したらキャンセル扱いにして閉じる。
+        // 長押ししたまま「やめる」ができるようにするため。
+        // 開いたまま使いたいときは長押しではなくタップする。
+        setOpen(false);
       }
-      // どちらでもない場合（FAB上や、ほとんど動かさなかった場合）は
-      // 何もしない＝メニューは開いたままにする。
     })
     .onFinalize(() => {
       setDragSide(null);

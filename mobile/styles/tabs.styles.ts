@@ -141,7 +141,8 @@ export const styles = StyleSheet.create({
     fontSize: 11,
   },
 
-  // 中央のFAB本体
+  // 中央のFAB本体。
+  // 影（elevation）は付けない。タブバーの白地との境界は縁取りで付けている。
   fab: {
     width: FAB_SIZE,
     height: FAB_SIZE,
@@ -149,8 +150,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 6,
-    // タブバーの白地から浮かせる縁取り
+    // タブバーの白地から切り離す縁取り
     borderWidth: 3,
     borderColor: colors.surface,
   },

@@ -26,6 +26,25 @@ import type {
 } from '@/types';
 
 // ============================================================
+// ローカルキャッシュへの保存は「補助」であって、処理の成否ではない。
+//
+// API が成功してステートも更新できているのに、キャッシュ書き込みの失敗で
+// 呼び出し全体を失敗させてはいけない。実際に次の不具合が起きていた:
+// SQLite のトランザクション競合で cacheTransactions が投げ、
+// fetchTransactions が catch に落ちて、取得済みの正しいデータを
+// キャッシュの内容で上書きしていた（表示が古い値に戻る）。
+// 競合自体は lib/db.ts 側で直したが、保存の失敗が本処理を壊さないよう
+// 呼び出し口でも切り分けておく。
+// ============================================================
+async function cacheTransactionsQuietly(transactions: Transaction[], where: string): Promise<void> {
+  try {
+    await cacheTransactions(transactions);
+  } catch (error) {
+    console.warn(`[${where}] キャッシュ保存に失敗（表示と同期は継続）:`, describeError(error));
+  }
+}
+
+// ============================================================
 // Googleカレンダー呼び出しの失敗が「Googleアクセストークンを取り直せば
 // 解決する」種類のものかを判定する。
 //   401 + AUTH_GOOGLE_API_ERROR    … アクセストークンの期限切れ（1時間）
@@ -214,8 +233,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data: Transaction[] = res.data;
       set({ transactions: data });
 
-      // ローカルキャッシュに保存
-      await cacheTransactions(data);
+      // 保存の失敗で取得結果を捨ててはいけない（cacheTransactionsQuietly のコメント参照）
+      await cacheTransactionsQuietly(data, 'fetchTransactions');
     } catch (error) {
       console.warn('[fetchTransactions] API エラー、キャッシュから取得:', describeError(error));
       // オフライン時はキャッシュから読み込む。
@@ -433,7 +452,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
 
       // キャッシュにも保存
-      await cacheTransactions([newTx]);
+      await cacheTransactionsQuietly([newTx], 'addTransaction');
 
       // 残高を再計算
       get().calcBalance();
@@ -484,7 +503,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((state) => ({
         transactions: state.transactions.map((t) => (t.id === id ? { ...t, ...updated } : t)),
       }));
-      await cacheTransactions([updated]);
+      await cacheTransactionsQuietly([updated], 'settleAdvance');
       get().calcBalance();
     } catch (error) {
       console.error('[settleAdvance] エラー:', describeError(error));
@@ -546,7 +565,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         transactions: [newTx, ...state.transactions],
         plannedExpenditures: state.plannedExpenditures.filter((p) => p.id !== id),
       }));
-      await cacheTransactions([newTx]);
+      await cacheTransactionsQuietly([newTx], 'completePlannedExpenditure');
       get().calcBalance();
     } catch (error) {
       console.error('[completePlannedExpenditure] エラー:', describeError(error));

@@ -143,9 +143,20 @@ export async function cacheTransactions(transactions: Transaction[]): Promise<vo
   const database = await getDB();
 
   // バッチ INSERT OR REPLACE
-  await database.withTransactionAsync(async () => {
+  //
+  // withTransactionAsync ではなく withExclusiveTransactionAsync を使う。
+  // 前者は BEGIN / COMMIT を共有コネクションへそのまま流すため、
+  // 同時に呼ばれると2つ目の BEGIN が失敗する。実機で発生していた:
+  //   cannot start a transaction within a transaction
+  //   cannot rollback - no transaction is active
+  // ホーム画面は複数月ぶんの取得を並行で走らせるので、この経路は普通に通る。
+  // withExclusiveTransactionAsync は専用コネクションで直列化してくれる。
+  //
+  // 注意: コールバック内では引数の txn を使う。外側の database を使うと
+  // 排他ロックを取り合って自分自身を待つことになる。
+  await database.withExclusiveTransactionAsync(async (txn) => {
     for (const tx of transactions) {
-      await database.runAsync(
+      await txn.runAsync(
         `INSERT OR REPLACE INTO transactions
           (id, user_id, type, amount, category, payment_method,
            store_name, receipt_url, is_advance, settled_at, transacted_at, created_at)

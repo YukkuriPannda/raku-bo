@@ -28,6 +28,64 @@ const skipUpload = args.includes('--no-upload');
 // Google ドライブ内の保存先。RAKUBO_DRIVE_DIR で上書きできる
 const DRIVE_SUBDIR = path.join('raku-bo', 'apk');
 
+// ------------------------------------------------------------
+// 署名用の環境変数をリポジトリ外のファイルから読む
+//
+// 毎回シェルで export するのが面倒なので、キーストアと同じ場所に
+// 置いたファイルから読めるようにする。既定は次の場所:
+//   ~/.rakubo/signing.env    （RAKUBO_SIGNING_ENV で変更可）
+//
+// 書式は 1行1件の KEY=VALUE。# 始まりとカラ行は無視する。
+//
+//   RAKUBO_KEYSTORE_PATH=C:\Users\<user>\.rakubo\rakubo-release.jks
+//   RAKUBO_KEYSTORE_PASSWORD=<ストアのパスワード>
+//   RAKUBO_KEY_ALIAS=rakubo
+//   RAKUBO_KEY_PASSWORD=<鍵のパスワード>
+//
+// mobile/.env には書かないこと。あちらは docker-compose の env_file で
+// コンテナへ丸ごと渡るため、署名パスワードがコンテナ環境から見える
+// 状態になる。加えて .env はリポジトリの中にあり、gitignore していても
+// `git add -f` や同期ツール経由で外に出る余地が残る。キーストア本体を
+// リポジトリ外に置いているのと同じ理由で、パスワードも外に置く。
+//
+// 読み込むのは RAKUBO_ で始まるキーだけ。任意の環境変数を注入できる
+// 抜け道にはしない。既にプロセスに設定済みの値は上書きしない
+// （その場のシェルでの指定を優先する）。
+// ------------------------------------------------------------
+function loadSigningEnvFile() {
+  const envPath =
+    process.env.RAKUBO_SIGNING_ENV || path.join(os.homedir(), '.rakubo', 'signing.env');
+
+  if (!existsSync(envPath)) return;
+
+  const loaded = [];
+  for (const rawLine of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+
+    const eq = line.indexOf('=');
+    if (eq === -1) continue;
+
+    const key = line.slice(0, eq).trim();
+    if (!key.startsWith('RAKUBO_')) continue;
+
+    // 値の前後の引用符だけ外す（パスワードに記号が入っていても壊さない）
+    const value = line.slice(eq + 1).trim().replace(/^(['"])([\s\S]*)\1$/, '$2');
+
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+      loaded.push(key);
+    }
+  }
+
+  if (loaded.length > 0) {
+    // 値は出さない。キー名だけ
+    console.log(`署名設定を読み込みました: ${envPath} (${loaded.join(', ')})`);
+  }
+}
+
+loadSigningEnvFile();
+
 // 配布ビルドの接続先。開発機（.env の Tailscale/LAN アドレス）を
 // 焼き込まないよう、リリース時は明示的に本番URLを渡す。
 // constants/api.ts 側にも実行時ガードがあるが、そもそもバンドルに
@@ -81,11 +139,18 @@ function requireReleaseKeystore() {
       '     失くすとアプリを更新できなくなります）:\n' +
       '     keytool -genkeypair -v -keystore rakubo-release.jks \\\n' +
       '       -alias rakubo -keyalg RSA -keysize 4096 -validity 10000\n\n' +
-      '  2) 環境変数を設定してから再実行:\n' +
-      '     RAKUBO_KEYSTORE_PATH=<jksの絶対パス>\n' +
-      '     RAKUBO_KEYSTORE_PASSWORD=<ストアのパスワード>\n' +
-      '     RAKUBO_KEY_ALIAS=rakubo\n' +
-      '     RAKUBO_KEY_PASSWORD=<鍵のパスワード>\n\n' +
+      '  2) 次のどちらかで渡してから再実行:\n\n' +
+      `     a) ファイルに置く（毎回の入力が不要。推奨）\n` +
+      `        ${path.join(os.homedir(), '.rakubo', 'signing.env')}\n` +
+      '        RAKUBO_KEYSTORE_PATH=<jksの絶対パス>\n' +
+      '        RAKUBO_KEYSTORE_PASSWORD=<ストアのパスワード>\n' +
+      '        RAKUBO_KEY_ALIAS=rakubo\n' +
+      '        RAKUBO_KEY_PASSWORD=<鍵のパスワード>\n\n' +
+      '        置き場所は RAKUBO_SIGNING_ENV で変更できます。\n' +
+      '        mobile/.env には書かないこと（docker-compose がコンテナへ\n' +
+      '        丸ごと渡すため、パスワードがコンテナ環境から見えてしまう）。\n\n' +
+      '     b) その場のシェルで環境変数として設定する\n' +
+      '        （ファイルの値より優先されます）\n\n' +
       '  デバッグAPK（--debug）にはこの制限はかかりません。',
   );
 }
@@ -101,11 +166,23 @@ function patchReleaseSigning(androidDir) {
 
   if (gradle.includes('RAKUBO_KEYSTORE_PATH')) return; // 既に適用済み
 
+  // Gradle は signingConfigs を「設定フェーズ」で評価するため、
+  // assembleDebug でもこのブロックが実行される。素朴に
+  // file(System.getenv(...)) と書くと、鍵の環境変数が無い環境では
+  // file(null) となって "Cannot convert 'null' to File." で
+  // デバッグビルドまで落ちる（--debug は鍵不要のはずなのに使えない）。
+  // そのため未設定時は何も設定しないようガードする。
+  //
+  // これでリリースが無署名で通ることはない:
+  //   - requireReleaseKeystore() が Gradle 起動前に4変数を必須化する
+  //   - ビルド後に apksigner で署名者を検証し、デバッグ鍵なら失敗させる
   const releaseSigningConfig = `        release {
-            storeFile file(System.getenv("RAKUBO_KEYSTORE_PATH"))
-            storePassword System.getenv("RAKUBO_KEYSTORE_PASSWORD")
-            keyAlias System.getenv("RAKUBO_KEY_ALIAS")
-            keyPassword System.getenv("RAKUBO_KEY_PASSWORD")
+            if (System.getenv("RAKUBO_KEYSTORE_PATH") != null) {
+                storeFile file(System.getenv("RAKUBO_KEYSTORE_PATH"))
+                storePassword System.getenv("RAKUBO_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("RAKUBO_KEY_ALIAS")
+                keyPassword System.getenv("RAKUBO_KEY_PASSWORD")
+            }
         }
 `;
 

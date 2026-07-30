@@ -16,8 +16,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import * as QuickActions from 'expo-quick-actions';
 import * as Notifications from 'expo-notifications';
-import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken, saveGoogleRefreshToken, loadGoogleRefreshToken, clearGoogleRefreshToken, isOAuthFlowPending, endOAuthFlow } from '@/lib/auth';
-import { AuthError, AuthErrorCode, formatAuthError, describeError } from '@/lib/auth-errors';
+import { supabase, getGoogleAccessToken, saveGoogleAccessToken, loadGoogleAccessToken, clearGoogleAccessToken, saveGoogleRefreshToken, loadGoogleRefreshToken, clearGoogleRefreshToken, handleOAuthCallback, parseOAuthCallbackUrl } from '@/lib/auth';
+import { formatAuthError, describeError } from '@/lib/auth-errors';
 import { initDB, clearCache } from '@/lib/db';
 import { clearWidgetBudget, clearWidgetHeatmap } from '@/lib/widget-bridge';
 import { clearReceiptQuickCaptureNotification } from '@/lib/notifications';
@@ -25,10 +25,6 @@ import { useAppStore } from '@/store';
 
 // スプラッシュスクリーンを手動制御
 SplashScreen.preventAutoHideAsync();
-
-// URLから取り出した provider_token / provider_refresh_token を一時保持（setSession は受け取れないため）
-let pendingGoogleToken = '';
-let pendingGoogleRefreshToken = '';
 
 // ============================================================
 // 認証状態を監視して画面遷移を制御するフック
@@ -62,81 +58,44 @@ function useAuthGuard() {
       }
     });
 
-    // exp:// ディープリンクを処理し、provider_token を保持してからセッションを設定
+    // 認証コールバックのディープリンク（rakubo:// と exp:// の両方）を処理する。
     //
     // このハンドラは他アプリや Web ページからも起動できる（rakubo:// は
     // Android では誰でも登録できるカスタムスキーム）。URL 内のトークンを
     // 無条件に setSession() へ渡すと、攻撃者が自分のセッションを送り込んで
     // 被害者のアプリを乗り換えさせられ、以後の入力が攻撃者のアカウントへ
-    // 保存される。そのため処理する前に2つの条件を確認する:
-    //   1. まだログインしていない（ログイン済みなら差し替えを一切受け付けない）
-    //   2. このアプリ自身が開始したログインが進行中である
+    // 保存される。その判定（ログイン済みでないか／自分が開始したログインか）と
+    // 実際の交換は lib/auth.ts の handleOAuthCallback に集約している。
+    // 同じURLに login.tsx と app/auth/callback.tsx も反応するため、
+    // ここで個別に判定するとフラグの読み書きが交錯してログインループになる。
     const handleUrl = async (url: string) => {
       if (!url.includes('auth/callback')) return;
 
-      // 1. 既にセッションがあるなら、外から来たトークンで差し替えない
-      const { data: { session: existingSession } } = await supabase.auth.getSession();
-      if (existingSession) {
-        console.warn('[Layout] ログイン済みのため認証ディープリンクを無視しました');
-        return;
-      }
+      const outcome = await handleOAuthCallback(parseOAuthCallbackUrl(url));
 
-      // 2. 自分が開始したログインの応答でなければ無視する。
-      //    ここでフラグを消してはいけない（同じURLに login.tsx と
-      //    app/auth/callback.tsx も反応するため、消すと残りが
-      //    「進行中ではない」と誤判定する）。消すのはセッション確立後。
-      if (!(await isOAuthFlowPending())) {
-        console.warn('[Layout] 進行中のログインがないため認証ディープリンクを無視しました');
-        return;
-      }
+      switch (outcome.status) {
+        case 'signed-in':
+          // 遷移は下の onAuthStateChange が行う
+          console.log('[Layout] セッション確立');
+          return;
 
-      const q = new URLSearchParams(url.split('?')[1] ?? '');
-      const h = new URLSearchParams(url.split('#')[1] ?? '');
-      const code = q.get('code');
-      const accessToken = h.get('access_token') ?? q.get('access_token');
-      const refreshToken = h.get('refresh_token') ?? q.get('refresh_token');
-      const providerToken = h.get('provider_token') ?? q.get('provider_token');
-      const providerRefreshToken = h.get('provider_refresh_token') ?? q.get('provider_refresh_token');
+        case 'already-done':
+          console.log('[Layout] 認証コールバックは処理済み（セッションあり）');
+          return;
 
-      if (providerToken) pendingGoogleToken = providerToken;
-      if (providerRefreshToken) pendingGoogleRefreshToken = providerRefreshToken;
+        case 'not-pending':
+          console.warn('[Layout] 進行中のログインがないため認証ディープリンクを無視しました');
+          return;
 
-      // 同じコールバックURLに複数のハンドラが反応するため、
-      // PKCE の code（使い捨て）を先に他方が消費していることがある。
-      // その場合の失敗は「本当の失敗」ではないので、セッションが
-      // できていればエラー扱いにしない。
-      const failedButSignedIn = async (): Promise<boolean> => {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session !== null;
-      };
+        case 'no-params':
+          console.warn('[Layout] 認証パラメータがないため無視しました');
+          return;
 
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (!error) {
-          await endOAuthFlow();
-        } else if (await failedButSignedIn()) {
-          console.warn('[Layout] code は他のハンドラが処理済み（セッションあり）。エラー扱いにしません');
-          await endOAuthFlow();
-        } else {
-          const authErr = new AuthError(AuthErrorCode.CODE_EXCHANGE_FAILED, undefined, error.message, error);
-          console.error('[Layout] exchange error:', authErr.code, error.message);
-          await endOAuthFlow();
-          const { title, message } = formatAuthError(authErr);
+        case 'failed': {
+          console.error('[Layout] コールバック処理に失敗:', outcome.error.code, outcome.error.detail ?? outcome.error.message);
+          const { title, message } = formatAuthError(outcome.error);
           Alert.alert(title, message);
-        }
-      } else if (accessToken && refreshToken) {
-        const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        if (!error) {
-          await endOAuthFlow();
-        } else if (await failedButSignedIn()) {
-          console.warn('[Layout] セッションは他のハンドラが確立済み。エラー扱いにしません');
-          await endOAuthFlow();
-        } else {
-          const authErr = new AuthError(AuthErrorCode.SET_SESSION_FAILED, undefined, error.message, error);
-          console.error('[Layout] setSession error:', authErr.code, error.message);
-          await endOAuthFlow();
-          const { title, message } = formatAuthError(authErr);
-          Alert.alert(title, message);
+          return;
         }
       }
     };
@@ -147,18 +106,18 @@ function useAuthGuard() {
       async (_event, session) => {
         if (session) {
           // provider_token は setSession 後や再起動後に null になるため、
-          // URL から取得した値 → SecureStore の既存値の順にフォールバックする。
+          // セッションの値 → SecureStore の既存値の順にフォールバックする。
           // ここで storedToken を経由しないと、有効なトークンが空文字で
           // 上書きされてしまう（getSession() 側のフォールバックとの競合）。
+          // URL に載っていた provider_token は handleOAuthCallback が
+          // 交換より先に SecureStore へ保存しているため、ここで読める。
           const storedToken = await loadGoogleAccessToken();
-          const googleAccessToken = session.provider_token || pendingGoogleToken || storedToken || '';
-          pendingGoogleToken = '';
+          const googleAccessToken = session.provider_token || storedToken || '';
           if (googleAccessToken) {
             await saveGoogleAccessToken(googleAccessToken);
           }
           const storedRefreshToken = await loadGoogleRefreshToken();
-          const googleRefreshToken = session.provider_refresh_token || pendingGoogleRefreshToken || storedRefreshToken || '';
-          pendingGoogleRefreshToken = '';
+          const googleRefreshToken = session.provider_refresh_token || storedRefreshToken || '';
           if (googleRefreshToken) {
             await saveGoogleRefreshToken(googleRefreshToken);
           }
@@ -268,10 +227,11 @@ export default function RootLayout() {
           name="screens/camera"
           options={{ presentation: 'modal', headerShown: true, title: 'レシートを撮影' }}
         />
-        <Stack.Screen
-          name="screens/confirm"
-          options={{ presentation: 'modal', headerShown: true, title: '内容を確認' }}
-        />
+        {/* screens/confirm は登録しない。app/screens/confirm.tsx が存在せず、
+            expo-router が起動ごとに
+            「No route named "screens/confirm" exists in nested children」
+            を警告していた。撮影後の確認は screens/manual-entry が担っており、
+            この画面への遷移はコード上どこにも無い（初期設計の名残） */}
         <Stack.Screen
           name="screens/manual-entry"
           options={{ presentation: 'modal', headerShown: false }}

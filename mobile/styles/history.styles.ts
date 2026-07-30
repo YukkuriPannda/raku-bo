@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors, spacing, typography, radius } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 
 // 建て替え（未回収）を表す色。記録画面・ホーム・ウィジェットと共通
 const ADVANCE_COLOR = '#E65100';
@@ -160,54 +160,5 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     paddingVertical: 4,
-  },
-  fabContainer: {
-    position: 'absolute',
-    bottom: 32,
-    right: spacing.lg,
-    alignItems: 'flex-end',
-    gap: 12,
-  },
-  fabRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  fabLabel: {
-    backgroundColor: colors.textPrimary,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  fabLabelText: {
-    color: colors.surface,
-    fontSize: 13,
-  },
-  fabSecondary: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.textSecondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-  },
-  fabPrimary: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-  },
-  fabMain: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
   },
 });

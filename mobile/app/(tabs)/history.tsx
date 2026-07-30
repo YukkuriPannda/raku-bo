@@ -158,7 +158,6 @@ export default function HistoryScreen() {
   const router = useRouter();
   const month = getCurrentMonth();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [fabOpen, setFabOpen] = useState(false);
   const swipeGesture = useSwipeTabNavigation();
 
   useFocusEffect(useCallback(() => { fetchTransactions(month); }, [month, fetchTransactions]));
@@ -239,49 +238,7 @@ export default function HistoryScreen() {
         contentContainerStyle={transactions.length === 0 ? { flex: 1 } : { paddingBottom: 100 }}
       />
 
-      {fabOpen && (
-        <Pressable style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setFabOpen(false)} />
-      )}
-
-      <View style={styles.fabContainer}>
-        {fabOpen && (
-          <>
-            <View style={styles.fabRow}>
-              <View style={styles.fabLabel}>
-                <Text style={styles.fabLabelText}>レシート撮影</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => { setFabOpen(false); router.push('/screens/camera'); }}
-                style={styles.fabPrimary}
-                activeOpacity={0.8}
-              >
-                <Text style={{ fontSize: 20 }}>📷</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.fabRow}>
-              <View style={styles.fabLabel}>
-                <Text style={styles.fabLabelText}>手動入力</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => { setFabOpen(false); router.push('/screens/manual-entry'); }}
-                style={styles.fabSecondary}
-                activeOpacity={0.8}
-              >
-                <Text style={{ fontSize: 20 }}>✏️</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        <TouchableOpacity
-          onPress={() => setFabOpen((o) => !o)}
-          style={styles.fabMain}
-          activeOpacity={0.8}
-        >
-          <Text style={{ fontSize: 24 }}>{fabOpen ? '✕' : '➕'}</Text>
-        </TouchableOpacity>
-      </View>
+      {/* 記録追加のボタンはタブバー中央に移した（app/(tabs)/_layout.tsx） */}
     </View>
   );
 }

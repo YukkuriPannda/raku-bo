@@ -101,11 +101,23 @@ function patchReleaseSigning(androidDir) {
 
   if (gradle.includes('RAKUBO_KEYSTORE_PATH')) return; // 既に適用済み
 
+  // Gradle は signingConfigs を「設定フェーズ」で評価するため、
+  // assembleDebug でもこのブロックが実行される。素朴に
+  // file(System.getenv(...)) と書くと、鍵の環境変数が無い環境では
+  // file(null) となって "Cannot convert 'null' to File." で
+  // デバッグビルドまで落ちる（--debug は鍵不要のはずなのに使えない）。
+  // そのため未設定時は何も設定しないようガードする。
+  //
+  // これでリリースが無署名で通ることはない:
+  //   - requireReleaseKeystore() が Gradle 起動前に4変数を必須化する
+  //   - ビルド後に apksigner で署名者を検証し、デバッグ鍵なら失敗させる
   const releaseSigningConfig = `        release {
-            storeFile file(System.getenv("RAKUBO_KEYSTORE_PATH"))
-            storePassword System.getenv("RAKUBO_KEYSTORE_PASSWORD")
-            keyAlias System.getenv("RAKUBO_KEY_ALIAS")
-            keyPassword System.getenv("RAKUBO_KEY_PASSWORD")
+            if (System.getenv("RAKUBO_KEYSTORE_PATH") != null) {
+                storeFile file(System.getenv("RAKUBO_KEYSTORE_PATH"))
+                storePassword System.getenv("RAKUBO_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("RAKUBO_KEY_ALIAS")
+                keyPassword System.getenv("RAKUBO_KEY_PASSWORD")
+            }
         }
 `;
 

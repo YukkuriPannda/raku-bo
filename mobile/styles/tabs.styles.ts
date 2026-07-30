@@ -1,0 +1,130 @@
+// ============================================================
+// styles/tabs.styles.ts
+// タブバー中央の追加ボタン（FAB）と、その展開UIのスタイル
+//
+// 寸法と色は元の右下FAB（styles/index.styles.ts にあったもの）を
+// 引き継いでいる。変えたのは配置だけ:
+//   - 画面右下 → タブバー中央
+//   - 展開時に縦積み → FABの左右へ振り分け（ラベルはボタンの上）
+// ============================================================
+
+import { StyleSheet } from 'react-native';
+import { colors, radius } from '@/constants/theme';
+
+/** タブバーの高さ。app/(tabs)/_layout.tsx の tabBarStyle.height と一致させること */
+export const TAB_BAR_HEIGHT = 84;
+
+/** 中央のFABの直径 */
+export const FAB_SIZE = 64;
+
+/** 展開したときのサブボタンの直径 */
+export const FAB_ACTION_SIZE = 48;
+
+/** FABの中心をタブバー上端に置くための持ち上げ量 */
+export const FAB_LIFT = FAB_SIZE / 2;
+
+export const styles = StyleSheet.create({
+  // タブバー内に確保する空きスロット（押せない）
+  slot: {
+    flex: 1,
+  },
+
+  // タブバーの上に重ねるオーバーレイ。
+  // pointerEvents="box-none" で、ボタン以外のタップは下の画面へ通す
+  overlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+
+  // 展開中に画面全体を覆う背景（タップで閉じる）
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+
+  // FABの位置決めの基準。幅をFABと同じにして中央に置く。
+  //
+  // 以前は FAB と左右のサブボタンを justifyContent:'center' の横並びに
+  // していたが、それだと展開したときに **FABが横にずれた**
+  // （「レシート撮影」と「手動入力」でラベルの文字数が違うため左右の列幅が
+  // 変わり、中央揃えの基準がずれる。実測で 540px → 569px）。
+  // サブボタンをこのアンカーからの絶対配置にして、FABの位置を
+  // 左右の内容から完全に切り離す。
+  anchor: {
+    width: FAB_SIZE,
+    alignItems: 'center',
+  },
+
+  // サブボタン1つ分（上のラベル + アイコン）。
+  // bottom に FAB_LIFT を入れると、下端がちょうどタブバーの上端に来る
+  // （FABは中心がバー上端なので、その下端はバー上端から FAB_LIFT 下）。
+  // これを入れないとボタンがタブのアイコンに重なる。
+  action: {
+    position: 'absolute',
+    bottom: FAB_LIFT,
+    width: 112,
+    alignItems: 'center',
+  },
+
+  // FABの左隣・右隣に置く（8dp の隙間）
+  actionLeft: {
+    right: FAB_SIZE + 8,
+  },
+
+  actionRight: {
+    left: FAB_SIZE + 8,
+  },
+
+  actionButton: {
+    width: FAB_ACTION_SIZE,
+    height: FAB_ACTION_SIZE,
+    borderRadius: FAB_ACTION_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+  },
+
+  actionButtonPrimary: {
+    backgroundColor: colors.primary,
+  },
+
+  actionButtonSecondary: {
+    backgroundColor: colors.textSecondary,
+  },
+
+  // ラベルはボタンの「上」に置く。
+  // 下に置くとタブバーの高さに食い込み、履歴タブとシフトタブの
+  // アイコンにピルが重なってしまう（実機相当のエミュレーターで確認）。
+  // スケッチも上に置く形だった。
+  actionLabel: {
+    marginBottom: 6,
+    backgroundColor: colors.textPrimary,
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+
+  actionLabelText: {
+    color: colors.surface,
+    fontSize: 11,
+  },
+
+  // 中央のFAB本体
+  fab: {
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    // タブバーの白地から浮かせる縁取り
+    borderWidth: 3,
+    borderColor: colors.surface,
+  },
+});

@@ -30,6 +30,12 @@ export const FAB_LIFT = FAB_SIZE / 2;
  */
 export const FAB_SINK = 8;
 
+/**
+ * 非選択側のサブボタンを中心（FAB）方向へ寄せる量。
+ * 8〜12dp程度が自然に見える範囲だったため、その中間を採用。
+ */
+const DIMMED_SHIFT = 10;
+
 export const styles = StyleSheet.create({
   // タブバー内に確保する空きスロット（押せない）
   slot: {
@@ -113,15 +119,32 @@ export const styles = StyleSheet.create({
   // transformでの拡大はレイアウトサイズを変えないため、ラベルの位置は
   // ずれない（見た目だけ大きくなる）。
   //
-  // 枠線と影は付けない。反対側を actionButtonDimmed で薄くしているので
-  // 拡大だけで十分に分かる。
+  // 枠線と影は付けない。反対側を actionButtonDimmedLeft/Right で薄く・
+  // 中心寄せしているので拡大だけで十分に分かる。
   actionButtonHighlighted: {
     transform: [{ scale: 1.2 }],
   },
 
-  // 選択されていない側は薄くして、どちらが選ばれているか分かりやすくする。
-  actionButtonDimmed: {
+  // 選択されていない側は薄くしたうえで、中心（FAB）方向へ少し寄せる。
+  // 左ボタンは右へ、右ボタンは左へ寄せるので符号が逆になり、
+  // actionButtonDimmed 1つでは表現できない。left/right でスタイルを分けている。
+  //
+  // 注意: actionButtonHighlighted も transform（scale）を使っているが、
+  // 強調（highlighted）と非選択（dimmed）は同じボタンに同時には
+  // 適用されない（dragSide の値ごとに排他な条件でしか付かない）ため、
+  // ここでは transform の配列をまとめる必要はない。ただし一般論として、
+  // 同じ要素に transform を持つ style を複数（配列で）重ねると RN は
+  // オブジェクト単位で上書きするため後勝ちになる。もし将来 scale と
+  // translateX を同時に効かせたくなったら、1つの transform 配列
+  // （例: [{ scale }, { translateX }]）にまとめること。
+  actionButtonDimmedLeft: {
     opacity: 0.4,
+    transform: [{ translateX: DIMMED_SHIFT }],
+  },
+
+  actionButtonDimmedRight: {
+    opacity: 0.4,
+    transform: [{ translateX: -DIMMED_SHIFT }],
   },
 
   // ラベルはボタンの「上」に置く。

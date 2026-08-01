@@ -145,12 +145,12 @@ export const styles = StyleSheet.create({
   // （例: [{ scale }, { translateX }]）にまとめること。
   actionButtonDimmedLeft: {
     opacity: 0.4,
-    transform: [{ translateX: DIMMED_SHIFT }],
+    transform: [{ translateX: DIMMED_SHIFT }, { translateY: -DIMMED_SHIFT }],
   },
 
   actionButtonDimmedRight: {
     opacity: 0.4,
-    transform: [{ translateX: -DIMMED_SHIFT }],
+    transform: [{ translateX: -DIMMED_SHIFT }, { translateY: -DIMMED_SHIFT }],
   },
 
   // ラベルはボタンの「上」に置く。

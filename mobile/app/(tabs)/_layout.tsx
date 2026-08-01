@@ -3,6 +3,7 @@ import { Tabs, useRouter } from 'expo-router';
 import { Text, View, Pressable, TouchableOpacity } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuickActionRouting } from 'expo-quick-actions/router';
+import * as Haptics from 'expo-haptics';
 
 import { styles as fabStyles, TAB_BAR_HEIGHT, FAB_LIFT, FAB_SINK, FAB_SIZE } from '@/styles/tabs.styles';
 
@@ -48,6 +49,14 @@ function AddButtonOverlay() {
   // null = デッドゾーン（FAB付近）にいて、まだどちらにも寄っていない。
   const [dragSide, setDragSide] = useState<'left' | 'right' | null>(null);
 
+  // dragSide と同じ値を、Reactのstate更新を待たずに同期的に追っておくためのref。
+  // onUpdateは指の移動のたびに何度も呼ばれるので、「前回とくらべて本当に
+  // 切り替わったか」をこのrefで判定し、切り替わった瞬間だけ振動させる
+  // （setDragSideの関数形は再レンダー回避のためのものであって、
+  // 呼び出し側で「変化したかどうか」を読み取るのには使えないため、
+  // 別途refで持つのが素直）。
+  const dragSideRef = useRef<'left' | 'right' | null>(null);
+
   // FABの画面上での中心X座標（絶対座標）。onLayoutで一度測って保持する。
   // スタイル定数から逆算する方法もあるが、実測値を直接使うほうが
   // 将来スタイルが変わっても壊れにくい。
@@ -86,10 +95,21 @@ function AddButtonOverlay() {
     .onStart(() => {
       setOpen(true);
       setDragSide(null);
+      dragSideRef.current = null;
     })
     .onUpdate((e) => {
       const next = resolveSide(e.absoluteX);
-      setDragSide((prev) => (prev === next ? prev : next));
+      if (dragSideRef.current !== next) {
+        dragSideRef.current = next;
+        setDragSide(next);
+        // 選択side が実際に切り替わった瞬間だけ短い振動を鳴らす。
+        // 「null→left/right」（選択が始まった）だけでなく、
+        // 「left/right→null」（デッドゾーンに戻った＝選択が外れた）でも
+        // 対称に鳴らす。外れたことに気づかないまま指を離すとキャンセル
+        // 扱いになってしまうため、外れる瞬間にも触覚フィードバックが
+        // あったほうが自然だと判断した。
+        Haptics.selectionAsync();
+      }
     })
     .onEnd((e) => {
       const side = resolveSide(e.absoluteX);
@@ -107,6 +127,7 @@ function AddButtonOverlay() {
     })
     .onFinalize(() => {
       setDragSide(null);
+      dragSideRef.current = null;
     });
 
   // 従来通りのタップでの開閉。長押しが発火しなかった場合はこちらが
@@ -150,7 +171,7 @@ function AddButtonOverlay() {
                   fabStyles.actionButton,
                   fabStyles.actionButtonPrimary,
                   dragSide === 'left' && fabStyles.actionButtonHighlighted,
-                  dragSide === 'right' && fabStyles.actionButtonDimmed,
+                  dragSide === 'right' && fabStyles.actionButtonDimmedLeft,
                 ]}
                 activeOpacity={0.8}
                 accessibilityLabel="レシート撮影"
@@ -188,7 +209,7 @@ function AddButtonOverlay() {
                   fabStyles.actionButton,
                   fabStyles.actionButtonSecondary,
                   dragSide === 'right' && fabStyles.actionButtonHighlighted,
-                  dragSide === 'left' && fabStyles.actionButtonDimmed,
+                  dragSide === 'left' && fabStyles.actionButtonDimmedRight,
                 ]}
                 activeOpacity={0.8}
                 accessibilityLabel="手動入力"

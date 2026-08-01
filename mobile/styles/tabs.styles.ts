@@ -125,32 +125,35 @@ export const styles = StyleSheet.create({
   // transformでの拡大はレイアウトサイズを変えないため、ラベルの位置は
   // ずれない（見た目だけ大きくなる）。
   //
-  // 枠線と影は付けない。反対側を actionButtonDimmedLeft/Right で薄く・
+  // 枠線と影は付けない。反対側を actionDimmedLeft/Right で薄く・
   // 中心寄せしているので拡大だけで十分に分かる。
   actionButtonHighlighted: {
     transform: [{ scale: 1.2 }],
   },
 
-  // 選択されていない側は薄くしたうえで、中心（FAB）方向へ少し寄せる。
-  // 左ボタンは右へ、右ボタンは左へ寄せるので符号が逆になり、
-  // actionButtonDimmed 1つでは表現できない。left/right でスタイルを分けている。
+  // 選択されていない側は薄くしたうえで、中心（FAB）方向へ、そして下へ寄せる。
+  // 選ばれなかったほうが引っ込んでいく見え方にする。
   //
-  // 注意: actionButtonHighlighted も transform（scale）を使っているが、
-  // 強調（highlighted）と非選択（dimmed）は同じボタンに同時には
-  // 適用されない（dragSide の値ごとに排他な条件でしか付かない）ため、
-  // ここでは transform の配列をまとめる必要はない。ただし一般論として、
-  // 同じ要素に transform を持つ style を複数（配列で）重ねると RN は
-  // オブジェクト単位で上書きするため後勝ちになる。もし将来 scale と
-  // translateX を同時に効かせたくなったら、1つの transform 配列
-  // （例: [{ scale }, { translateX }]）にまとめること。
-  actionButtonDimmedLeft: {
+  // ボタン単体ではなく `action`（ラベル + ボタンの塊）に掛ける。
+  // ボタンだけ動かすとラベルが取り残され、両者の中心が食い違ううえ、
+  // ピルとボタンの間隔も左右で変わってしまう（実測で右側だけ隙間が
+  // 12px → 1px まで詰まった）。
+  //
+  // 中心方向は左右で逆になるため符号が反転する。1つのスタイルでは
+  // 表現できないので left/right で分けている。
+  //
+  // 注意: 同じ要素に transform を持つ style を複数（配列で）重ねると
+  // RN はオブジェクト単位で上書きするため後勝ちになる。複数の変形を
+  // 効かせたいときは1つの transform 配列にまとめること
+  // （ここでも translateX と translateY を1つの配列に入れている）。
+  actionDimmedLeft: {
     opacity: 0.4,
-    transform: [{ translateX: DIMMED_SHIFT }, { translateY: -DIMMED_SHIFT }],
+    transform: [{ translateX: DIMMED_SHIFT }, { translateY: DIMMED_SHIFT }],
   },
 
-  actionButtonDimmedRight: {
+  actionDimmedRight: {
     opacity: 0.4,
-    transform: [{ translateX: -DIMMED_SHIFT }, { translateY: -DIMMED_SHIFT }],
+    transform: [{ translateX: -DIMMED_SHIFT }, { translateY: DIMMED_SHIFT }],
   },
 
   // ラベルはボタンの「上」に置く。

@@ -161,7 +161,13 @@ function AddButtonOverlay() {
       >
         <View pointerEvents="box-none" style={fabStyles.anchor}>
           {open && (
-            <View style={[fabStyles.action, fabStyles.actionLeft]}>
+            <View
+              style={[
+                fabStyles.action,
+                fabStyles.actionLeft,
+                dragSide === 'right' && fabStyles.actionDimmedLeft,
+              ]}
+            >
               <View style={fabStyles.actionLabel}>
                 <Text style={fabStyles.actionLabelText}>レシート撮影</Text>
               </View>
@@ -171,7 +177,6 @@ function AddButtonOverlay() {
                   fabStyles.actionButton,
                   fabStyles.actionButtonPrimary,
                   dragSide === 'left' && fabStyles.actionButtonHighlighted,
-                  dragSide === 'right' && fabStyles.actionButtonDimmedLeft,
                 ]}
                 activeOpacity={0.8}
                 accessibilityLabel="レシート撮影"
@@ -199,7 +204,13 @@ function AddButtonOverlay() {
           </GestureDetector>
 
           {open && (
-            <View style={[fabStyles.action, fabStyles.actionRight]}>
+            <View
+              style={[
+                fabStyles.action,
+                fabStyles.actionRight,
+                dragSide === 'left' && fabStyles.actionDimmedRight,
+              ]}
+            >
               <View style={fabStyles.actionLabel}>
                 <Text style={fabStyles.actionLabelText}>手動入力</Text>
               </View>
@@ -209,7 +220,6 @@ function AddButtonOverlay() {
                   fabStyles.actionButton,
                   fabStyles.actionButtonSecondary,
                   dragSide === 'right' && fabStyles.actionButtonHighlighted,
-                  dragSide === 'left' && fabStyles.actionButtonDimmedRight,
                 ]}
                 activeOpacity={0.8}
                 accessibilityLabel="手動入力"

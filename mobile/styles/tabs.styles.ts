@@ -31,6 +31,12 @@ export const FAB_LIFT = FAB_SIZE / 2;
 export const FAB_SINK = 8;
 
 /**
+ * 展開したサブボタンをさらに上へ持ち上げる量。
+ * 0 だと下端がタブバーの上端に接する。値を増やすとタブバーから離れる。
+ */
+const ACTION_LIFT = 12;
+
+/**
  * 非選択側のサブボタンを中心（FAB）方向へ寄せる量。
  * 8〜12dp程度が自然に見える範囲だったため、その中間を採用。
  */
@@ -84,7 +90,7 @@ export const styles = StyleSheet.create({
   // （FAB_SINK=8dp のとき、余裕が28px→7pxまで詰まる）。
   action: {
     position: "absolute",
-    bottom: FAB_LIFT + FAB_SINK,
+    bottom: FAB_LIFT + FAB_SINK + ACTION_LIFT,
     width: 112,
     alignItems: "center",
   },

@@ -160,9 +160,13 @@ export default function ShiftsScreen() {
         animationType="slide"
         onRequestClose={() => setSettingsModalVisible(false)}
       >
+        {/* Modal内はウィンドウが別扱いになり、AndroidのadjustResizeが
+            効かないため、ここだけは明示的にbehaviorを与える必要がある
+            （Modal外のKeyboardAvoidingViewはadjustResizeで足りているので
+            behaviorを足すと二重に動いてしまう。触らないこと）。 */}
         <KeyboardAvoidingView
           style={styles.settingsModalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.settingsModalSheet}>
             <View style={styles.settingsModalHeader}>

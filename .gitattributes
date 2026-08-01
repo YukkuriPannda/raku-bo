@@ -1,0 +1,11 @@
+# 改行コードの固定
+#
+# バッチファイルは CRLF でないと cmd.exe が行を正しく解釈できない。
+# LF のまま渡すと、変数展開が途中で切れるなどして不可解な形で壊れる
+# （例: %RAKUBO_DRIVE_DIR% が 'AKUBO_DRIVE_DIR' として実行されようとする）。
+# core.autocrlf の設定は環境ごとに違うため、ここで明示的に固定する。
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# シェルスクリプトは逆に LF でないと動かない
+*.sh text eol=lf

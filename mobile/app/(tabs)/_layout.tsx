@@ -4,6 +4,7 @@ import { Text, View, Pressable, TouchableOpacity } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuickActionRouting } from 'expo-quick-actions/router';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { styles as fabStyles, TAB_BAR_HEIGHT, FAB_LIFT, FAB_SINK, FAB_SIZE } from '@/styles/tabs.styles';
 
@@ -44,6 +45,7 @@ const DEAD_ZONE_RADIUS = FAB_SIZE / 2;
 
 function AddButtonOverlay() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   // 長押し→ドラッグ中、いまどちら側に寄っているか（強調表示に使う）。
   // null = デッドゾーン（FAB付近）にいて、まだどちらにも寄っていない。
@@ -150,14 +152,14 @@ function AddButtonOverlay() {
         />
       )}
 
-      {/* 縦位置は tabBarStyle.height だけで決まる。
-          セーフエリアの下インセットを足してはいけない。height を明示すると
-          React Navigation はその高さの内側でインセットを吸収するため、
-          足すと二重に持ち上がってタブバーの上に浮いてしまう
-          （実測: FAB下端がタブバー上端の 8px 上、ずれ 23.8dp ≒ インセット値）。 */}
+      {/* 縦位置は tabBarStyle.height と連動する。
+          tabBarStyle.height にセーフエリアの下インセットを含めるようにしたので
+          （3ボタンナビ／太いジェスチャーナビでタブバーの中身がシステムナビに
+          食い込むのを防ぐため）、FABの位置にも同じインセットを足す。
+          足さないとタブバーだけ高くなってFABが沈み込んでしまう。 */}
       <View
         pointerEvents="box-none"
-        style={[fabStyles.overlay, { bottom: TAB_BAR_HEIGHT - FAB_LIFT - FAB_SINK }]}
+        style={[fabStyles.overlay, { bottom: TAB_BAR_HEIGHT + insets.bottom - FAB_LIFT - FAB_SINK }]}
       >
         <View pointerEvents="box-none" style={fabStyles.anchor}>
           {open && (
@@ -237,6 +239,10 @@ function AddButtonOverlay() {
 export default function TabsLayout() {
   // App Shortcuts（レシート撮影など）のタップ/起動をルーティングに反映
   useQuickActionRouting();
+  // ジェスチャーナビが太い端末や3ボタンナビの端末では、システムの
+  // ナビゲーションバー分の高さを確保しないとタブの中身が食い込むため、
+  // セーフエリアの下インセットをタブバーの高さ・パディングに加算する。
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ flex: 1 }}>
@@ -248,9 +254,9 @@ export default function TabsLayout() {
             backgroundColor: '#ffffff',
             borderTopWidth: 1,
             borderTopColor: '#E5E7EB',
-            height: TAB_BAR_HEIGHT,
+            height: TAB_BAR_HEIGHT + insets.bottom,
             paddingTop: 10,
-            paddingBottom: 10,
+            paddingBottom: 10 + insets.bottom,
           },
           tabBarLabelStyle: {
             fontSize: 10,

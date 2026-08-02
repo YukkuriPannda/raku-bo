@@ -276,6 +276,11 @@ function run(command, commandArgs, options = {}) {
   // Windows では npx / gradlew.bat をシェル経由でしか起動できない。
   // シェル利用時に引数配列を渡すと Node が警告を出すため、1本の文字列にまとめる
   // （引数はこのスクリプト内の固定値のみで、外部入力は含まれない）。
+  //
+  // この結合はクォートをしないため、値に空白が入ると引数の区切りとして壊れる。
+  // tag（app.json 由来）や apkPath（ファイルシステム由来）のような外部由来の
+  // 値を渡す必要がある呼び出し（gh release create など）はこの関数を経由せず、
+  // shell 無しの spawnSync に配列のまま渡すこと（Node がエスケープしてくれる）。
   const useShell = process.platform === 'win32';
   const result = useShell
     ? spawnSync([command, ...commandArgs].join(' '), {
@@ -353,12 +358,179 @@ function resolveAndroidHome() {
 }
 
 // ------------------------------------------------------------
+// GitHub Release の事前確認・作成
+//
+// 配布経路は GitHub Releases に一本化している（Googleドライブは廃止）。
+// リポジトリが public なので、認証なしでスマホから直接APKを
+// ダウンロードできる。
+//
+// バージョンは mobile/app.json の expo.version を正とし、タグは
+// `v<version>`（例 v1.0.0）にする。タグはリリースのたびに変わる必要が
+// あるため、version を上げ忘れると既存タグと衝突する。ここで黙って
+// 上書きしたり別名にしたりはせず、必ず気づける形で止める。
+//
+// 【重要】前提確認（バージョン取得・タグ衝突・push状況・gh可用性）は
+// 必ず gradle のビルドより前に行うこと（preflightRelease()）。ビルドは
+// 10〜20分かかる。CLAUDE.md には「version上げ忘れはタグ衝突で気づく」と
+// 明記しており、上げ忘れは実際に起きる前提になっている。この確認を
+// ビルド後に回すと、20分待たされたあげく失敗して丸ごと無駄になり、
+// 「気づける形で止める」という設計の意味が薄れる。
+// ------------------------------------------------------------
+
+/** リモートに指定タグが既に存在するか（gh を経由せず git だけで判定できるようにする） */
+function tagExistsOnRemote(tag) {
+  const result = spawnSync('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}`], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  return result.status === 0 && result.stdout.trim().length > 0;
+}
+
+/**
+ * HEAD がリモートの現在のブランチに push 済みであることを確認する。
+ * GitHub Release はリモート上のコミットにタグを打つため、未pushのコミットで
+ * 作ると「APKの中身」と「リリースが指すコード」がズレる。
+ */
+function ensurePushed(headSha) {
+  const branchResult = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  const branch = branchResult.stdout.trim();
+  if (branchResult.status !== 0 || !branch || branch === 'HEAD') {
+    fail('現在 detached HEAD のため push状況を確認できませんでした。ブランチをチェックアウトしてから実行してください。');
+  }
+
+  const remoteResult = spawnSync('git', ['ls-remote', 'origin', branch], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  const remoteSha = remoteResult.stdout.trim().split(/\s+/)[0];
+
+  if (!remoteSha) {
+    fail(`リモートに ${branch} ブランチが見つかりません。先に push してください:\n\n    git push -u origin ${branch}`);
+  }
+  if (remoteSha !== headSha) {
+    fail(
+      `HEAD (${headSha.slice(0, 7)}) がリモートの ${branch} (${remoteSha.slice(0, 7)}) と一致しません。\n` +
+        '  GitHub Release はリモート上のコミットにタグを打つため、未pushのコミットで作ると\n' +
+        '  「APKの中身」と「リリースが指すコード」がズレます。先に push してください:\n\n' +
+        `    git push origin ${branch}`,
+    );
+  }
+}
+
+/**
+ * gh コマンドが使え、かつ認証済みか。
+ * gh は git と同じくネイティブの実行ファイルなので、gradlew や npx と違い
+ * シェル経由（shell: true）にしなくても Windows で直接起動できる
+ * （shell: true と引数配列を併用すると Node が非エスケープを警告するため避ける）。
+ */
+function isGhReady() {
+  const version = spawnSync('gh', ['--version'], { encoding: 'utf8' });
+  if (version.error || version.status !== 0) return false;
+  const auth = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8' });
+  return auth.status === 0;
+}
+
+/**
+ * リリース前提の確認を gradle 起動前にまとめて行う（fail-fast）。
+ * ここで検出した問題（タグ衝突・未push）は gradle を1秒も動かす前に止める。
+ *
+ * gh の可用性チェックもここで1回だけ行う。無ければビルド前に警告するが、
+ * 挙動は変えない＝ gh が無い/未認証でもビルド自体は止めない（fail させない）。
+ * ビルド後に isGhReady() を呼び直す必要はない（結果をそのまま使い回す）。
+ *
+ * --debug / --no-upload のときはそもそもリリースしないため、確認ごとスキップする。
+ *
+ * @returns {{tag: string, headSha: string, ghReady: boolean} | null} スキップ時は null
+ */
+function preflightRelease() {
+  if (isDebug) {
+    console.log('\n（--debug ビルドのため GitHub Release は作成しません）');
+    return null;
+  }
+  if (skipUpload) {
+    console.log('\n（--no-upload のため GitHub Release の作成をスキップします）');
+    return null;
+  }
+
+  const appJsonPath = path.join(projectRoot, 'app.json');
+  if (!existsSync(appJsonPath)) fail(`mobile/app.json が見つかりません: ${appJsonPath}`);
+
+  let version;
+  try {
+    version = JSON.parse(readFileSync(appJsonPath, 'utf8'))?.expo?.version;
+  } catch (err) {
+    fail(`mobile/app.json の読み込みに失敗しました: ${err.message}`);
+  }
+  if (!version) fail('mobile/app.json に expo.version が見つかりませんでした。');
+
+  const tag = `v${version}`;
+
+  console.log('\n--- GitHub Release の事前確認（ビルド前）---');
+  console.log(`  バージョン : ${version}（タグ: ${tag}）`);
+
+  if (tagExistsOnRemote(tag)) {
+    fail(
+      `タグ ${tag} は既にリリース済みです。\n\n` +
+        `  mobile/app.json の expo.version を上げてください（現在 ${version}、タグ ${tag} は既出）。\n` +
+        '  上げたらコミット・pushしてから、もう一度ビルドしてください。',
+    );
+  }
+
+  const headSha = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: projectRoot, encoding: 'utf8' }).stdout.trim();
+  ensurePushed(headSha);
+
+  const ghReady = isGhReady();
+  if (ghReady) {
+    console.log(`✓ タグ・push状況とも問題なし。ビルド完了後に ${tag} として gh release create します。`);
+  } else {
+    // gh が無い／未認証でも、ビルド自体は成功しているので fail させず警告に留める。
+    // ここ（ビルド前）で分かれば、「このままだとリリースは作られない」と
+    // 知った上でビルドを続けるかどうか判断できる。
+    console.log('\n! gh コマンドが使えないか未認証です。ビルド完了後、GitHub Release の作成はスキップされます。');
+    console.log('  完了後、以下を手動で実行してください（<APKのパス> は実際の成果物に差し替える）:\n');
+    console.log(`    gh release create ${tag} <APKのパス> --title ${tag} --generate-notes --target ${headSha}\n`);
+  }
+
+  return { tag, headSha, ghReady };
+}
+
+/**
+ * gh release create を直接 spawnSync で叩く（run() は経由しない）。
+ *
+ * run() は Windows で npx / gradlew.bat のようなバッチファイルを起動する
+ * ため、引数配列を1本の文字列に結合してシェル経由で実行している。この
+ * 結合はクォートをしないため、値に空白が入ると引数の区切りとして壊れる
+ * （今のリポジトリの置き場所には空白が無いが、保証はできない）。
+ * gh.exe はネイティブの実行ファイルで shell 無しでも直接起動できるので、
+ * tag（app.json 由来）や apkPath（ファイルシステム由来）のような外部由来の
+ * 値を渡すこの呼び出しは、配列のまま spawnSync に渡す
+ * （Node がプラットフォームごとに正しくエスケープしてくれる）。
+ */
+function runGhReleaseCreate(tag, apkPath, headSha) {
+  const result = spawnSync(
+    'gh',
+    ['release', 'create', tag, apkPath, '--title', tag, '--generate-notes', '--target', headSha],
+    { stdio: 'inherit', cwd: projectRoot },
+  );
+  if (result.status !== 0) {
+    fail(`GitHub Release の作成に失敗しました: gh release create ${tag}`);
+  }
+}
+
+// ------------------------------------------------------------
 // ビルド
 // ------------------------------------------------------------
 // リリースは独自の署名鍵が揃っていないと先に進ませない（ビルド前に検査する）
 if (!isDebug) {
   requireReleaseKeystore();
 }
+
+// GitHub Release の前提確認もビルド前に済ませる（理由は上のコメント参照）。
+// 戻り値はビルド完了後、実際の gh release create 呼び出しで使う。
+const release = preflightRelease();
 
 const javaHome = resolveJavaHome();
 const androidHome = resolveAndroidHome();
@@ -442,119 +614,22 @@ console.log('  端末にインストール: adb install -r "' + destination + '"
 // ------------------------------------------------------------
 // GitHub Release の作成
 //
-// 配布経路は GitHub Releases に一本化している（Googleドライブは廃止）。
-// リポジトリが public なので、認証なしでスマホから直接APKを
-// ダウンロードできる。
-//
-// バージョンは mobile/app.json の expo.version を正とし、タグは
-// `v<version>`（例 v1.0.0）にする。タグはリリースのたびに変わる必要が
-// あるため、version を上げ忘れると既存タグと衝突する。ここで黙って
-// 上書きしたり別名にしたりはせず、必ず気づける形で止める。
+// 前提確認（バージョン取得・タグ衝突・push状況・gh可用性）はビルド前の
+// preflightRelease() で済ませてある（このファイル前半、"ビルド" セクション
+// 直前を参照）。ここでは確認済みの release オブジェクトを使って、
+// 実際に gh release create を叩くだけ。
 // ------------------------------------------------------------
-
-/** リモートに指定タグが既に存在するか（gh を経由せず git だけで判定できるようにする） */
-function tagExistsOnRemote(tag) {
-  const result = spawnSync('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}`], {
-    cwd: projectRoot,
-    encoding: 'utf8',
-  });
-  return result.status === 0 && result.stdout.trim().length > 0;
-}
-
-/**
- * HEAD がリモートの現在のブランチに push 済みであることを確認する。
- * GitHub Release はリモート上のコミットにタグを打つため、未pushのコミットで
- * 作ると「APKの中身」と「リリースが指すコード」がズレる。
- */
-function ensurePushed(headSha) {
-  const branchResult = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-    cwd: projectRoot,
-    encoding: 'utf8',
-  });
-  const branch = branchResult.stdout.trim();
-  if (branchResult.status !== 0 || !branch || branch === 'HEAD') {
-    fail('現在 detached HEAD のため push状況を確認できませんでした。ブランチをチェックアウトしてから実行してください。');
-  }
-
-  const remoteResult = spawnSync('git', ['ls-remote', 'origin', branch], {
-    cwd: projectRoot,
-    encoding: 'utf8',
-  });
-  const remoteSha = remoteResult.stdout.trim().split(/\s+/)[0];
-
-  if (!remoteSha) {
-    fail(`リモートに ${branch} ブランチが見つかりません。先に push してください:\n\n    git push -u origin ${branch}`);
-  }
-  if (remoteSha !== headSha) {
-    fail(
-      `HEAD (${headSha.slice(0, 7)}) がリモートの ${branch} (${remoteSha.slice(0, 7)}) と一致しません。\n` +
-        '  GitHub Release はリモート上のコミットにタグを打つため、未pushのコミットで作ると\n' +
-        '  「APKの中身」と「リリースが指すコード」がズレます。先に push してください:\n\n' +
-        `    git push origin ${branch}`,
-    );
-  }
-}
-
-/**
- * gh コマンドが使え、かつ認証済みか。
- * gh は git と同じくネイティブの実行ファイルなので、gradlew や npx と違い
- * シェル経由（shell: true）にしなくても Windows で直接起動できる
- * （shell: true と引数配列を併用すると Node が非エスケープを警告するため避ける）。
- */
-function isGhReady() {
-  const version = spawnSync('gh', ['--version'], { encoding: 'utf8' });
-  if (version.error || version.status !== 0) return false;
-  const auth = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8' });
-  return auth.status === 0;
-}
-
-function createGithubRelease(apkPath) {
-  const appJsonPath = path.join(projectRoot, 'app.json');
-  if (!existsSync(appJsonPath)) fail(`mobile/app.json が見つかりません: ${appJsonPath}`);
-
-  let version;
-  try {
-    version = JSON.parse(readFileSync(appJsonPath, 'utf8'))?.expo?.version;
-  } catch (err) {
-    fail(`mobile/app.json の読み込みに失敗しました: ${err.message}`);
-  }
-  if (!version) fail('mobile/app.json に expo.version が見つかりませんでした。');
-
-  const tag = `v${version}`;
-
+if (release) {
   console.log('\n--- GitHub Release ---');
-  console.log(`  バージョン : ${version}（タグ: ${tag}）`);
-
-  if (tagExistsOnRemote(tag)) {
-    fail(
-      `タグ ${tag} は既にリリース済みです。\n\n` +
-        `  mobile/app.json の expo.version を上げてください（現在 ${version}、タグ ${tag} は既出）。\n` +
-        '  上げたらコミット・pushしてから、もう一度ビルドしてください。',
-    );
-  }
-
-  const headSha = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: projectRoot, encoding: 'utf8' }).stdout.trim();
-  ensurePushed(headSha);
-
-  if (!isGhReady()) {
-    // gh が無い／未認証でも、ビルド自体は成功しているので fail させず警告に留める
-    console.log('\n! gh コマンドが使えないか未認証のため、GitHub Release の作成をスキップしました。');
-    console.log('  以下を手動で実行してください:\n');
+  if (release.ghReady) {
+    console.log(`  添付するAPK: ${destination}`);
+    runGhReleaseCreate(release.tag, destination, release.headSha);
+  } else {
+    // gh の可用性はビルド前に警告済み。ここでは実際のAPKパス入りの
+    // コマンドを改めて案内するだけで、isGhReady() は呼び直さない。
+    console.log('  gh が使えないため作成をスキップしました。以下を手動で実行してください:\n');
     console.log(
-      `    gh release create ${tag} "${apkPath}" --title ${tag} --generate-notes --target ${headSha}\n`,
+      `    gh release create ${release.tag} "${destination}" --title ${release.tag} --generate-notes --target ${release.headSha}\n`,
     );
-    return;
   }
-
-  console.log(`  添付するAPK: ${apkPath}`);
-  run('gh', ['release', 'create', tag, apkPath, '--title', tag, '--generate-notes', '--target', headSha]);
-}
-
-if (isDebug) {
-  // デバッグビルドは開発用であり配布物ではないため、絶対にリリースしない
-  console.log('\n（--debug ビルドのため GitHub Release は作成しません）');
-} else if (skipUpload) {
-  console.log('\n（--no-upload のため GitHub Release の作成をスキップしました）');
-} else {
-  createGithubRelease(destination);
 }

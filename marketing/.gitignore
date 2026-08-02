@@ -1,0 +1,17 @@
+node_modules/
+out/
+
+# 無加工のスクリーンショットはコミットしない。
+#
+# このリポジトリは public。これらにはバイト先やイベントの名前が
+# そのまま写っており、mask.py でモザイクをかけているのはまさにそれ。
+# 生のほうを置いたら隠した意味がなくなる。
+#
+# コミットするのは mask.py を通した *.masked.png だけ。
+# 生のスクショは README.md の手順で撮り直せる。
+real/shifts.png
+real/planned.png
+
+# 使っていない撮影素材（カメラ画面は lp.mjs 側で合成している）
+real/camera.png
+real/fab.png

@@ -40,3 +40,6 @@ npm-debug.log*
 
 # Validation samples (may contain personal data)
 validation/gemini-ocr/sample.jpg
+
+# 検証用に置いたレシート実物（個人情報を含む）
+/IMG_*.jpg

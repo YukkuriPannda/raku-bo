@@ -392,7 +392,7 @@ function CalendarForm({ month, onAdd }: { month: string; onAdd: () => void }) {
 }
 
 export default function PlannedExpendituresScreen() {
-  const { plannedExpenditures, isLoading, fetchPlannedExpenditures, updatePlannedExpenditure, deletePlannedExpenditure, completePlannedExpenditure } = useAppStore();
+  const { plannedExpenditures, plannedExpendituresLoading, fetchPlannedExpenditures, updatePlannedExpenditure, deletePlannedExpenditure, completePlannedExpenditure } = useAppStore();
   const currentMonth = getCurrentMonth();
   const [viewMonth, setViewMonth] = useState(currentMonth);
   const [activeTab, setActiveTab] = useState<'subscription' | 'calendar'>('subscription');
@@ -534,8 +534,8 @@ export default function PlannedExpendituresScreen() {
         }
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
-            onRefresh={() => fetchPlannedExpenditures(viewMonth)}
+            refreshing={plannedExpendituresLoading}
+            onRefresh={() => fetchPlannedExpenditures(viewMonth, { force: true })}
             colors={[colors.primary]}
             tintColor={colors.primary}
           />
@@ -631,7 +631,9 @@ export default function PlannedExpendituresScreen() {
                 activeTab === 'subscription' ? (
                   <SubscriptionForm
                     onAdd={() => {
-                      fetchPlannedExpenditures(viewMonth);
+                      // 追加直後の整合取得。直前の focus 取得で鮮度判定が
+                      // 「新鮮」扱いになっている場合があるため force で必ず取得する
+                      fetchPlannedExpenditures(viewMonth, { force: true });
                       setAddModalVisible(false);
                     }}
                   />
@@ -639,7 +641,7 @@ export default function PlannedExpendituresScreen() {
                   <CalendarForm
                     month={viewMonth}
                     onAdd={() => {
-                      fetchPlannedExpenditures(viewMonth);
+                      fetchPlannedExpenditures(viewMonth, { force: true });
                       setAddModalVisible(false);
                     }}
                   />

@@ -49,7 +49,7 @@ function ShiftItem({ item }: { item: ShiftEvent }) {
 }
 
 export default function ShiftsScreen() {
-  const { shifts, balance, hourlyWage, shiftKeywords, isLoading, calendarError, clearCalendarError, fetchShifts, setHourlyWage, setShiftKeywords, logout } = useAppStore();
+  const { shifts, balance, hourlyWage, shiftKeywords, shiftsLoading, calendarError, clearCalendarError, fetchShifts, setHourlyWage, setShiftKeywords, logout } = useAppStore();
   const month = getCurrentMonth();
   const [wageInput, setWageInput] = useState(String(hourlyWage));
   const [keywordsInput, setKeywordsInput] = useState(shiftKeywords.join('\n'));
@@ -144,8 +144,8 @@ export default function ShiftsScreen() {
         }
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
-            onRefresh={() => fetchShifts(month)}
+            refreshing={shiftsLoading}
+            onRefresh={() => fetchShifts(month, { force: true })}
             colors={[colors.primary]}
             tintColor={colors.primary}
           />

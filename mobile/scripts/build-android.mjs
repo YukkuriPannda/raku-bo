@@ -11,8 +11,9 @@
 // EAS の `--local` は Windows 非対応のため、prebuild + Gradle を直接叩く。
 // PATH 上の java が古くても動くよう、JDK と Android SDK は自前で探す。
 // できあがったAPKは GitHub Releases（タグ `v<mobile/app.json の expo.version>`）
-// にも上げて、スマホから直接ダウンロードできるようにする
-// （リポジトリが public のため、認証なしでダウンロード可能）。
+// に下書き（draft）として上げる。本人が説明文を確認して GitHub 上で
+// publish するまでは外部には見えない（public リポジトリなので、publish後は
+// スマホから認証なしで直接ダウンロードできる）。
 // ============================================================
 
 import { spawnSync } from 'node:child_process';
@@ -364,16 +365,33 @@ function resolveAndroidHome() {
 // リポジトリが public なので、認証なしでスマホから直接APKを
 // ダウンロードできる。
 //
+// 本人が公開前に説明文（--generate-notes の自動生成テキスト）を
+// 確認したいため、--draft で作成する。draft は GitHub 上で
+// 「Publish release」を押すまで外部には見えない（APKも添付済みだが、
+// 公開ボタンを押すまではダウンロードできない）。
+//
 // バージョンは mobile/app.json の expo.version を正とし、タグは
 // `v<version>`（例 v1.0.0）にする。タグはリリースのたびに変わる必要が
 // あるため、version を上げ忘れると既存タグと衝突する。ここで黙って
 // 上書きしたり別名にしたりはせず、必ず気づける形で止める。
 //
-// 【重要】前提確認（バージョン取得・タグ衝突・push状況・gh可用性）は
-// 必ず gradle のビルドより前に行うこと（preflightRelease()）。ビルドは
-// 10〜20分かかる。CLAUDE.md には「version上げ忘れはタグ衝突で気づく」と
-// 明記しており、上げ忘れは実際に起きる前提になっている。この確認を
-// ビルド後に回すと、20分待たされたあげく失敗して丸ごと無駄になり、
+// 【落とし穴】draft は publish するまで git のタグを作らない。
+// そのため tagExistsOnRemote()（git のタグの有無）だけで衝突判定すると:
+//   1) v1.0.1 でビルド → draft ができる（タグはまだ無い）
+//   2) publish し忘れたまま、もう一度 v1.0.1 でビルド
+//   3) タグが無いので衝突チェックを素通りし、同じバージョンの draft が
+//      2つできてしまう
+// という事故を確実に踏む。タグ（tagExistsOnRemote）と、gh が使える場合は
+// 既存リリース自体（findExistingRelease。gh release view はタグ名で
+// draft も引けるため、publish前でも見つかる）の両方で確認すること。
+// gh が無い/未認証のときは draft の重複は検出できない（タグだけの判定に
+// 落とし、その旨を警告する。ビルド自体は止めない）。
+//
+// 【重要】前提確認（バージョン取得・タグ衝突・draft重複・push状況・
+// gh可用性）は必ず gradle のビルドより前に行うこと（preflightRelease()）。
+// ビルドは10〜20分かかる。CLAUDE.md には「version上げ忘れはタグ衝突で
+// 気づく」と明記しており、上げ忘れは実際に起きる前提になっている。この
+// 確認をビルド後に回すと、20分待たされたあげく失敗して丸ごと無駄になり、
 // 「気づける形で止める」という設計の意味が薄れる。
 // ------------------------------------------------------------
 
@@ -384,6 +402,45 @@ function tagExistsOnRemote(tag) {
     encoding: 'utf8',
   });
   return result.status === 0 && result.stdout.trim().length > 0;
+}
+
+/**
+ * 指定タグ宛ての GitHub Release が既に存在するか（draft も含む）。
+ *
+ * draft は publish するまで git のタグを作らないため、tagExistsOnRemote()
+ * のようなタグベースの判定では検出できない。`gh release view <tag>` は
+ * タグ名で「そのタグを使う予定のリリース」を引けるので、draft・公開済み
+ * のどちらも見つけられる（`gh release view --help` の JSON FIELDS に
+ * isDraft があることを確認済み。`gh release list` も既定で draft を含む
+ * ―― --exclude-drafts というオプトアウト用フラグが存在することから
+ * 確認できる）。
+ *
+ * gh が使える場合にのみ呼ぶこと（呼び出し側の isGhReady() 判定に依存する。
+ * gh が無い環境で呼ぶと ENOENT で落ちる）。
+ */
+function findExistingRelease(tag) {
+  const result = spawnSync('gh', ['release', 'view', tag, '--json', 'isDraft,url'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    // タグに紐づくリリースが無い場合も gh は非0で終了する
+    // （実機で `gh release view <存在しないtag>` → "release not found" / exit 1 を確認済み）。
+    // ここでは「見つからなければ衝突なし」として扱えば十分。
+    return { exists: false, isDraft: false, url: null };
+  }
+  try {
+    const data = JSON.parse(result.stdout);
+    return { exists: true, isDraft: Boolean(data.isDraft), url: data.url ?? null };
+  } catch {
+    // JSON が壊れていた場合も安全側（衝突なし扱い）に倒す。
+    // 注意: GitHub は同じタグ名の draft を複数作れてしまう
+    // （gh release create 自体はタグ重複を理由には弾かない）ため、
+    // ここでの見逃しに対する安全網は無い。パース失敗時のログは
+    // 目視で確認できるよう console.error 等に残すことを検討してもよいが、
+    // 頻度が低い想定のため今は「見逃す」側に倒している。
+    return { exists: false, isDraft: false, url: null };
+  }
 }
 
 /**
@@ -471,6 +528,7 @@ function preflightRelease() {
   console.log('\n--- GitHub Release の事前確認（ビルド前）---');
   console.log(`  バージョン : ${version}（タグ: ${tag}）`);
 
+  // 判定その1: タグ（gh が無くてもここまでは確認できる）
   if (tagExistsOnRemote(tag)) {
     fail(
       `タグ ${tag} は既にリリース済みです。\n\n` +
@@ -483,15 +541,41 @@ function preflightRelease() {
   ensurePushed(headSha);
 
   const ghReady = isGhReady();
+
   if (ghReady) {
-    console.log(`✓ タグ・push状況とも問題なし。ビルド完了後に ${tag} として gh release create します。`);
+    // 判定その2: 既存リリース本体（draft も含む）。タグが無いだけでは
+    // publish待ちの draft を見逃す（このファイル冒頭の「落とし穴」参照）。
+    const existing = findExistingRelease(tag);
+    if (existing.exists) {
+      // tagExistsOnRemote() で公開済みは既に弾いているので、ここに来るのは
+      // 基本的に draft が残っているケース（念のため isDraft で分岐する）。
+      if (existing.isDraft) {
+        fail(
+          `タグ ${tag} 宛ての GitHub Release が既に存在します（下書き・未公開）。\n\n` +
+            (existing.url ? `  ${existing.url}\n\n` : '') +
+            '  draft は publish するまで git タグを作らないため、タグの有無だけでは\n' +
+            '  重複を検出できません。GitHub で publish するか、その draft を\n' +
+            '  削除してから、もう一度ビルドしてください。',
+        );
+      }
+      fail(
+        `タグ ${tag} 宛ての GitHub Release が既に存在します（公開済み）。\n\n` +
+          (existing.url ? `  ${existing.url}\n\n` : '') +
+          `  mobile/app.json の expo.version を上げてください（現在 ${version}、タグ ${tag} は既出）。\n` +
+          '  上げたらコミット・pushしてから、もう一度ビルドしてください。',
+      );
+    }
+    console.log(`✓ タグ・draftの重複とも問題なし。ビルド完了後に ${tag} として draft を作成します。`);
   } else {
     // gh が無い／未認証でも、ビルド自体は成功しているので fail させず警告に留める。
-    // ここ（ビルド前）で分かれば、「このままだとリリースは作られない」と
-    // 知った上でビルドを続けるかどうか判断できる。
+    // ただし draft の重複は gh 経由でしか検出できないため、ここでは検出できない
+    // （タグだけの判定に落ちている）ことも明示しておく。
     console.log('\n! gh コマンドが使えないか未認証です。ビルド完了後、GitHub Release の作成はスキップされます。');
+    console.log('  gh が無いため、publishし忘れの draft との重複はここでは検出できません。');
     console.log('  完了後、以下を手動で実行してください（<APKのパス> は実際の成果物に差し替える）:\n');
-    console.log(`    gh release create ${tag} <APKのパス> --title ${tag} --generate-notes --target ${headSha}\n`);
+    console.log(
+      `    gh release create ${tag} <APKのパス> --draft --title ${tag} --generate-notes --target ${headSha}\n`,
+    );
   }
 
   return { tag, headSha, ghReady };
@@ -508,15 +592,20 @@ function preflightRelease() {
  * tag（app.json 由来）や apkPath（ファイルシステム由来）のような外部由来の
  * 値を渡すこの呼び出しは、配列のまま spawnSync に渡す
  * （Node がプラットフォームごとに正しくエスケープしてくれる）。
+ *
+ * --draft を付けて下書きとして作成する。本人が説明文（--generate-notes の
+ * 自動生成テキスト）を確認してから GitHub 上で publish する運用のため、
+ * ここで自動的に公開まではしない。stdio: 'inherit' なので、gh が標準出力に
+ * 出す作成済みリリースのURL（draftのURL）はそのまま画面に出る。
  */
 function runGhReleaseCreate(tag, apkPath, headSha) {
   const result = spawnSync(
     'gh',
-    ['release', 'create', tag, apkPath, '--title', tag, '--generate-notes', '--target', headSha],
+    ['release', 'create', tag, apkPath, '--draft', '--title', tag, '--generate-notes', '--target', headSha],
     { stdio: 'inherit', cwd: projectRoot },
   );
   if (result.status !== 0) {
-    fail(`GitHub Release の作成に失敗しました: gh release create ${tag}`);
+    fail(`GitHub Release（draft）の作成に失敗しました: gh release create ${tag}`);
   }
 }
 
@@ -612,24 +701,30 @@ console.log(`\n✓ 完成: ${destination}`);
 console.log('  端末にインストール: adb install -r "' + destination + '"');
 
 // ------------------------------------------------------------
-// GitHub Release の作成
+// GitHub Release（draft）の作成
 //
-// 前提確認（バージョン取得・タグ衝突・push状況・gh可用性）はビルド前の
-// preflightRelease() で済ませてある（このファイル前半、"ビルド" セクション
-// 直前を参照）。ここでは確認済みの release オブジェクトを使って、
-// 実際に gh release create を叩くだけ。
+// 前提確認（バージョン取得・タグ衝突・draft重複・push状況・gh可用性）は
+// ビルド前の preflightRelease() で済ませてある（このファイル前半、
+// "ビルド" セクション直前を参照）。ここでは確認済みの release オブジェクト
+// を使って、実際に gh release create --draft を叩くだけ。
 // ------------------------------------------------------------
 if (release) {
   console.log('\n--- GitHub Release ---');
   if (release.ghReady) {
     console.log(`  添付するAPK: ${destination}`);
+    console.log('  下書き（draft）として作成します。公開はされません。');
     runGhReleaseCreate(release.tag, destination, release.headSha);
+    console.log(
+      '\n✓ draft を作成しました（上に出たURLから開けます）。説明文を確認し、\n' +
+        '  問題なければ GitHub 上の「Publish release」で公開してください。\n' +
+        '  publish するまでスマホからはダウンロードできません。',
+    );
   } else {
     // gh の可用性はビルド前に警告済み。ここでは実際のAPKパス入りの
     // コマンドを改めて案内するだけで、isGhReady() は呼び直さない。
     console.log('  gh が使えないため作成をスキップしました。以下を手動で実行してください:\n');
     console.log(
-      `    gh release create ${release.tag} "${destination}" --title ${release.tag} --generate-notes --target ${release.headSha}\n`,
+      `    gh release create ${release.tag} "${destination}" --draft --title ${release.tag} --generate-notes --target ${release.headSha}\n`,
     );
   }
 }

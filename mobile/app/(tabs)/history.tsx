@@ -154,7 +154,7 @@ function TransactionItem({
 }
 
 export default function HistoryScreen() {
-  const { transactions, balance, isLoading, fetchTransactions, deleteTransaction, settleAdvance } = useAppStore();
+  const { transactions, balance, transactionsLoading, fetchTransactions, deleteTransaction, settleAdvance } = useAppStore();
   const router = useRouter();
   const month = getCurrentMonth();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -229,8 +229,8 @@ export default function HistoryScreen() {
         }
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
-            onRefresh={() => fetchTransactions(month)}
+            refreshing={transactionsLoading}
+            onRefresh={() => fetchTransactions(month, { force: true })}
             colors={[colors.primary]}
             tintColor={colors.primary}
           />

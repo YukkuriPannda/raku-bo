@@ -100,16 +100,39 @@ function SpendingHeatmap({ days }: { days: DailySpend[] }) {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { balance, isLoading, fetchTransactions, fetchShifts, fetchPlannedExpenditures, heatmapDays } = useAppStore();
+  const {
+    balance,
+    transactionsLoading,
+    shiftsLoading,
+    plannedExpendituresLoading,
+    transactionsLoaded,
+    shiftsLoaded,
+    plannedExpendituresLoaded,
+    fetchTransactions,
+    fetchShifts,
+    fetchPlannedExpenditures,
+    heatmapDays,
+  } = useAppStore();
   const month = getCurrentMonth();
   const swipeGesture = useSwipeTabNavigation();
 
-  const loadData = useCallback(async () => {
-    await Promise.all([fetchTransactions(month), fetchShifts(month), fetchPlannedExpenditures(month)]);
+  const loadData = useCallback(async (opts?: { force?: boolean }) => {
+    await Promise.all([
+      fetchTransactions(month, opts),
+      fetchShifts(month, opts),
+      fetchPlannedExpenditures(month, opts),
+    ]);
   }, [month, fetchTransactions, fetchShifts, fetchPlannedExpenditures]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
   useRefreshOnForeground(loadData);
+
+  // RefreshControl は3ドメインどれかが取得中なら回しておく
+  const isRefreshing = transactionsLoading || shiftsLoading || plannedExpendituresLoading;
+  // 3つとも一度でも取得済みなら「初回」ではない。以後はスピナーに
+  // 置き換えず、前回の残高を表示したまま裏で更新する（stale-while-revalidate）
+  const hasLoadedOnce = transactionsLoaded && shiftsLoaded && plannedExpendituresLoaded;
+  const isInitialLoading = isRefreshing && !hasLoadedOnce;
 
   const isPositive = balance.remaining >= 0;
 
@@ -120,8 +143,8 @@ export default function HomeScreen() {
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
-            onRefresh={loadData}
+            refreshing={isRefreshing}
+            onRefresh={() => loadData({ force: true })}
             colors={[colors.primary]}
             tintColor={colors.primary}
           />
@@ -131,7 +154,7 @@ export default function HomeScreen() {
         <View style={styles.mainCard}>
           <Text style={styles.mainCardLabel}>今月あと</Text>
 
-          {isLoading ? (
+          {isInitialLoading ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 16 }} />
           ) : (
             <Text style={[styles.mainAmount, isPositive ? styles.mainAmountPositive : styles.mainAmountNegative]}>

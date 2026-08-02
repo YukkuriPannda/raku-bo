@@ -34,6 +34,7 @@ function useAuthGuard() {
   const segments = useSegments();
   const setUser = useAppStore((s) => s.setUser);
   const fetchProfile = useAppStore((s) => s.fetchProfile);
+  const prefetchInitialData = useAppStore((s) => s.prefetchInitialData);
 
   useEffect(() => {
     // 初回セッションチェック（既存セッションがある場合）
@@ -47,6 +48,9 @@ function useAuthGuard() {
           googleAccessToken: getGoogleAccessToken(session) ?? storedToken ?? '',
         });
         fetchProfile();
+        // setUser() 完了後（zustand の set は同期）に呼ぶことで、
+        // fetchShifts が user 未セットで早期 return するのを避ける
+        prefetchInitialData();
       }
 
       const inAuthCallback = segments[0] === 'auth';
@@ -127,6 +131,7 @@ function useAuthGuard() {
             googleAccessToken,
           });
           fetchProfile();
+          prefetchInitialData();
           router.replace('/(tabs)');
         } else {
           await clearGoogleAccessToken();

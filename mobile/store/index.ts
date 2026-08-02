@@ -98,6 +98,37 @@ async function callWithGoogleToken<T>(
 }
 
 // ============================================================
+// stale-while-revalidate 用のユーティリティ
+//
+// 「直近に取得済みなら useFocusEffect からの再取得をスキップする」ための
+// 鮮度判定。引っ張って更新／月切り替え／ミューテーション直後は
+// fetchXxx(month, { force: true }) で明示的にこの判定をバイパスする。
+// ============================================================
+const FRESHNESS_MS = 30_000; // この時間内の再取得はスキップする（目安30秒）
+
+function isFresh(lastFetchedAt: Record<string, number>, key: string): boolean {
+  const ts = lastFetchedAt[key];
+  return !!ts && Date.now() - ts < FRESHNESS_MS;
+}
+
+// ============================================================
+// 同時多発呼び出しの重複防止（ドメイン+月をキーに、進行中の fetch を記録する）。
+//
+// 起動時の prefetchInitialData() と各タブの useFocusEffect は、同じ月を
+// ほぼ同時に取得しようとすることがある。lastFetchedAt は fetch 完了後
+// （finally）にしか書き込まれないため、鮮度判定だけでは startup 直後の
+// 数百ms の間に発生する重複リクエストを防げない。zustand の状態にすると
+// 更新のたびに再レンダーを招くため、あえて store の外（モジュールスコープ）
+// に持つ。
+// ============================================================
+const inFlightFetches = new Set<string>();
+
+function getCurrentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// ============================================================
 // ストアの型定義
 // ============================================================
 interface AppState {
@@ -110,7 +141,26 @@ interface AppState {
   balance: BalanceData;
   hourlyWage: number;        // 時給（円）
   shiftKeywords: string[];
-  isLoading: boolean;
+
+  // ---- 取得状態（ドメインごとに独立。単一の isLoading をやめた。
+  // 理由: 無関係な画面の取得が他画面のスピナーまで巻き込んでいたため） ----
+  transactionsLoading: boolean;
+  shiftsLoading: boolean;
+  plannedExpendituresLoading: boolean;
+  calendarEventsLoading: boolean;
+  // 各ドメインで一度でも取得を試みたか（成功/失敗を問わない）。
+  // 初回だけスピナーを出し、2回目以降は前回の値を表示したまま裏で
+  // 更新する（stale-while-revalidate）ための判定に使う
+  transactionsLoaded: boolean;
+  shiftsLoaded: boolean;
+  plannedExpendituresLoaded: boolean;
+  // 月ごとの最終取得時刻（ms epoch）。useFocusEffect での不要な
+  // 再取得を抑制する鮮度判定に使う（isFresh 参照）
+  transactionsLastFetchedAt: Record<string, number>;
+  shiftsLastFetchedAt: Record<string, number>;
+  plannedExpendituresLastFetchedAt: Record<string, number>;
+  calendarEventsLastFetchedAt: Record<string, number>;
+
   pendingImageBase64: string | null; // 撮影直後の未アップロード画像
   calendarError: string | null;
   heatmapDays: DailySpend[]; // 草グラフ用：直近約63日分の日別支出合計
@@ -120,12 +170,19 @@ interface AppState {
   logout: () => Promise<void>;
 
   // ---- データ取得 ----
-  fetchTransactions: (month: string) => Promise<void>;
-  fetchShifts: (month: string) => Promise<void>;
+  // opts.force: true を渡すと鮮度チェックを無視して必ず取得する
+  // （引っ張って更新／月切り替え直後の再取得／ミューテーション後の
+  // 整合取得で使う）
+  fetchTransactions: (month: string, opts?: { force?: boolean }) => Promise<void>;
+  fetchShifts: (month: string, opts?: { force?: boolean }) => Promise<void>;
   fetchProfile: () => Promise<void>;
-  fetchPlannedExpenditures: (month: string) => Promise<void>;
-  fetchCalendarEvents: (month: string) => Promise<void>;
+  fetchPlannedExpenditures: (month: string, opts?: { force?: boolean }) => Promise<void>;
+  fetchCalendarEvents: (month: string, opts?: { force?: boolean }) => Promise<void>;
   clearCalendarError: () => void;
+  // ログインセッション確立直後に主要データをまとめて先読みする。
+  // 各 fetchXxx は内部でエラーを握りつぶす設計だが、念のため
+  // allSettled でも防御し、失敗してもアプリの起動は妨げない
+  prefetchInitialData: () => Promise<void>;
 
   // ---- 設定保存 ----
   setShiftKeywords: (keywords: string[]) => Promise<void>;
@@ -180,7 +237,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   balance: initialBalance,
   hourlyWage: 1_000, // デフォルト時給 1000 円
   shiftKeywords: ['バイト', 'シフト', '出勤', '勤務'],
-  isLoading: false,
+  transactionsLoading: false,
+  shiftsLoading: false,
+  plannedExpendituresLoading: false,
+  calendarEventsLoading: false,
+  transactionsLoaded: false,
+  shiftsLoaded: false,
+  plannedExpendituresLoaded: false,
+  transactionsLastFetchedAt: {},
+  shiftsLastFetchedAt: {},
+  plannedExpendituresLastFetchedAt: {},
+  calendarEventsLastFetchedAt: {},
   pendingImageBase64: null,
   calendarError: null,
   heatmapDays: [],
@@ -205,6 +272,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       balance: initialBalance,
       pendingImageBase64: null,
       heatmapDays: [],
+      // 別アカウントでのログインを「初回」として扱うため取得状態も初期化する
+      transactionsLoading: false,
+      shiftsLoading: false,
+      plannedExpendituresLoading: false,
+      calendarEventsLoading: false,
+      transactionsLoaded: false,
+      shiftsLoaded: false,
+      plannedExpendituresLoaded: false,
+      transactionsLastFetchedAt: {},
+      shiftsLastFetchedAt: {},
+      plannedExpendituresLastFetchedAt: {},
+      calendarEventsLastFetchedAt: {},
     });
   },
 
@@ -226,8 +305,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   // トランザクション取得
   // ネットワークエラー時はキャッシュから返す
   // ============================================================
-  fetchTransactions: async (month) => {
-    set({ isLoading: true });
+  fetchTransactions: async (month, opts) => {
+    if (!opts?.force && isFresh(get().transactionsLastFetchedAt, month)) return;
+    const inFlightKey = `transactions:${month}`;
+    if (inFlightFetches.has(inFlightKey)) return; // 起動時の先読みとタブ側の取得が同時に走るケースなどの重複防止
+    inFlightFetches.add(inFlightKey);
+
+    set({ transactionsLoading: true });
     try {
       const res = await transactionApi.list(month);
       const data: Transaction[] = res.data;
@@ -242,7 +326,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       const cached = await getCachedTransactions(month, get().user?.id ?? null);
       set({ transactions: cached });
     } finally {
-      set({ isLoading: false });
+      inFlightFetches.delete(inFlightKey);
+      set((state) => ({
+        transactionsLoading: false,
+        transactionsLoaded: true,
+        transactionsLastFetchedAt: { ...state.transactionsLastFetchedAt, [month]: Date.now() },
+      }));
       get().calcBalance();
     }
   },
@@ -250,11 +339,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ============================================================
   // シフト一覧取得
   // ============================================================
-  fetchShifts: async (month) => {
+  fetchShifts: async (month, opts) => {
     const { user, hourlyWage } = get();
     if (!user) return;
+    if (!opts?.force && isFresh(get().shiftsLastFetchedAt, month)) return;
+    const inFlightKey = `shifts:${month}`;
+    if (inFlightFetches.has(inFlightKey)) return;
+    inFlightFetches.add(inFlightKey);
 
-    set({ isLoading: true, calendarError: null });
+    set({ shiftsLoading: true, calendarError: null });
 
     try {
       // Supabaseセッション切れなど、Google側の問題ではないエラーは
@@ -274,7 +367,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('[fetchShifts] エラー:', authErr.code, authErr.detail ?? authErr.message);
       set({ calendarError: `${getAuthErrorMessage(authErr.code)}\n（エラーコード: ${authErr.code}）` });
     } finally {
-      set({ isLoading: false });
+      inFlightFetches.delete(inFlightKey);
+      set((state) => ({
+        shiftsLoading: false,
+        shiftsLoaded: true,
+        shiftsLastFetchedAt: { ...state.shiftsLastFetchedAt, [month]: Date.now() },
+      }));
       get().calcBalance();
     }
   },
@@ -284,15 +382,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ============================================================
   // 予定支出一覧取得
   // ============================================================
-  fetchPlannedExpenditures: async (month) => {
-    set({ isLoading: true });
+  fetchPlannedExpenditures: async (month, opts) => {
+    if (!opts?.force && isFresh(get().plannedExpendituresLastFetchedAt, month)) return;
+    const inFlightKey = `plannedExpenditures:${month}`;
+    if (inFlightFetches.has(inFlightKey)) return;
+    inFlightFetches.add(inFlightKey);
+
+    set({ plannedExpendituresLoading: true });
     try {
       const res = await plannedExpenditureApi.list(month);
       set({ plannedExpenditures: res.data });
     } catch (error) {
       console.error('[fetchPlannedExpenditures] エラー:', describeError(error));
     } finally {
-      set({ isLoading: false });
+      inFlightFetches.delete(inFlightKey);
+      set((state) => ({
+        plannedExpendituresLoading: false,
+        plannedExpendituresLoaded: true,
+        plannedExpendituresLastFetchedAt: { ...state.plannedExpendituresLastFetchedAt, [month]: Date.now() },
+      }));
       get().calcBalance();
     }
   },
@@ -300,9 +408,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ============================================================
   // カレンダーイベント一覧取得（支出予定連動用）
   // ============================================================
-  fetchCalendarEvents: async (month) => {
+  fetchCalendarEvents: async (month, opts) => {
     const { user } = get();
     if (!user) return;
+    if (!opts?.force && isFresh(get().calendarEventsLastFetchedAt, month)) return;
+    const inFlightKey = `calendarEvents:${month}`;
+    if (inFlightFetches.has(inFlightKey)) return;
+    inFlightFetches.add(inFlightKey);
+
+    set({ calendarEventsLoading: true });
     try {
       const res = await callWithGoogleToken(
         user,
@@ -317,7 +431,38 @@ export const useAppStore = create<AppState>((set, get) => ({
         calendarEvents: [],
         calendarError: `${getAuthErrorMessage(authErr.code)}\n(エラーコード: ${authErr.code})`,
       });
+    } finally {
+      inFlightFetches.delete(inFlightKey);
+      set((state) => ({
+        calendarEventsLoading: false,
+        calendarEventsLastFetchedAt: { ...state.calendarEventsLastFetchedAt, [month]: Date.now() },
+      }));
     }
+  },
+
+  // ============================================================
+  // 起動時の先読み
+  // ログインセッションが確立した直後（getSession 復元 / onAuthStateChange
+  // 両経路）に呼ぶ。ホーム画面が使う主要データを先に温めておくことで、
+  // 最初にタブを開いたときの待ちを無くす。
+  //
+  // fetchShifts は user が未セットだと早期 return するため、必ず
+  // setUser() の後に呼ぶこと（呼び出し側で担保する）。
+  // 各 fetchXxx は内部でエラーを握りつぶす設計だが、念のため
+  // allSettled でも防御し、失敗してもアプリの起動を妨げない。
+  // ============================================================
+  prefetchInitialData: async () => {
+    const month = getCurrentMonth();
+    const results = await Promise.allSettled([
+      get().fetchTransactions(month),
+      get().fetchShifts(month),
+      get().fetchPlannedExpenditures(month),
+    ]);
+    results.forEach((r) => {
+      if (r.status === 'rejected') {
+        console.error('[prefetchInitialData] エラー:', describeError(r.reason));
+      }
+    });
   },
 
   // ============================================================
@@ -441,7 +586,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // API POST 後にローカルステートも更新する
   // ============================================================
   addTransaction: async (data) => {
-    set({ isLoading: true });
+    set({ transactionsLoading: true });
     try {
       const res = await transactionApi.create(data);
       const newTx: Transaction = res.data;
@@ -460,7 +605,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('[addTransaction] エラー:', describeError(error));
       throw error; // 呼び出し元でハンドリングする
     } finally {
-      set({ isLoading: false });
+      set({ transactionsLoading: false });
     }
   },
 
@@ -515,7 +660,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // 予定支出 追加・更新・削除
   // ============================================================
   addPlannedExpenditure: async (data) => {
-    set({ isLoading: true });
+    set({ plannedExpendituresLoading: true });
     try {
       const res = await plannedExpenditureApi.create(data);
       const newItem: PlannedExpenditure = res.data;
@@ -527,7 +672,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('[addPlannedExpenditure] エラー:', describeError(error));
       throw error;
     } finally {
-      set({ isLoading: false });
+      set({ plannedExpendituresLoading: false });
     }
   },
 

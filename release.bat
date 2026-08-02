@@ -9,23 +9,22 @@ rem
 rem やること:
 rem   1. 事前チェック（ブランチ・未コミットの変更・型チェック）
 rem   2. リリースAPKのビルド
-rem      （署名鍵の読み込み・署名の検証・Googleドライブへの配置は
+rem      （署名鍵の読み込み・署名の検証・GitHub Releaseの作成は
 rem        mobile/scripts/build-android.mjs が行う）
-rem   3. ドライブの rakubo-latest.apk を今回の成果物に差し替え
+rem   3. 作成された GitHub Release のURLを表示
 rem   4. 接続中のAndroid端末へインストール（任意）
 rem
 rem 署名鍵は ~/.rakubo/signing.env から読まれる。
 rem 未設定ならビルドスクリプトが手順を表示して止まる。
+rem
+rem 配布先は GitHub Releases（タグは mobile/app.json の expo.version から
+rem `v<version>` の形で作られる）。version を上げ忘れて既存タグと衝突すると
+rem ビルドスクリプト側で止まるので、リリースしたいときは先に
+rem mobile/app.json の expo.version を上げておくこと。
 rem ============================================================
 
 set "REPO=%~dp0"
 if "%REPO:~-1%"=="\" set "REPO=%REPO:~0,-1%"
-
-if "%RAKUBO_DRIVE_DIR%"=="" (
-  set "DRIVE_DIR=G:\マイドライブ\raku-bo\apk"
-) else (
-  set "DRIVE_DIR=%RAKUBO_DRIVE_DIR%"
-)
 
 echo.
 echo ============================================================
@@ -93,7 +92,7 @@ if errorlevel 1 (
 popd
 popd
 
-rem ---------- 3. rakubo-latest.apk の差し替え ----------
+rem ---------- 3. GitHub Release の確認 ----------
 
 set "APK="
 for /f "delims=" %%f in ('dir /b /o-d "%REPO%\mobile\build\rakubo-release-*.apk" 2^>nul') do (
@@ -108,23 +107,28 @@ if not defined APK (
 
 echo.
 echo ------------------------------------------------------------
-echo  配布物の更新
+echo  配布物の確認
 echo ------------------------------------------------------------
 echo   成果物        : !APK!
 
-if not exist "%DRIVE_DIR%" (
+where gh >nul 2>nul
+if errorlevel 1 (
   echo.
-  echo   [注意] ドライブのフォルダが見つかりません: %DRIVE_DIR%
-  echo          Googleドライブが同期していない可能性があります。
-  echo          rakubo-latest.apk の差し替えはスキップします。
+  echo   [注意] gh コマンドが見つからないため、リリースURLの表示はスキップします。
+  echo          https://github.com/YukkuriPannda/raku-bo/releases を確認してください。
   goto :install
 )
 
-copy /y "!APK!" "%DRIVE_DIR%\rakubo-latest.apk" >nul
-if errorlevel 1 (
-  echo   [注意] rakubo-latest.apk の更新に失敗しました。
+set "RELEASE_URL="
+for /f "delims=" %%u in ('gh release view --json url -q ".url" 2^>nul') do set "RELEASE_URL=%%u"
+
+if defined RELEASE_URL (
+  echo   リリース      : !RELEASE_URL!
 ) else (
-  echo   latest 更新   : %DRIVE_DIR%\rakubo-latest.apk
+  echo.
+  echo   [注意] リリースURLを取得できませんでした（gh未認証、または
+  echo          build-android.mjs 側でリリース作成がスキップ／失敗した可能性があります）。
+  echo          https://github.com/YukkuriPannda/raku-bo/releases を確認してください。
 )
 
 rem ---------- 4. 端末へインストール（任意） ----------
@@ -145,7 +149,8 @@ for /f "skip=1 tokens=1,2" %%a in ('"%ADB%" devices 2^>nul') do (
 if not defined DEVICE (
   echo.
   echo   接続中の端末がないため、インストールはスキップします。
-  echo   スマホから入れる場合はドライブの rakubo-latest.apk を使ってください。
+  echo   スマホから入れる場合は GitHub Releases からAPKを
+  echo   直接ダウンロードしてください。
   goto :done
 )
 
@@ -174,8 +179,8 @@ echo ============================================================
 echo  完了
 echo ============================================================
 echo.
-echo   配布先: %DRIVE_DIR%
-echo   スマホからは rakubo-latest.apk をダウンロードしてください。
+echo   配布先: https://github.com/YukkuriPannda/raku-bo/releases
+echo   スマホからはこのページのAssetsからAPKを直接ダウンロードできます。
 echo.
 pause
 exit /b 0

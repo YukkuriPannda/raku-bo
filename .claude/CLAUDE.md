@@ -35,9 +35,12 @@ FILEMAP.md も更新すること。
 
 - コードを修正した後は必ず再起動をclaudeが実行してください。
 - easビルドは指示があった場合のみ実行してください
-- APKをビルドしたら必ずGoogleドライブへ配置してください。スマホへの配布経路がこれだけのため、
-  `-- --no-upload` は指示があった場合を除いて使わないこと。ビルド後に
-  `G:\マイドライブ\raku-bo\apk\` にファイルが増えたことを確認してください
+- APKの配布先は GitHub Releases（`YukkuriPannda/raku-bo` は public リポジトリなので、
+  スマホから認証なしで直接ダウンロードできる）。`-- --no-upload` は指示があった場合を
+  除いて使わないこと。**リリース前に `mobile/app.json` の `expo.version` を上げること。**
+  上げ忘れると、タグ（`v<version>`）が既存リリースと衝突してビルドスクリプトが
+  エラーで止まる（黙って上書きしないための意図した仕様であり、不具合ではない）。
+  ビルド後は `gh release list` でリリースが作成されたことを確認すること
 
 ## 再起動コマンド（Docker）
 
@@ -63,8 +66,11 @@ FILEMAP.md も更新すること。
 `cd mobile && npm run build:android`（リリースAPK。`-- --debug` でデバッグ、`-- --clean` で android/ を作り直し）
 
 - 成果物は `mobile/build/rakubo-release-YYYYMMDD.apk`。`adb install -r <path>` で導入
-- ビルド後に `G:\マイドライブ\raku-bo\apk\` へ自動コピーされ、Googleドライブが同期する
-  （スマホから直接ダウンロード可能。保存先は `RAKUBO_DRIVE_DIR`、無効化は `-- --no-upload`）
+- ビルド後、`mobile/app.json` の `expo.version`（例 `1.0.0`）からタグ `v1.0.0` を作り、
+  GitHub Release として自動公開される（`gh release create`。無効化は `-- --no-upload`）。
+  **タグは重複できないため、リリースするたびに事前に `expo.version` を上げておくこと。**
+  上げ忘れると「タグが既出」というエラーで止まる（意図した仕様）。
+  作成されたリリースは `gh release list` で確認できる
 - JDKとAndroid SDKはスクリプトが自動で探す（PATHのjavaが古くても可）。Android Studio が必要
 - リリースビルドは接続先を本番Workerに固定する（`.env` の開発機URLは使わない）
 - `eas build --local` はWindows非対応のため、`expo prebuild` + Gradle を直接実行している

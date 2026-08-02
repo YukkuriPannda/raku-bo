@@ -69,7 +69,7 @@
 | `widgets/RemainingBudgetWidget.tsx` | 残額ウィジェット |
 | `widgets/SpendingHeatmapWidget.tsx` | 草グラフウィジェット |
 | `widgets/widget-task-handler.tsx` | ウィジェット更新の headless task |
-| `scripts/build-android.mjs` | EASを使わないローカルAPKビルド。署名鍵の扱いもここ |
+| `scripts/build-android.mjs` | EASを使わないローカルAPKビルド。署名鍵の扱いと GitHub Release への公開もここ |
 | `app.json` | Expo設定。パーミッション、プラグイン、ウィジェット定義 |
 
 ---

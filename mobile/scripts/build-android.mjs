@@ -6,16 +6,18 @@
 //   npm run build:android          リリースAPK（配布用・本番バックエンド）
 //   npm run build:android -- --debug   デバッグAPK（Metro必須・開発用）
 //   npm run build:android -- --clean   android/ を作り直してからビルド
-//   npm run build:android -- --no-upload  Googleドライブへのコピーをしない
+//   npm run build:android -- --no-upload  GitHub Releaseを作らない
 //
 // EAS の `--local` は Windows 非対応のため、prebuild + Gradle を直接叩く。
 // PATH 上の java が古くても動くよう、JDK と Android SDK は自前で探す。
-// できあがったAPKは Google ドライブ（デスクトップ版のマウント先）にも
-// 置いて、スマホから直接ダウンロードできるようにする。
+// できあがったAPKは GitHub Releases（タグ `v<mobile/app.json の expo.version>`）
+// に下書き（draft）として上げる。本人が説明文を確認して GitHub 上で
+// publish するまでは外部には見えない（public リポジトリなので、publish後は
+// スマホから認証なしで直接ダウンロードできる）。
 // ============================================================
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, copyFileSync, readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
@@ -24,9 +26,6 @@ const args = process.argv.slice(2);
 const isDebug = args.includes('--debug');
 const isClean = args.includes('--clean');
 const skipUpload = args.includes('--no-upload');
-
-// Google ドライブ内の保存先。RAKUBO_DRIVE_DIR で上書きできる
-const DRIVE_SUBDIR = path.join('raku-bo', 'apk');
 
 // ------------------------------------------------------------
 // 署名用の環境変数をリポジトリ外のファイルから読む
@@ -278,6 +277,11 @@ function run(command, commandArgs, options = {}) {
   // Windows では npx / gradlew.bat をシェル経由でしか起動できない。
   // シェル利用時に引数配列を渡すと Node が警告を出すため、1本の文字列にまとめる
   // （引数はこのスクリプト内の固定値のみで、外部入力は含まれない）。
+  //
+  // この結合はクォートをしないため、値に空白が入ると引数の区切りとして壊れる。
+  // tag（app.json 由来）や apkPath（ファイルシステム由来）のような外部由来の
+  // 値を渡す必要がある呼び出し（gh release create など）はこの関数を経由せず、
+  // shell 無しの spawnSync に配列のまま渡すこと（Node がエスケープしてくれる）。
   const useShell = process.platform === 'win32';
   const result = useShell
     ? spawnSync([command, ...commandArgs].join(' '), {
@@ -355,12 +359,267 @@ function resolveAndroidHome() {
 }
 
 // ------------------------------------------------------------
+// GitHub Release の事前確認・作成
+//
+// 配布経路は GitHub Releases に一本化している（Googleドライブは廃止）。
+// リポジトリが public なので、認証なしでスマホから直接APKを
+// ダウンロードできる。
+//
+// 本人が公開前に説明文（--generate-notes の自動生成テキスト）を
+// 確認したいため、--draft で作成する。draft は GitHub 上で
+// 「Publish release」を押すまで外部には見えない（APKも添付済みだが、
+// 公開ボタンを押すまではダウンロードできない）。
+//
+// バージョンは mobile/app.json の expo.version を正とし、タグは
+// `v<version>`（例 v1.0.0）にする。タグはリリースのたびに変わる必要が
+// あるため、version を上げ忘れると既存タグと衝突する。ここで黙って
+// 上書きしたり別名にしたりはせず、必ず気づける形で止める。
+//
+// 【落とし穴】draft は publish するまで git のタグを作らない。
+// そのため tagExistsOnRemote()（git のタグの有無）だけで衝突判定すると:
+//   1) v1.0.1 でビルド → draft ができる（タグはまだ無い）
+//   2) publish し忘れたまま、もう一度 v1.0.1 でビルド
+//   3) タグが無いので衝突チェックを素通りし、同じバージョンの draft が
+//      2つできてしまう
+// という事故を確実に踏む。タグ（tagExistsOnRemote）と、gh が使える場合は
+// 既存リリース自体（findExistingRelease。gh release view はタグ名で
+// draft も引けるため、publish前でも見つかる）の両方で確認すること。
+// gh が無い/未認証のときは draft の重複は検出できない（タグだけの判定に
+// 落とし、その旨を警告する。ビルド自体は止めない）。
+//
+// 【重要】前提確認（バージョン取得・タグ衝突・draft重複・push状況・
+// gh可用性）は必ず gradle のビルドより前に行うこと（preflightRelease()）。
+// ビルドは10〜20分かかる。CLAUDE.md には「version上げ忘れはタグ衝突で
+// 気づく」と明記しており、上げ忘れは実際に起きる前提になっている。この
+// 確認をビルド後に回すと、20分待たされたあげく失敗して丸ごと無駄になり、
+// 「気づける形で止める」という設計の意味が薄れる。
+// ------------------------------------------------------------
+
+/** リモートに指定タグが既に存在するか（gh を経由せず git だけで判定できるようにする） */
+function tagExistsOnRemote(tag) {
+  const result = spawnSync('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}`], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  return result.status === 0 && result.stdout.trim().length > 0;
+}
+
+/**
+ * 指定タグ宛ての GitHub Release が既に存在するか（draft も含む）。
+ *
+ * draft は publish するまで git のタグを作らないため、tagExistsOnRemote()
+ * のようなタグベースの判定では検出できない。`gh release view <tag>` は
+ * タグ名で「そのタグを使う予定のリリース」を引けるので、draft・公開済み
+ * のどちらも見つけられる（`gh release view --help` の JSON FIELDS に
+ * isDraft があることを確認済み。`gh release list` も既定で draft を含む
+ * ―― --exclude-drafts というオプトアウト用フラグが存在することから
+ * 確認できる）。
+ *
+ * gh が使える場合にのみ呼ぶこと（呼び出し側の isGhReady() 判定に依存する。
+ * gh が無い環境で呼ぶと ENOENT で落ちる）。
+ */
+function findExistingRelease(tag) {
+  const result = spawnSync('gh', ['release', 'view', tag, '--json', 'isDraft,url'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    // タグに紐づくリリースが無い場合も gh は非0で終了する
+    // （実機で `gh release view <存在しないtag>` → "release not found" / exit 1 を確認済み）。
+    // ここでは「見つからなければ衝突なし」として扱えば十分。
+    return { exists: false, isDraft: false, url: null };
+  }
+  try {
+    const data = JSON.parse(result.stdout);
+    return { exists: true, isDraft: Boolean(data.isDraft), url: data.url ?? null };
+  } catch {
+    // JSON が壊れていた場合も安全側（衝突なし扱い）に倒す。
+    // 注意: GitHub は同じタグ名の draft を複数作れてしまう
+    // （gh release create 自体はタグ重複を理由には弾かない）ため、
+    // ここでの見逃しに対する安全網は無い。パース失敗時のログは
+    // 目視で確認できるよう console.error 等に残すことを検討してもよいが、
+    // 頻度が低い想定のため今は「見逃す」側に倒している。
+    return { exists: false, isDraft: false, url: null };
+  }
+}
+
+/**
+ * HEAD がリモートの現在のブランチに push 済みであることを確認する。
+ * GitHub Release はリモート上のコミットにタグを打つため、未pushのコミットで
+ * 作ると「APKの中身」と「リリースが指すコード」がズレる。
+ */
+function ensurePushed(headSha) {
+  const branchResult = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  const branch = branchResult.stdout.trim();
+  if (branchResult.status !== 0 || !branch || branch === 'HEAD') {
+    fail('現在 detached HEAD のため push状況を確認できませんでした。ブランチをチェックアウトしてから実行してください。');
+  }
+
+  const remoteResult = spawnSync('git', ['ls-remote', 'origin', branch], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  const remoteSha = remoteResult.stdout.trim().split(/\s+/)[0];
+
+  if (!remoteSha) {
+    fail(`リモートに ${branch} ブランチが見つかりません。先に push してください:\n\n    git push -u origin ${branch}`);
+  }
+  if (remoteSha !== headSha) {
+    fail(
+      `HEAD (${headSha.slice(0, 7)}) がリモートの ${branch} (${remoteSha.slice(0, 7)}) と一致しません。\n` +
+        '  GitHub Release はリモート上のコミットにタグを打つため、未pushのコミットで作ると\n' +
+        '  「APKの中身」と「リリースが指すコード」がズレます。先に push してください:\n\n' +
+        `    git push origin ${branch}`,
+    );
+  }
+}
+
+/**
+ * gh コマンドが使え、かつ認証済みか。
+ * gh は git と同じくネイティブの実行ファイルなので、gradlew や npx と違い
+ * シェル経由（shell: true）にしなくても Windows で直接起動できる
+ * （shell: true と引数配列を併用すると Node が非エスケープを警告するため避ける）。
+ */
+function isGhReady() {
+  const version = spawnSync('gh', ['--version'], { encoding: 'utf8' });
+  if (version.error || version.status !== 0) return false;
+  const auth = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8' });
+  return auth.status === 0;
+}
+
+/**
+ * リリース前提の確認を gradle 起動前にまとめて行う（fail-fast）。
+ * ここで検出した問題（タグ衝突・未push）は gradle を1秒も動かす前に止める。
+ *
+ * gh の可用性チェックもここで1回だけ行う。無ければビルド前に警告するが、
+ * 挙動は変えない＝ gh が無い/未認証でもビルド自体は止めない（fail させない）。
+ * ビルド後に isGhReady() を呼び直す必要はない（結果をそのまま使い回す）。
+ *
+ * --debug / --no-upload のときはそもそもリリースしないため、確認ごとスキップする。
+ *
+ * @returns {{tag: string, headSha: string, ghReady: boolean} | null} スキップ時は null
+ */
+function preflightRelease() {
+  if (isDebug) {
+    console.log('\n（--debug ビルドのため GitHub Release は作成しません）');
+    return null;
+  }
+  if (skipUpload) {
+    console.log('\n（--no-upload のため GitHub Release の作成をスキップします）');
+    return null;
+  }
+
+  const appJsonPath = path.join(projectRoot, 'app.json');
+  if (!existsSync(appJsonPath)) fail(`mobile/app.json が見つかりません: ${appJsonPath}`);
+
+  let version;
+  try {
+    version = JSON.parse(readFileSync(appJsonPath, 'utf8'))?.expo?.version;
+  } catch (err) {
+    fail(`mobile/app.json の読み込みに失敗しました: ${err.message}`);
+  }
+  if (!version) fail('mobile/app.json に expo.version が見つかりませんでした。');
+
+  const tag = `v${version}`;
+
+  console.log('\n--- GitHub Release の事前確認（ビルド前）---');
+  console.log(`  バージョン : ${version}（タグ: ${tag}）`);
+
+  // 判定その1: タグ（gh が無くてもここまでは確認できる）
+  if (tagExistsOnRemote(tag)) {
+    fail(
+      `タグ ${tag} は既にリリース済みです。\n\n` +
+        `  mobile/app.json の expo.version を上げてください（現在 ${version}、タグ ${tag} は既出）。\n` +
+        '  上げたらコミット・pushしてから、もう一度ビルドしてください。',
+    );
+  }
+
+  const headSha = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: projectRoot, encoding: 'utf8' }).stdout.trim();
+  ensurePushed(headSha);
+
+  const ghReady = isGhReady();
+
+  if (ghReady) {
+    // 判定その2: 既存リリース本体（draft も含む）。タグが無いだけでは
+    // publish待ちの draft を見逃す（このファイル冒頭の「落とし穴」参照）。
+    const existing = findExistingRelease(tag);
+    if (existing.exists) {
+      // tagExistsOnRemote() で公開済みは既に弾いているので、ここに来るのは
+      // 基本的に draft が残っているケース（念のため isDraft で分岐する）。
+      if (existing.isDraft) {
+        fail(
+          `タグ ${tag} 宛ての GitHub Release が既に存在します（下書き・未公開）。\n\n` +
+            (existing.url ? `  ${existing.url}\n\n` : '') +
+            '  draft は publish するまで git タグを作らないため、タグの有無だけでは\n' +
+            '  重複を検出できません。GitHub で publish するか、その draft を\n' +
+            '  削除してから、もう一度ビルドしてください。',
+        );
+      }
+      fail(
+        `タグ ${tag} 宛ての GitHub Release が既に存在します（公開済み）。\n\n` +
+          (existing.url ? `  ${existing.url}\n\n` : '') +
+          `  mobile/app.json の expo.version を上げてください（現在 ${version}、タグ ${tag} は既出）。\n` +
+          '  上げたらコミット・pushしてから、もう一度ビルドしてください。',
+      );
+    }
+    console.log(`✓ タグ・draftの重複とも問題なし。ビルド完了後に ${tag} として draft を作成します。`);
+  } else {
+    // gh が無い／未認証でも、ビルド自体は成功しているので fail させず警告に留める。
+    // ただし draft の重複は gh 経由でしか検出できないため、ここでは検出できない
+    // （タグだけの判定に落ちている）ことも明示しておく。
+    console.log('\n! gh コマンドが使えないか未認証です。ビルド完了後、GitHub Release の作成はスキップされます。');
+    console.log('  gh が無いため、publishし忘れの draft との重複はここでは検出できません。');
+    console.log('  完了後、以下を手動で実行してください（<APKのパス> は実際の成果物に差し替える）:\n');
+    console.log(
+      `    gh release create ${tag} <APKのパス> --draft --title ${tag} --generate-notes --target ${headSha}\n`,
+    );
+  }
+
+  return { tag, headSha, ghReady };
+}
+
+/**
+ * gh release create を直接 spawnSync で叩く（run() は経由しない）。
+ *
+ * run() は Windows で npx / gradlew.bat のようなバッチファイルを起動する
+ * ため、引数配列を1本の文字列に結合してシェル経由で実行している。この
+ * 結合はクォートをしないため、値に空白が入ると引数の区切りとして壊れる
+ * （今のリポジトリの置き場所には空白が無いが、保証はできない）。
+ * gh.exe はネイティブの実行ファイルで shell 無しでも直接起動できるので、
+ * tag（app.json 由来）や apkPath（ファイルシステム由来）のような外部由来の
+ * 値を渡すこの呼び出しは、配列のまま spawnSync に渡す
+ * （Node がプラットフォームごとに正しくエスケープしてくれる）。
+ *
+ * --draft を付けて下書きとして作成する。本人が説明文（--generate-notes の
+ * 自動生成テキスト）を確認してから GitHub 上で publish する運用のため、
+ * ここで自動的に公開まではしない。stdio: 'inherit' なので、gh が標準出力に
+ * 出す作成済みリリースのURL（draftのURL）はそのまま画面に出る。
+ */
+function runGhReleaseCreate(tag, apkPath, headSha) {
+  const result = spawnSync(
+    'gh',
+    ['release', 'create', tag, apkPath, '--draft', '--title', tag, '--generate-notes', '--target', headSha],
+    { stdio: 'inherit', cwd: projectRoot },
+  );
+  if (result.status !== 0) {
+    fail(`GitHub Release（draft）の作成に失敗しました: gh release create ${tag}`);
+  }
+}
+
+// ------------------------------------------------------------
 // ビルド
 // ------------------------------------------------------------
 // リリースは独自の署名鍵が揃っていないと先に進ませない（ビルド前に検査する）
 if (!isDebug) {
   requireReleaseKeystore();
 }
+
+// GitHub Release の前提確認もビルド前に済ませる（理由は上のコメント参照）。
+// 戻り値はビルド完了後、実際の gh release create 呼び出しで使う。
+const release = preflightRelease();
 
 const javaHome = resolveJavaHome();
 const androidHome = resolveAndroidHome();
@@ -442,48 +701,30 @@ console.log(`\n✓ 完成: ${destination}`);
 console.log('  端末にインストール: adb install -r "' + destination + '"');
 
 // ------------------------------------------------------------
-// Google ドライブへコピー（デスクトップ版がマウントしたドライブに置くだけ。
-// 実体のアップロードは Google Drive 側が非同期でやる）
+// GitHub Release（draft）の作成
+//
+// 前提確認（バージョン取得・タグ衝突・draft重複・push状況・gh可用性）は
+// ビルド前の preflightRelease() で済ませてある（このファイル前半、
+// "ビルド" セクション直前を参照）。ここでは確認済みの release オブジェクト
+// を使って、実際に gh release create --draft を叩くだけ。
 // ------------------------------------------------------------
-function resolveDriveDir() {
-  const candidates = [
-    process.env.RAKUBO_DRIVE_DIR,
-    'G:\\マイドライブ',
-    'G:\\My Drive',
-    path.join(os.homedir(), 'Google Drive'),
-    path.join(os.homedir(), 'マイドライブ'),
-  ].filter(Boolean);
-
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
-}
-
-if (!skipUpload) {
-  const driveRoot = resolveDriveDir();
-
-  if (!driveRoot) {
-    // ドライブが無くてもビルド自体は成功しているので、警告だけにする
-    console.log('\n! Googleドライブが見つかりませんでした（コピーをスキップ）');
-    console.log('  保存先を指定する場合は RAKUBO_DRIVE_DIR に設定してください');
+if (release) {
+  console.log('\n--- GitHub Release ---');
+  if (release.ghReady) {
+    console.log(`  添付するAPK: ${destination}`);
+    console.log('  下書き（draft）として作成します。公開はされません。');
+    runGhReleaseCreate(release.tag, destination, release.headSha);
+    console.log(
+      '\n✓ draft を作成しました（上に出たURLから開けます）。説明文を確認し、\n' +
+        '  問題なければ GitHub 上の「Publish release」で公開してください。\n' +
+        '  publish するまでスマホからはダウンロードできません。',
+    );
   } else {
-    const driveDir = path.join(driveRoot, DRIVE_SUBDIR);
-    mkdirSync(driveDir, { recursive: true });
-
-    // 同じ日に複数回ビルドしても上書きしないよう、時刻とコミットを付ける
-    const time = new Date().toTimeString().slice(0, 5).replace(':', '');
-    const revision = spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
-      cwd: projectRoot,
-      encoding: 'utf8',
-    }).stdout?.trim();
-    const driveName = `rakubo-${isDebug ? 'debug' : 'release'}-${stamp}-${time}${revision ? `-${revision}` : ''}.apk`;
-    const driveDestination = path.join(driveDir, driveName);
-
-    console.log('\n--- Googleドライブへコピー ---');
-    copyFileSync(destination, driveDestination);
-
-    const apks = readdirSync(driveDir).filter((file) => file.endsWith('.apk'));
-    const totalMb = apks.reduce((sum, file) => sum + statSync(path.join(driveDir, file)).size, 0) / 1024 / 1024;
-
-    console.log(`✓ 保存: ${driveDestination}`);
-    console.log(`  同期はGoogleドライブ側が自動で行う（フォルダ内 ${apks.length}件 / ${totalMb.toFixed(0)}MB）`);
+    // gh の可用性はビルド前に警告済み。ここでは実際のAPKパス入りの
+    // コマンドを改めて案内するだけで、isGhReady() は呼び直さない。
+    console.log('  gh が使えないため作成をスキップしました。以下を手動で実行してください:\n');
+    console.log(
+      `    gh release create ${release.tag} "${destination}" --draft --title ${release.tag} --generate-notes --target ${release.headSha}\n`,
+    );
   }
 }

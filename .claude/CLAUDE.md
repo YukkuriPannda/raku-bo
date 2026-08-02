@@ -35,9 +35,11 @@ FILEMAP.md も更新すること。
 
 - コードを修正した後は必ず再起動をclaudeが実行してください。
 - easビルドは指示があった場合のみ実行してください
-- APKをビルドしたら必ずGoogleドライブへ配置してください。スマホへの配布経路がこれだけのため、
-  `-- --no-upload` は指示があった場合を除いて使わないこと。ビルド後に
-  `G:\マイドライブ\raku-bo\apk\` にファイルが増えたことを確認してください
+- APKの配布先は GitHub Releases。手順は下の「リリース手順」を参照。
+  `-- --no-upload` は指示があった場合を除いて使わないこと（配布経路がこれだけのため）。
+  リリースは **draft（下書き）** で作られ、公開には本人によるpublishが必要。
+  ビルド後は `gh release list`（draftも含めて表示される）でリリースが
+  作成されたことを確認すること
 
 ## 再起動コマンド（Docker）
 
@@ -58,13 +60,48 @@ FILEMAP.md も更新すること。
   `cd mobile && npx eas build --profile production --platform ios`
 - ビルド後はQRコードまたはリンクからインストール可能
 
+## リリース手順
+
+配布先は GitHub Releases。`YukkuriPannda/raku-bo` は public なので、
+publish後はスマホのブラウザから認証なしでAPKを直接ダウンロードできる。
+
+本人が公開前に説明文を確認したいため、**リリースは draft（下書き）として作られる。
+publishするまでは外部に見えない。**
+
+1. **`mobile/app.json` の `expo.version` を上げる**（例 `1.0.0` → `1.0.1`）
+2. コミットして `git push`
+3. `release.bat` を実行（または `cd mobile && npm run build:android`）
+4. `gh release create` の出力に出るURLを開き、**自動生成された説明文に目を通す**
+   （`--generate-notes` による自動生成なので、内容が実態と合っているか確認すること）
+5. 問題なければ GitHub 上で **publish**（これを忘れると誰にも配布されない）
+6. スマホからは https://github.com/YukkuriPannda/raku-bo/releases の Assets から入れる
+   （publish後のみダウンロード可能）
+
+タグは `v<expo.version>`（例 `v1.0.1`）で、リリースノートは前回タグからの
+コミットで自動生成される（`--generate-notes`）。
+
+### ビルド前に止まる条件
+
+APKのビルドは10〜20分かかるので、リリースの前提は**gradleを動かす前**に確認する
+（`preflightRelease()`）。前提を満たさないときは20分待たされてから失敗するのではなく、
+その場で止まる。
+
+| 状況 | 挙動 |
+|---|---|
+| `expo.version` の上げ忘れ（タグが既出） | 停止。**黙って上書きも改名もしない**（意図した仕様であり不具合ではない） |
+| `expo.version` の上げ忘れ（publishし忘れのdraftが残っている） | 停止。draftはpublishするまでgitタグを作らないため、タグの有無だけでは検出できない。`gh release view <tag>` でdraftも含めて確認する（`gh`が使えるときのみ） |
+| HEAD が未プッシュ | 停止。リリースはリモートのコミットにタグを打つため、未pushだと「APKの中身」と「リリースが指すコード」がズレる |
+| `gh` が無い / 未認証 | **止めない。** ビルドは通し、完了後に手動実行用のコマンドを表示する。ただしこの場合、draftの重複は検出できない |
+| `-- --debug` | リリース処理に一切入らない（デバッグAPKは配布物ではない） |
+
 ## ローカルビルド（EASを使わない）
 
 `cd mobile && npm run build:android`（リリースAPK。`-- --debug` でデバッグ、`-- --clean` で android/ を作り直し）
 
 - 成果物は `mobile/build/rakubo-release-YYYYMMDD.apk`。`adb install -r <path>` で導入
-- ビルド後に `G:\マイドライブ\raku-bo\apk\` へ自動コピーされ、Googleドライブが同期する
-  （スマホから直接ダウンロード可能。保存先は `RAKUBO_DRIVE_DIR`、無効化は `-- --no-upload`）
+- ビルド後、GitHub Release が draft（下書き）として自動作成される
+  （無効化は `-- --no-upload`）。**publishしないと公開されない。**
+  手順と前提は上の「リリース手順」を参照
 - JDKとAndroid SDKはスクリプトが自動で探す（PATHのjavaが古くても可）。Android Studio が必要
 - リリースビルドは接続先を本番Workerに固定する（`.env` の開発機URLは使わない）
 - `eas build --local` はWindows非対応のため、`expo prebuild` + Gradle を直接実行している

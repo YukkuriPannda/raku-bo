@@ -2,9 +2,20 @@ import type { OcrResult } from '../types';
 
 // gemini-2.0-flash は無料枠の割り当てが 0 になり、
 // 「Quota exceeded ... limit: 0」で常に429を返すようになったため移行した
-// （時間を置いても回復しない）。gemini-flash-latest は常に現行の
-// flash 系を指すため、同じ理由で個別バージョンが打ち切られても影響を受けにくい。
-const MODEL = 'gemini-flash-latest';
+// （時間を置いても回復しない）。`-latest` エイリアスは常に現行世代を指すため、
+// 同じ理由で個別バージョンが打ち切られても影響を受けにくい。
+//
+// flash ではなく flash-lite を使う理由:
+// 実物のレシートを長辺1600pxにして同じプロンプト・同じ RESPONSE_SCHEMA で
+// 計測したところ、応答は flash 4246ms に対し flash-lite 1631ms（各3回の中央値、
+// flash は別計測の4340msとも一致）で **2.6倍速い**。この1枚では店名・日付・品目・
+// 金額・支払方法すべて両者とも正解だった。
+//
+// ただし精度を比べられたのは**きれいなレシート1枚だけ**で、ブレや縮小で
+// どちらが先に崩れるかは未検証（APIの無料枠を使い切って測り切れなかった）。
+// 実運用で読み取り精度が落ちるようなら、ここを 'gemini-flash-latest' に戻せばよい。
+// 失敗しても呼び出し側に Groq → ダミーデータのフォールバックがある。
+const MODEL = 'gemini-flash-lite-latest';
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 /** Gemini への JSON Schema（構造化出力用） */

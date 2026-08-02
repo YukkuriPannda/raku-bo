@@ -20,10 +20,10 @@ const MAX_IMAGE_BASE64_LENGTH = Math.ceil((MAX_IMAGE_BASE64_BYTES * 4) / 3);
  *
  * 処理フロー:
  * 1. 画像を受け取る
- * 2. R2にアップロード
- * 3. Geminiに送ってOCR解析
- * 4. transactionsテーブルにINSERT（receiptsテーブルにも保存）
- * 5. 結果を返す
+ * 2. R2へのアップロードとGemini(→Groq→ダミー)OCRを並列実行
+ *    （R2キーはOCRの入力ではなく、後段のINSERTでしか使わないため待つ必要がない）
+ * 3. receiptsテーブルにINSERT
+ * 4. 結果を返す
  */
 receipts.post('/', async (c) => {
   const userId = c.get('userId');
@@ -40,8 +40,11 @@ receipts.post('/', async (c) => {
     return c.json({ error: '画像データが含まれていません（フィールド: image, base64文字列）' }, 400);
   }
 
-  // サイズ上限。デコード処理は1バイトずつのループなので、
-  // 上限がないと巨大な入力で Worker の CPU 時間を使い切れてしまう。
+  // サイズ上限。モバイル側で撮影解像度を長辺1600pxに絞ったため、通常ここに来る
+  // base64 は数百KB程度に収まる（10MBはそれよりずっと大きい安全マージン）。
+  // ただし pictureSize が取得できない端末やギャラリー経由の画像など、絞り切れない
+  // 入力は残るため上限自体は下げない。デコードは1バイトずつのループで入力サイズに
+  // 比例してCPU時間を消費するので、上限がないと巨大な入力で使い切れてしまう。
   if (imageBase64.length > MAX_IMAGE_BASE64_LENGTH) {
     return c.json(
       { error: `画像が大きすぎます（上限 ${Math.floor(MAX_IMAGE_BASE64_BYTES / 1024 / 1024)}MB）` },
@@ -64,33 +67,41 @@ receipts.post('/', async (c) => {
   }
 
   try {
-    // 1. R2 にアップロード
-    const r2Key = await uploadReceiptToR2(c.env, userId, imageBuffer);
+    // R2アップロードとOCRは互いの結果を必要としない（R2のキーはOCRの入力ではなく、
+    // 後段の receipts テーブルへの insert でしか使わない）ため、直列で待たずに
+    // 同時に開始する。OCR側は Gemini → Groq → ダミーデータのフォールバックを
+    // 内部で完結させ、reject せず必ず解決する Promise にしてから Promise.all に渡す。
+    // こうしないと、R2 が先に失敗して Promise.all が即座に reject した後、
+    // まだ pending の OCR 側が後から reject したときに unhandled rejection になりうる。
+    const r2Promise = uploadReceiptToR2(c.env, userId, imageBuffer);
 
-    // 2. OCR: Gemini → Groq → ダミーデータの順でフォールバック
-    let ocrResult: OcrResult;
-    try {
-      ocrResult = await analyzeReceiptWithGemini(c.env.GEMINI_API_KEY, imageBase64);
-    } catch (geminiError) {
-      console.warn('Gemini API 失敗、Groq にフォールバック:', geminiError);
+    // OCR: Gemini → Groq → ダミーデータの順でフォールバック
+    const ocrPromise: Promise<OcrResult> = (async () => {
       try {
-        if (!c.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY 未設定');
-        ocrResult = await analyzeReceiptWithGroq(c.env.GROQ_API_KEY, imageBase64);
-      } catch (groqError) {
-        console.warn('Groq API も失敗、ダミーデータで続行:', groqError);
-        const today = new Date().toISOString().split('T')[0];
-        ocrResult = {
-          store_name: '店名不明',
-          date: today,
-          items: [{ name: '商品', price: 0 }],
-          total_amount: 0,
-          category: 'その他',
-          payment_method: 'cash',
-        };
+        return await analyzeReceiptWithGemini(c.env.GEMINI_API_KEY, imageBase64);
+      } catch (geminiError) {
+        console.warn('Gemini API 失敗、Groq にフォールバック:', geminiError);
+        try {
+          if (!c.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY 未設定');
+          return await analyzeReceiptWithGroq(c.env.GROQ_API_KEY, imageBase64);
+        } catch (groqError) {
+          console.warn('Groq API も失敗、ダミーデータで続行:', groqError);
+          const today = new Date().toISOString().split('T')[0];
+          return {
+            store_name: '店名不明',
+            date: today,
+            items: [{ name: '商品', price: 0 }],
+            total_amount: 0,
+            category: 'その他',
+            payment_method: 'cash',
+          };
+        }
       }
-    }
+    })();
 
-    // 3. receipts テーブルに保存
+    const [r2Key, ocrResult] = await Promise.all([r2Promise, ocrPromise]);
+
+    // receipts テーブルに保存
     const supabase = createSupabaseClient(c.env);
 
     const { data: receipt, error: receiptError } = await supabase

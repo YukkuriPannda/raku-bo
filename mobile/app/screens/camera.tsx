@@ -29,21 +29,27 @@ function pickPictureSize(sizes: string[]): string | undefined {
     .map((raw) => {
       const match = raw.match(/^(\d+)x(\d+)$/);
       if (!match) return null;
-      const longEdge = Math.max(parseInt(match[1], 10), parseInt(match[2], 10));
-      return { raw, longEdge };
+      const width = parseInt(match[1], 10);
+      const height = parseInt(match[2], 10);
+      return { raw, longEdge: Math.max(width, height), pixels: width * height };
     })
-    .filter((c): c is { raw: string; longEdge: number } => c !== null);
+    .filter((c): c is { raw: string; longEdge: number; pixels: number } => c !== null);
 
   if (candidates.length === 0) return undefined;
 
+  // 長辺だけでは同点になりうる（例: "1280x720" と "1280x960" はどちらも長辺1280、
+  // "1600x900" と "1600x1200" はどちらも長辺1600）。同点のときソートは安定なので
+  // 端末が返す配列の並び順そのままで結果が決まってしまう。レシートは縦に長い被写体
+  // なので、同じ長辺なら短辺（＝画素数）が大きいほうが写る範囲が広くOCRに有利。
+  // よって同点時は画素数が多いほうを優先するタイブレークを両分岐に入れる。
   const atLeastTarget = candidates.filter((c) => c.longEdge >= TARGET_LONG_EDGE);
   if (atLeastTarget.length > 0) {
-    atLeastTarget.sort((a, b) => a.longEdge - b.longEdge);
+    atLeastTarget.sort((a, b) => a.longEdge - b.longEdge || b.pixels - a.pixels);
     return atLeastTarget[0].raw;
   }
 
   // 1600以上が無い端末では、確保できる最大解像度で妥協する
-  candidates.sort((a, b) => b.longEdge - a.longEdge);
+  candidates.sort((a, b) => b.longEdge - a.longEdge || b.pixels - a.pixels);
   return candidates[0].raw;
 }
 
@@ -56,6 +62,10 @@ export default function CameraScreen() {
   const [facing] = useState<CameraType>('back');
   const [pictureSize, setPictureSize] = useState<string | undefined>(undefined);
   const cameraRef = useRef<CameraView>(null);
+  // pictureSize を設定すると CameraView が再構成されて onCameraReady が再度発火する
+  // （state 更新前後で同じ値を渡すため無限ループにはならないが、そのままだと解像度一覧を
+  // 毎回問い合わせてしまう）。ref フラグで実際に問い合わせるのは最初の1回だけにする。
+  const hasQueriedPictureSizeRef = useRef(false);
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -67,6 +77,9 @@ export default function CameraScreen() {
   // 失敗・空配列の場合は pictureSize を指定しないまま（＝従来動作）にして、
   // 撮影自体ができなくなることを避ける。
   const handleCameraReady = async () => {
+    if (hasQueriedPictureSizeRef.current) return;
+    hasQueriedPictureSizeRef.current = true;
+
     try {
       const sizes = await cameraRef.current?.getAvailablePictureSizesAsync();
       if (sizes && sizes.length > 0) {

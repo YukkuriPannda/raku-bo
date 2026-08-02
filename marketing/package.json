@@ -1,0 +1,11 @@
+{
+  "name": "rakubo-marketing",
+  "private": true,
+  "description": "Twitter用LP画像などの配布アセットを生成する。アプリ本体のビルドとは無関係。",
+  "scripts": {
+    "build:lp": "node build-lp.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.62.1"
+  }
+}

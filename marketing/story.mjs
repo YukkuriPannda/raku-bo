@@ -69,7 +69,7 @@ const html = `<!doctype html><meta charset="utf-8">
 
 <div style="font-size:31px;color:${C.sub};margin-top:40px;text-align:center;line-height:1.6">
   Googleカレンダーのシフトから今月のバイト代を自動計算。<br>
-  支出と予定を引いた“あと使える額”だけを見せます。</div>
+  支出と予定支出を引いた“あと使える額”だけを見せます。</div>
 
 <div style="margin-top:auto;font-size:36px;font-weight:800;color:${C.primary}">
   Androidテスター募集中</div>`;

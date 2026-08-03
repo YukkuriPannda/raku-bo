@@ -87,7 +87,7 @@ const panels = [
   ['今月あと、いくら使える？', shot('real/home.png')],
   ['Googleカレンダーから、<br>給料を自動で予測。', shot('real/shifts.masked.png')],
   ['レシートは、撮るだけ。', cameraPanel],
-  ['先の出費も、織り込み済み。', shot('real/planned.masked.png')],
+  ['予定支出も、織り込み済み。', shot('real/planned.masked.png')],
 ];
 
 const html = `<!doctype html><meta charset="utf-8">

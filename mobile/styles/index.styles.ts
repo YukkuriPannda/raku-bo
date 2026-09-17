@@ -104,6 +104,58 @@ export const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
 
+  // カテゴリ別支出の円グラフ（ホーム画面）
+  categoryCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  categoryTitle: {
+    ...typography.label,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  categoryEmptyText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: spacing.md,
+  },
+  categoryBody: {
+    alignItems: 'center',
+  },
+  categoryChart: {
+    marginBottom: spacing.md,
+  },
+  categoryLegend: {
+    width: '100%',
+  },
+  categoryLegendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  categoryLegendSwatch: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+    marginRight: spacing.sm,
+  },
+  categoryLegendLabel: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textPrimary,
+    marginRight: spacing.sm,
+  },
+  categoryLegendValue: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+
   // 支出の草グラフ（ホーム画面）
   heatmapCard: {
     backgroundColor: colors.surface,

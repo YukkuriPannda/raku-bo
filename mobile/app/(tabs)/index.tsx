@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,17 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { GestureDetector } from 'react-native-gesture-handler';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 import { useAppStore } from '@/store';
+import { ALL_CATEGORIES } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/index.styles';
 import { buildRollingCells, buildMonthLabels, chunkIntoWeeks, LEVEL_COLORS, OUT_OF_RANGE_COLOR } from '@/lib/heatmap';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import type { DailySpend } from '@/lib/widget-bridge';
+import type { Transaction } from '@/types';
 
 // 建て替え（未回収）を表す色。記録画面・履歴・ウィジェットと共通
 const ADVANCE_COLOR = '#E65100';
@@ -98,10 +101,136 @@ function SpendingHeatmap({ days }: { days: DailySpend[] }) {
   );
 }
 
+// カテゴリの色を安定させるための固定パレット。カテゴリの並び順や
+// 種類数に関わらず、同じカテゴリ文字列には常に同じ色を割り当てる
+const CATEGORY_CHART_PALETTE = [
+  '#1B7F4F', '#2F80ED', '#F2994A', '#9B51E0', '#EB5757',
+  '#219653', '#F2C94C', '#56CCF2', '#BB6BD9', '#6FCF97',
+];
+
+function categoryChartColor(category: string): string {
+  const standardIndex = ALL_CATEGORIES.findIndex((name) => name === category);
+  if (standardIndex >= 0) return CATEGORY_CHART_PALETTE[standardIndex];
+
+  let hash = 0;
+  for (let i = 0; i < category.length; i++) {
+    hash = (hash * 31 + category.charCodeAt(i)) | 0;
+  }
+  return CATEGORY_CHART_PALETTE[(hash >>> 0) % CATEGORY_CHART_PALETTE.length];
+}
+
+function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+// 中心(cx, cy)から半径rの円周上を startAngle→endAngle（時計回り、0°=12時）
+// でつなぐ扇形パス
+function describePieSlice(cx: number, cy: number, r: number, startAngle: number, endAngle: number): string {
+  const start = polarToCartesian(cx, cy, r, startAngle);
+  const end = polarToCartesian(cx, cy, r, endAngle);
+  const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x} ${end.y} Z`;
+}
+
+interface CategoryTotal {
+  category: string;
+  amount: number;
+  percentage: number;
+  color: string;
+}
+
+const CATEGORY_CHART_SIZE = 140;
+const CATEGORY_CHART_RADIUS = CATEGORY_CHART_SIZE / 2;
+
+// 今月のカテゴリ別支出の円グラフ
+function CategorySpendingChart({ transactions }: { transactions: Transaction[] }) {
+  const categoryTotals = useMemo<CategoryTotal[]>(() => {
+    const totalsByCategory = new Map<string, number>();
+
+    for (const t of transactions) {
+      if (t.type !== 'cash' || t.is_advance) continue;
+      if (!Number.isFinite(t.amount) || t.amount <= 0) continue;
+      // カスタムカテゴリの表記ゆれを正規化せず、入力された文字列のまま集計する
+      const category = t.category as string;
+      totalsByCategory.set(category, (totalsByCategory.get(category) ?? 0) + t.amount);
+    }
+
+    const total = Array.from(totalsByCategory.values()).reduce((sum, v) => sum + v, 0);
+    if (total <= 0) return [];
+
+    return Array.from(totalsByCategory.entries())
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percentage: (amount / total) * 100,
+        color: categoryChartColor(category),
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [transactions]);
+
+  const total = categoryTotals.reduce((sum, c) => sum + c.amount, 0);
+
+  let startAngle = 0;
+
+  return (
+    <View style={styles.categoryCard}>
+      <Text style={styles.categoryTitle}>📊 カテゴリ別支出</Text>
+
+      {categoryTotals.length === 0 ? (
+        <Text style={styles.categoryEmptyText}>この月の支出データはまだありません</Text>
+      ) : (
+        <View style={styles.categoryBody}>
+          <Svg width={CATEGORY_CHART_SIZE} height={CATEGORY_CHART_SIZE} style={styles.categoryChart}>
+            {categoryTotals.length === 1 ? (
+              // 単一カテゴリの場合、始角=終角の扇形パスは描画されないため円で代用する
+              <Circle
+                cx={CATEGORY_CHART_RADIUS}
+                cy={CATEGORY_CHART_RADIUS}
+                r={CATEGORY_CHART_RADIUS}
+                fill={categoryTotals[0].color}
+              />
+            ) : (
+              categoryTotals.map((c) => {
+                const sweep = (c.amount / total) * 360;
+                const endAngle = Math.min(startAngle + sweep, 360);
+                const path = describePieSlice(
+                  CATEGORY_CHART_RADIUS,
+                  CATEGORY_CHART_RADIUS,
+                  CATEGORY_CHART_RADIUS,
+                  startAngle,
+                  endAngle
+                );
+                startAngle = endAngle;
+                return <Path key={c.category} d={path} fill={c.color} />;
+              })
+            )}
+          </Svg>
+
+          <View style={styles.categoryLegend}>
+            {categoryTotals.map((c) => (
+              <View key={c.category} style={styles.categoryLegendRow}>
+                <View style={[styles.categoryLegendSwatch, { backgroundColor: c.color }]} />
+                <Text style={styles.categoryLegendLabel} numberOfLines={1}>
+                  {c.category}
+                </Text>
+                <Text style={styles.categoryLegendValue}>
+                  {formatCurrency(c.amount)}（{c.percentage.toFixed(1)}%）
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const {
     balance,
+    transactions,
     transactionsLoading,
     shiftsLoading,
     plannedExpendituresLoading,
@@ -224,6 +353,9 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* カテゴリ別支出の円グラフ */}
+        <CategorySpendingChart transactions={transactions} />
 
         {/* 支出の草グラフ */}
         <SpendingHeatmap days={heatmapDays} />

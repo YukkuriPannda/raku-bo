@@ -134,6 +134,7 @@
 | `docker-compose.yml` | 開発環境（backend / web / mobile の3サービス） |
 | `.claude/CLAUDE.md` | 作業時の決まりごと。**ビルド・配布・署名鍵の方針はここが正** |
 | `.claude/FILEMAP.md` | このファイル |
+| `.agents/skills/raku-bo-eas-build/SKILL.md` | EAS クラウドビルドの実行・完了確認・実機導入の手順 |
 
 ---
 

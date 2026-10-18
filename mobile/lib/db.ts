@@ -135,6 +135,32 @@ export async function removeKVItem(key: string): Promise<void> {
 }
 
 // ============================================================
+// UPSERT 用の SQL とパラメータ
+// cacheTransactions と syncCachedMonth で同じ列順を使うため共有する
+// ============================================================
+const UPSERT_TRANSACTION_SQL = `INSERT OR REPLACE INTO transactions
+  (id, user_id, type, amount, category, payment_method,
+   store_name, receipt_url, is_advance, settled_at, transacted_at, created_at)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+function upsertTransactionParams(tx: Transaction): (string | number | null)[] {
+  return [
+    tx.id,
+    tx.user_id,
+    tx.type,
+    tx.amount,
+    tx.category,
+    tx.payment_method,
+    tx.store_name ?? null,
+    tx.receipt_url ?? null,
+    tx.is_advance ? 1 : 0,
+    tx.settled_at ?? null,
+    tx.transacted_at,
+    tx.created_at,
+  ];
+}
+
+// ============================================================
 // トランザクションをローカル DB に UPSERT（キャッシュ）
 // ============================================================
 export async function cacheTransactions(transactions: Transaction[]): Promise<void> {
@@ -156,27 +182,76 @@ export async function cacheTransactions(transactions: Transaction[]): Promise<vo
   // 排他ロックを取り合って自分自身を待つことになる。
   await database.withExclusiveTransactionAsync(async (txn) => {
     for (const tx of transactions) {
+      await txn.runAsync(UPSERT_TRANSACTION_SQL, upsertTransactionParams(tx));
+    }
+  });
+}
+
+// ============================================================
+// キャッシュを「その月のサーバ結果」と一致させる
+//
+// cacheTransactions は INSERT OR REPLACE しかしないため、サーバ側で消えた行が
+// キャッシュに残り続ける。その状態で API が失敗して getCachedTransactions 経路に
+// 落ちると、削除済みの支出が画面に復活し calcBalance が残額に含めてしまう
+// （ログアウトして clearCache されるまで直らない）。
+// そこで取得結果を書き込むのと同時に、同じ月・同じユーザーで結果に無い行を消す。
+//
+// transactions が空でも呼ぶこと。サーバが0件を返した月こそ、
+// 古い行を全部消す必要がある（cacheTransactions の早期 return では消えない）。
+//
+// @param month  "YYYY-MM" 形式
+// @param userId 取得したユーザーのID。無い場合は誰の行を消すべきか決められないので何もしない
+// ============================================================
+export async function syncCachedMonth(
+  month: string,
+  userId: string | null,
+  transactions: Transaction[]
+): Promise<void> {
+  // 対象ユーザーが分からないまま DELETE すると他アカウントのキャッシュまで
+  // 消しうるため、何もしない（fail closed）
+  if (!userId) return;
+
+  const database = await getDB();
+
+  // 排他トランザクションを使う理由と、コールバック内で txn を使う理由は
+  // cacheTransactions のコメントを参照
+  await database.withExclusiveTransactionAsync(async (txn) => {
+    for (const tx of transactions) {
+      await txn.runAsync(UPSERT_TRANSACTION_SQL, upsertTransactionParams(tx));
+    }
+
+    // この月でサーバが返さなかった行を削除する。
+    // id は TEXT PRIMARY KEY なのでプレースホルダを並べて NOT IN で絞る
+    const ids = transactions.map((tx) => tx.id);
+    if (ids.length === 0) {
       await txn.runAsync(
-        `INSERT OR REPLACE INTO transactions
-          (id, user_id, type, amount, category, payment_method,
-           store_name, receipt_url, is_advance, settled_at, transacted_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          tx.id,
-          tx.user_id,
-          tx.type,
-          tx.amount,
-          tx.category,
-          tx.payment_method,
-          tx.store_name ?? null,
-          tx.receipt_url ?? null,
-          tx.is_advance ? 1 : 0,
-          tx.settled_at ?? null,
-          tx.transacted_at,
-          tx.created_at,
-        ]
+        'DELETE FROM transactions WHERE user_id = ? AND transacted_at LIKE ?',
+        [userId, `${month}%`]
+      );
+    } else {
+      const placeholders = ids.map(() => '?').join(', ');
+      await txn.runAsync(
+        `DELETE FROM transactions
+         WHERE user_id = ? AND transacted_at LIKE ? AND id NOT IN (${placeholders})`,
+        [userId, `${month}%`, ...ids]
       );
     }
+  });
+}
+
+// ============================================================
+// キャッシュから1件削除
+//
+// 削除APIが成功した直後に呼ぶ。これを忘れると上記のとおり
+// オフライン経路で削除済みの行が復活する。
+// ============================================================
+export async function deleteCachedTransaction(id: string): Promise<void> {
+  const database = await getDB();
+
+  // 1文でも書き込みは withExclusiveTransactionAsync 経由にする
+  // （他の月の取得と並行しても BEGIN がぶつからない。cacheTransactions のコメント参照）
+  await database.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync('DELETE FROM transactions WHERE id = ?', [id]);
   });
 }
 

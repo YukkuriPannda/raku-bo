@@ -8,7 +8,13 @@ import { create } from 'zustand';
 import { transactionApi, balanceApi, shiftApi, profileApi, plannedExpenditureApi, calendarEventApi, authApi } from '@/lib/api';
 import { signOut as authSignOut, loadGoogleRefreshToken, saveGoogleAccessToken } from '@/lib/auth';
 import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage, describeError } from '@/lib/auth-errors';
-import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
+import {
+  cacheTransactions,
+  getCachedTransactions,
+  clearCache,
+  syncCachedMonth,
+  deleteCachedTransaction,
+} from '@/lib/db';
 import { saveWidgetBudget, clearWidgetBudget, saveWidgetHeatmap, clearWidgetHeatmap } from '@/lib/widget-bridge';
 import { showReceiptQuickCaptureNotification, clearReceiptQuickCaptureNotification } from '@/lib/notifications';
 import type { DailySpend } from '@/lib/widget-bridge';
@@ -41,6 +47,29 @@ async function cacheTransactionsQuietly(transactions: Transaction[], where: stri
     await cacheTransactions(transactions);
   } catch (error) {
     console.warn(`[${where}] キャッシュ保存に失敗（表示と同期は継続）:`, describeError(error));
+  }
+}
+
+/** その月のキャッシュをサーバ結果に合わせる。失敗しても取得結果は捨てない */
+async function syncCachedMonthQuietly(
+  month: string,
+  userId: string | null,
+  transactions: Transaction[],
+  where: string
+): Promise<void> {
+  try {
+    await syncCachedMonth(month, userId, transactions);
+  } catch (error) {
+    console.warn(`[${where}] キャッシュ同期に失敗（表示と同期は継続）:`, describeError(error));
+  }
+}
+
+/** キャッシュから1件消す。失敗しても削除API成功を巻き戻さない */
+async function deleteCachedTransactionQuietly(id: string, where: string): Promise<void> {
+  try {
+    await deleteCachedTransaction(id);
+  } catch (error) {
+    console.warn(`[${where}] キャッシュ削除に失敗（表示と同期は継続）:`, describeError(error));
   }
 }
 
@@ -317,8 +346,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data: Transaction[] = res.data;
       set({ transactions: data });
 
-      // 保存の失敗で取得結果を捨ててはいけない（cacheTransactionsQuietly のコメント参照）
-      await cacheTransactionsQuietly(data, 'fetchTransactions');
+      // 保存の失敗で取得結果を捨ててはいけない（cacheTransactionsQuietly のコメント参照）。
+      // UPSERT だけでなく、この月でサーバが返さなかった行の削除まで行う
+      // （そうしないと削除済みの支出がオフライン経路で復活する）
+      await syncCachedMonthQuietly(month, get().user?.id ?? null, data, 'fetchTransactions');
     } catch (error) {
       console.warn('[fetchTransactions] API エラー、キャッシュから取得:', describeError(error));
       // オフライン時はキャッシュから読み込む。
@@ -630,6 +661,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((state) => ({
         transactions: state.transactions.filter((t) => t.id !== id),
       }));
+      // ローカルキャッシュからも消す。残したままにすると、後で API が失敗して
+      // getCachedTransactions 経路に落ちたときに削除済みの行が画面に復活し、
+      // calcBalance がその金額まで残額に含めてしまう
+      await deleteCachedTransactionQuietly(id, 'deleteTransaction');
       get().calcBalance();
     } catch (error) {
       console.error('[deleteTransaction] エラー:', describeError(error));

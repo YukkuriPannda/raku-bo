@@ -1,0 +1,77 @@
+# 履歴画面の「月の切り替え」と「カテゴリ絞り込み」の回帰テスト。
+#
+# 前提: 対象端末で既にログイン済みであること（このフローはログインを行わない）。
+# 実行例:
+#   maestro --device emulator-5554 test .maestro/history-month-and-category-filter.yaml
+#   maestro --udid emulator-5554 --app-id com.rakubo.app test .maestro/...  # リリースAPK
+#
+# Maestro が「device offline」や「not connected」で落ちるときは、adb に居座る幽霊端末
+# （NTKDaemon が TCP 5563 を掴んでいるせいで出る emulator-5562 offline）が原因。
+# Maestro は端末を1つずつ開くので、offline の1台で探索ごと失敗する。5563 を空けるか再起動する。
+#
+# 件数や明細は端末のデータで変わるため、データに依存する項目は検証しない。
+# 代わりに「記録が存在し得ない過去月」まで遡り、そこで空表示の文言を突き合わせる。
+# デバッグビルドは applicationId に .debug が付く。リリースAPKに対して走らせるときは
+# maestro test --app-id com.rakubo.app .maestro/... で上書きする
+appId: com.rakubo.app.debug
+env:
+  # 遡る月数。アプリ稼働開始より前に届く値であれば何でもよい。下の repeat と揃える
+  PAST_MONTHS: 30
+---
+- launchApp:
+    clearState: false
+
+- assertVisible: らく〜ぼ
+- tapOn:
+    text: 履歴
+    index: 0
+- assertVisible: 支出履歴
+
+# 月ラベルの書式。例「2026年10月 （24 件）」
+- assertVisible: "\\d{4}年\\d{1,2}月 （\\d+ 件）"
+
+# 月ラベルは実行日から組み立てる。PAST_MONTHS と下の repeat の回数は揃えること
+- evalScript: ${var n = new Date(); var f = function (y, m) { var d = new Date(y, m, 1); return d.getFullYear() + '年' + (d.getMonth() + 1) + '月'; }; output.thisMonth = f(n.getFullYear(), n.getMonth()); output.prevMonth = f(n.getFullYear(), n.getMonth() - 1); output.pastMonth = f(n.getFullYear(), n.getMonth() - PAST_MONTHS)}
+
+- assertVisible: "${output.thisMonth} （\\d+ 件）"
+
+# 今月を表示中は「次の月」が無効。押しても月が進まない
+- tapOn: 次の月
+- assertVisible: "${output.thisMonth} （\\d+ 件）"
+
+# 前の月 → 1ヶ月戻る。次の月 → 戻ってくる
+- tapOn: 前の月
+- assertVisible: "${output.prevMonth} （\\d+ 件）"
+- tapOn: 次の月
+- assertVisible: "${output.thisMonth} （\\d+ 件）"
+
+# 記録が無い過去月まで遡る
+- repeat:
+    times: ${PAST_MONTHS}
+    commands:
+      - tapOn: 前の月
+- assertVisible: "${output.pastMonth} （0 件）"
+- assertVisible: "${output.pastMonth}の支出記録はありません"
+
+# カテゴリで絞り込むと、空表示の文言にカテゴリ名が入る
+- scrollUntilVisible:
+    element: "💊 医療"
+    direction: RIGHT
+    centerElement: true
+- tapOn: "💊 医療"
+- assertVisible: "${output.pastMonth} （0 件）"
+- assertVisible: "${output.pastMonth}の「医療」の記録はありません"
+
+# 「すべて」で絞り込み解除
+- scrollUntilVisible:
+    element: すべて
+    direction: LEFT
+- tapOn: すべて
+- assertVisible: "${output.pastMonth}の支出記録はありません"
+
+# 今月に戻して終了（次の実行に状態を持ち越さない）
+- repeat:
+    times: ${PAST_MONTHS}
+    commands:
+      - tapOn: 次の月
+- assertVisible: "${output.thisMonth} （\\d+ 件）"

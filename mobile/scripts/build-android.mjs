@@ -317,6 +317,9 @@ function javaMajorVersion(javaHome) {
   return major === 1 ? Number(match[2]) : major;
 }
 
+// Gradle 8.14 が動く上限。Gradle を上げたらここも上げる
+const MAX_JDK_VERSION = 21;
+
 function resolveJavaHome() {
   const candidates = [
     process.env.JAVA_HOME,
@@ -327,13 +330,16 @@ function resolveJavaHome() {
     '/usr/lib/jvm/java-17-openjdk-amd64',
   ].filter(Boolean);
 
+  // 上限があるのは、Gradle が自分より新しいJDKのクラスファイルを読めず
+  // 「Unsupported class file major version」で落ちるため。JAVA_HOME に
+  // 新しすぎるJDK（Java 25 など）が入っていても Android Studio 同梱の JBR を選ぶ
   for (const candidate of candidates) {
     const version = javaMajorVersion(candidate);
-    if (version !== null && version >= 17) return candidate;
+    if (version !== null && version >= 17 && version <= MAX_JDK_VERSION) return candidate;
   }
 
   fail(
-    'JDK 17以上が見つかりませんでした。Android Studio を入れるか、JAVA_HOME に JDK 17+ を設定してください。',
+    `JDK 17〜${MAX_JDK_VERSION} が見つかりませんでした。Android Studio を入れるか、JAVA_HOME にその範囲のJDKを設定してください。`,
   );
 }
 

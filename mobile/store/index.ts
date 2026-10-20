@@ -780,6 +780,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const newTx: Transaction = res.data;
       set((state) => ({
         transactions: [newTx, ...state.transactions],
+        // 履歴画面は transactionsByMonth を見るので、こちらにも入れないと
+        // 再取得するまで完了した予定支出が履歴に出ない
+        transactionsByMonth: upsertIntoMonths(state.transactionsByMonth, newTx),
         plannedExpenditures: state.plannedExpenditures.filter((p) => p.id !== id),
       }));
       await cacheTransactionsQuietly([newTx], 'completePlannedExpenditure');

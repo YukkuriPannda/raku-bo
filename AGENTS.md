@@ -9,13 +9,14 @@ Codex / Claude / その他のエージェントで扱いは同じ。
 | --- | --- |
 | どのファイルが何をしているか、事故につながった前提 | [.claude/FILEMAP.md](.claude/FILEMAP.md) |
 | 各タブの仕様 | [docs/spec-common.md](docs/spec-common.md) と `docs/spec-*.md` |
+| 各ウィジェットの仕様 | [docs/spec-widget-common.md](docs/spec-widget-common.md) と `docs/spec-widget-*.md` |
 | ブランチ運用・コミット | [docs/git.md](docs/git.md) |
 | ビルド・リリース・署名鍵 | [docs/release.md](docs/release.md) |
 | 役割分担（誰が決め、誰が実装するか） | [docs/subagents.md](docs/subagents.md) |
 | 画面遷移 / DBスキーマ | [docs/screen-transitions.md](docs/screen-transitions.md) / [docs/er-diagram.md](docs/er-diagram.md) |
 
 構造を変える変更（ファイルの追加・削除・移動、責務の移動）を入れたら FILEMAP.md を更新する。
-タブの挙動を変えたら対応する `docs/spec-*.md` を更新する。
+タブやウィジェットの挙動を変えたら対応する `docs/spec-*.md` を更新する。
 
 ## 作業の流れ
 

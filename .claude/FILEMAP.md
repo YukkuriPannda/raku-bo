@@ -145,6 +145,7 @@
 |---|---|
 | `docs/spec-common.md` | タブ共通の仕様（タブ構成・FAB・スワイプ・取得規則・残額の式） |
 | `docs/spec-home.md` 他 | 各タブの仕様。`spec-<タブ名>.md` |
+| `docs/spec-widget-common.md` 他 | ウィジェット共通と各ウィジェットの仕様 |
 | `docs/git.md` | ブランチ運用（git-flow） |
 | `docs/release.md` | ビルド・リリース・署名鍵。**配布の方針はここが正** |
 | `docs/subagents.md` | 誰が決め、誰が実装・調査・検証するか |

@@ -25,6 +25,7 @@
 | --- | --- |
 | どのファイルが何をしているか | [.claude/FILEMAP.md](.claude/FILEMAP.md) |
 | 各タブの仕様 | [docs/spec-common.md](docs/spec-common.md) と `docs/spec-*.md` |
+| 各ウィジェットの仕様 | [docs/spec-widget-common.md](docs/spec-widget-common.md) と `docs/spec-widget-*.md` |
 | 画面遷移 | [docs/screen-transitions.md](docs/screen-transitions.md) |
 | DBスキーマ | [docs/er-diagram.md](docs/er-diagram.md) |
 | ブランチ運用 | [docs/git.md](docs/git.md) |

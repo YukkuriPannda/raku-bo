@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { memo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,47 @@ function ShiftItem({ item }: { item: ShiftEvent }) {
   );
 }
 
+type ShiftsListHeaderProps = {
+  calendarError: string | null;
+  clearCalendarError: () => void;
+  incomeForecast: number;
+  onOpenSettings: () => void;
+  shifts: ShiftEvent[];
+};
+
+const ShiftsListHeader = memo(function ShiftsListHeader({
+  calendarError,
+  clearCalendarError,
+  incomeForecast,
+  onOpenSettings,
+  shifts,
+}: ShiftsListHeaderProps) {
+  return (
+    <View>
+      {calendarError && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{calendarError}</Text>
+          <TouchableOpacity onPress={clearCalendarError}>
+            <Text style={styles.errorDismiss}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      <View style={styles.forecastCard}>
+        <Text style={styles.forecastLabel}>今月の月収見込み</Text>
+        <Text style={styles.forecastAmount}>¥{incomeForecast.toLocaleString('ja-JP')}</Text>
+        <Text style={styles.forecastSub}>
+          シフト {shifts.length} 件 · 合計 {shifts.reduce((s, i) => s + i.duration_hours, 0).toFixed(1)} 時間
+        </Text>
+        <TouchableOpacity style={styles.settingsGearBtn} onPress={onOpenSettings} activeOpacity={0.7}>
+          <Text style={styles.settingsGearIcon}>⚙️</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionLabel}>シフト一覧 ({shifts.length} 件)</Text>
+    </View>
+  );
+});
+
 export default function ShiftsScreen() {
   const { shifts, balance, hourlyWage, shiftKeywords, shiftsLoading, calendarError, clearCalendarError, fetchShifts, setHourlyWage, setShiftKeywords, logout } = useAppStore(
     useShallow((s) => ({
@@ -70,6 +111,7 @@ export default function ShiftsScreen() {
   const [keywordsInput, setKeywordsInput] = useState(shiftKeywords.join('\n'));
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const swipeGesture = useSwipeTabNavigation();
+  const openSettings = useCallback(() => setSettingsModalVisible(true), []);
 
   useFocusEffect(
     useCallback(() => {
@@ -110,35 +152,6 @@ export default function ShiftsScreen() {
     ]);
   };
 
-  const ListHeader = () => (
-    <View>
-      {calendarError && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{calendarError}</Text>
-          <TouchableOpacity onPress={clearCalendarError}>
-            <Text style={styles.errorDismiss}>✕</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      <View style={styles.forecastCard}>
-        <Text style={styles.forecastLabel}>今月の月収見込み</Text>
-        <Text style={styles.forecastAmount}>¥{balance.income_forecast.toLocaleString('ja-JP')}</Text>
-        <Text style={styles.forecastSub}>
-          シフト {shifts.length} 件 · 合計 {shifts.reduce((s, i) => s + i.duration_hours, 0).toFixed(1)} 時間
-        </Text>
-        <TouchableOpacity
-          style={styles.settingsGearBtn}
-          onPress={() => setSettingsModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.settingsGearIcon}>⚙️</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.sectionLabel}>シフト一覧 ({shifts.length} 件)</Text>
-    </View>
-  );
-
   return (
     <GestureDetector gesture={swipeGesture}>
     <KeyboardAvoidingView
@@ -149,7 +162,15 @@ export default function ShiftsScreen() {
         data={shifts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }: ListRenderItemInfo<ShiftEvent>) => <ShiftItem item={item} />}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={
+          <ShiftsListHeader
+            calendarError={calendarError}
+            clearCalendarError={clearCalendarError}
+            incomeForecast={balance.income_forecast}
+            onOpenSettings={openSettings}
+            shifts={shifts}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>📅</Text>

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -39,7 +39,7 @@ function formatCurrency(amount: number): string {
 const DAY_LABELS = ['', '月', '', '水', '', '金', ''];
 
 // 支出の草グラフ（GitHubの草グラフ風ヒートマップ）
-function SpendingHeatmap({ days }: { days: DailySpend[] }) {
+const SpendingHeatmap = memo(function SpendingHeatmap({ days }: { days: DailySpend[] }) {
   const router = useRouter();
   const columns = chunkIntoWeeks(buildRollingCells(days));
   const monthLabels = buildMonthLabels(days, columns.length);
@@ -100,7 +100,7 @@ function SpendingHeatmap({ days }: { days: DailySpend[] }) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 // カテゴリの色を安定させるための固定パレット。カテゴリの並び順や
 // 種類数に関わらず、同じカテゴリ文字列には常に同じ色を割り当てる
@@ -145,7 +145,7 @@ const CATEGORY_CHART_SIZE = 140;
 const CATEGORY_CHART_RADIUS = CATEGORY_CHART_SIZE / 2;
 
 // 今月のカテゴリ別支出の円グラフ
-function CategorySpendingChart({ transactions }: { transactions: Transaction[] }) {
+const CategorySpendingChart = memo(function CategorySpendingChart({ transactions }: { transactions: Transaction[] }) {
   const categoryTotals = useMemo<CategoryTotal[]>(() => {
     const totalsByCategory = new Map<string, number>();
 
@@ -225,7 +225,7 @@ function CategorySpendingChart({ transactions }: { transactions: Transaction[] }
       )}
     </View>
   );
-}
+});
 
 export default function HomeScreen() {
   const router = useRouter();

@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.rakubo.probe">
+
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="28" />
+
+    <application
+        android:allowBackup="false"
+        android:debuggable="true"
+        android:label="Transition Probe" />
+
+    <instrumentation
+        android:name=".TransitionProbe"
+        android:targetPackage="com.rakubo.app.debug"
+        android:functionalTest="true"
+        android:handleProfiling="false" />
+</manifest>

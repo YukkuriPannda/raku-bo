@@ -25,6 +25,9 @@ git switch -c feature/category-filter
 git push -u origin feature/category-filter
 ```
 
+アプリのPRは、draft作成・更新後に **ビルド → Taildrop送信 → 実機検証待ち** まで進める
+（[検証用APKの手順](release.md#pr作成時の検証用apk)）。文書だけの変更はビルド対象外。
+
 マージは PR 経由。**本人の実機確認を通すまでマージしない**（理由と確認手段は
 [../AGENTS.md](../AGENTS.md) の「マージの前に必ず本人の検証を通すこと」）。
 マージ後は作業ブランチを削除する。
@@ -47,7 +50,8 @@ git switch develop && git merge --no-ff release/v1.0.1
 git branch -d release/v1.0.1
 ```
 
-EASビルドとリリースビルドは `main` でしか許可されない。タグは `v<expo.version>`。
+EASビルドと正式リリースビルドは `main` 限定。タグは `v<expo.version>`。
+PR検証用のローカルAPKは [release.md](release.md#pr作成時の検証用apk) の例外に従う。
 
 ## hotfix
 
@@ -66,4 +70,4 @@ git switch develop && git merge --no-ff hotfix/v1.0.2
 - `main` / `develop` への直接コミット
 - 共有済みブランチの `push --force`
 - 本人の確認前のマージ
-- `main` 以外でのEASビルド・リリースビルド
+- `main` 以外でのEASビルド・正式リリースビルド（PR検証用のローカルAPKは上記手順に従う）

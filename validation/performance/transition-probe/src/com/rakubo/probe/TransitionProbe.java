@@ -60,6 +60,13 @@ public final class TransitionProbe extends Instrumentation {
     }
 
     @Override
+    public void callActivityOnResume(Activity activity) {
+        super.callActivityOnResume(activity);
+        // Expo's launcher can replace the original Activity before the React screen opens.
+        if (TARGET_PACKAGE.equals(activity.getPackageName())) targetActivity = activity;
+    }
+
+    @Override
     public void onStart() {
         super.onStart();
         Bundle result = new Bundle();

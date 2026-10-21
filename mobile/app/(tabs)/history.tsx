@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 
 import { useAppStore } from '@/store';
+import { formatNumberJa } from '@/lib/number-format';
 import { ALL_CATEGORIES, CATEGORY_EMOJI } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/history.styles';
@@ -110,7 +111,7 @@ function TransactionItem({
     swipeableRef.current?.close();
     Alert.alert(
       '削除の確認',
-      `この履歴を削除しますか？\n${item.store_name ?? item.category} ¥${item.amount.toLocaleString('ja-JP')}`,
+      `この履歴を削除しますか？\n${item.store_name ?? item.category} ¥${formatNumberJa(item.amount)}`,
       [
         { text: 'キャンセル', style: 'cancel', onPress: () => swipeableRef.current?.close() },
         { text: '削除', style: 'destructive', onPress: () => onDelete(item.id) },
@@ -150,7 +151,7 @@ function TransactionItem({
             )}
           </View>
           <Text style={[styles.itemAmount, item.is_advance && !isSettled && styles.itemAmountAdvance]}>
-            ¥{item.amount.toLocaleString('ja-JP')}
+            ¥{formatNumberJa(item.amount)}
           </Text>
         </View>
         {expanded && (
@@ -159,7 +160,7 @@ function TransactionItem({
               item.items!.map((it) => (
                 <View key={it.id} style={styles.expandedItemRow}>
                   <Text style={styles.expandedItemName} numberOfLines={1}>{it.name}</Text>
-                  <Text style={styles.expandedItemPrice}>¥{it.price.toLocaleString('ja-JP')}</Text>
+                  <Text style={styles.expandedItemPrice}>¥{formatNumberJa(it.price)}</Text>
                 </View>
               ))
             ) : (
@@ -313,7 +314,7 @@ export default function HistoryScreen() {
             <View style={styles.unsettledBar}>
               <Text style={styles.unsettledLabel}>🤝 未回収の建て替え</Text>
               <Text style={styles.unsettledAmount}>
-                ¥{unsettledTotal.toLocaleString('ja-JP')}
+                ¥{formatNumberJa(unsettledTotal)}
               </Text>
             </View>
           ) : null

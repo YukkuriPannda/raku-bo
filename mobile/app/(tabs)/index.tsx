@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 import { useAppStore } from '@/store';
+import { formatNumberJa } from '@/lib/number-format';
 import { ALL_CATEGORIES } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/index.styles';
@@ -32,14 +33,14 @@ function getCurrentMonth(): string {
 }
 
 function formatCurrency(amount: number): string {
-  return `¥${Math.abs(amount).toLocaleString('ja-JP')}`;
+  return `¥${formatNumberJa(Math.abs(amount))}`;
 }
 
 // 曜日ラベル（日曜始まり）。GitHubの草グラフに倣い月・水・金だけ表示する
 const DAY_LABELS = ['', '月', '', '水', '', '金', ''];
 
 // 支出の草グラフ（GitHubの草グラフ風ヒートマップ）
-function SpendingHeatmap({ days }: { days: DailySpend[] }) {
+const SpendingHeatmap = memo(function SpendingHeatmap({ days }: { days: DailySpend[] }) {
   const router = useRouter();
   const columns = chunkIntoWeeks(buildRollingCells(days));
   const monthLabels = buildMonthLabels(days, columns.length);
@@ -100,7 +101,7 @@ function SpendingHeatmap({ days }: { days: DailySpend[] }) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 // カテゴリの色を安定させるための固定パレット。カテゴリの並び順や
 // 種類数に関わらず、同じカテゴリ文字列には常に同じ色を割り当てる
@@ -145,7 +146,7 @@ const CATEGORY_CHART_SIZE = 140;
 const CATEGORY_CHART_RADIUS = CATEGORY_CHART_SIZE / 2;
 
 // 今月のカテゴリ別支出の円グラフ
-function CategorySpendingChart({ transactions }: { transactions: Transaction[] }) {
+const CategorySpendingChart = memo(function CategorySpendingChart({ transactions }: { transactions: Transaction[] }) {
   const categoryTotals = useMemo<CategoryTotal[]>(() => {
     const totalsByCategory = new Map<string, number>();
 
@@ -225,7 +226,7 @@ function CategorySpendingChart({ transactions }: { transactions: Transaction[] }
       )}
     </View>
   );
-}
+});
 
 export default function HomeScreen() {
   const router = useRouter();

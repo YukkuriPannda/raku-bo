@@ -248,6 +248,7 @@ export default function TabsLayout() {
     <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
+          freezeOnBlur: true,
           tabBarActiveTintColor: '#1B7F4F',
           tabBarInactiveTintColor: '#6B7280',
           tabBarStyle: {

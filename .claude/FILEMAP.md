@@ -45,6 +45,7 @@
 | `lib/crypto-polyfill.ts` | PKCE 用の crypto 補完 |
 | `lib/db.ts` | expo-sqlite のローカルキャッシュ |
 | `lib/heatmap.ts` | 草グラフの計算と配色。ホーム画面とウィジェットの**両方**から使うのでUI非依存 |
+| `lib/number-format.ts` | `ja-JP` の数値書式化。画面・通知・残額ウィジェットで `Intl.NumberFormat` を再利用 |
 | `lib/notifications.ts` | 常駐通知（レシート撮影への導線） |
 | `lib/widget-bridge.ts` | ホーム画面ウィジェットへのデータ受け渡し |
 | `store/index.ts` | Zustand。状態と各API呼び出しが集約されている。**一番大きいファイル** |
@@ -71,6 +72,7 @@
 | `widgets/SpendingHeatmapWidget.tsx` | 草グラフウィジェット |
 | `widgets/widget-task-handler.tsx` | ウィジェット更新の headless task |
 | `scripts/build-android.mjs` | EASを使わないローカルAPKビルド。署名鍵の扱いと GitHub Release(draft)の作成もここ。公開(publish)は本人がGitHub上で行う |
+| `scripts/deliver-pr.ps1` | PRのHEAD確認→既存ビルド→署名・バンドル検証→Taildrop送信→PR結果追記。`pr:deliver` から実行。`-SelfCheck` は外部操作なしのガード確認 |
 | `app.json` | Expo設定。パーミッション、プラグイン、ウィジェット定義 |
 
 ---
@@ -129,12 +131,15 @@
 `performance/` は通信とネイティブ機能を模擬して、実際のストアのリクエスト数・
 草グラフ更新・残額計算を検証する。計測条件と結果は `docs/performance-issue-6.md` に記載する。
 画面の購読範囲の検証もここに置き、`.maestro/performance-smoke.yaml` で4タブの遷移を確認する。
+`render-memo.perf.cjs` は図表とヘッダーの更新条件、`number-format.perf.cjs` は数値表示の互換性を検証する。
+`.maestro/tab-state-smoke.yaml` はタブを往復した後の履歴の月・カテゴリ保持を確認する。
 
 `performance/transition-probe/` はAndroid Instrumentationによる既存4タブの読み取り専用計測。
 見出しのOnDrawと遷移後の画像照合を使い、実データの画像は保存しない。
 `summarize.cjs` が成功した実行だけを集計し、`transition-results.json` に匿名の時間記録を保存する。
 `summarize-profile.cjs` はHermesの全サンプルを関数名で集計する。CPU集計は `transition-profile-results.json`。
 実測の条件・結果・CPU調査は `docs/performance-transition-2026-10-21.md` に記載する。
+3件の追加対策と48回の再計測は `docs/performance-followups-8-10.md`、時間記録は `followup-transition-results.json`。
 
 ---
 

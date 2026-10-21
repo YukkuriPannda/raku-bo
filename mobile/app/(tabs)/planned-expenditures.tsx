@@ -17,6 +17,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useAppStore } from '@/store';
+import { formatNumberJa } from '@/lib/number-format';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/planned-expenditures.styles';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
@@ -74,7 +75,7 @@ function PlannedItem({
       </Text>
       {item.memo ? <Text style={styles.itemSub}>{item.memo}</Text> : null}
       <View style={styles.itemFooter}>
-        <Text style={styles.itemAmount}>¥{item.amount.toLocaleString('ja-JP')}</Text>
+        <Text style={styles.itemAmount}>¥{formatNumberJa(item.amount)}</Text>
         <View style={styles.itemButtons}>
           {isSubscription && (
             <>
@@ -524,7 +525,7 @@ export default function PlannedExpendituresScreen() {
             {/* サマリーカード */}
             <View style={styles.totalCard}>
               <Text style={styles.totalLabel}>{formatMonthLabel(viewMonth)}の予定支出合計</Text>
-              <Text style={styles.totalAmount}>¥{total.toLocaleString('ja-JP')}</Text>
+              <Text style={styles.totalAmount}>¥{formatNumberJa(total)}</Text>
               <Text style={styles.totalSub}>
                 🔄 サブスク {subscriptionCount} 件 · 📅 カレンダー {calendarCount} 件
               </Text>

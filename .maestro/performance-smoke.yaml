@@ -1,6 +1,9 @@
 appId: com.rakubo.app.debug
 ---
-- launchApp
+# 前提: dev clientをMetroへ接続し、アプリ本体を前面に出しておく。
+- extendedWaitUntil:
+    visible: "今月あと|http://localhost:8081"
+    timeout: 120000
 - runFlow:
     when:
       visible: "http://localhost:8081"

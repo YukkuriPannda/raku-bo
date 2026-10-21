@@ -6,6 +6,7 @@
 
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
 import type { RecentTransactionSummary } from '@/lib/widget-bridge';
+import { formatNumberJa } from '@/lib/number-format';
 
 // ============================================================
 // Props 定義
@@ -49,7 +50,7 @@ export function RemainingBudgetWidget({
 
       {/* 残額（メイン表示） */}
       <TextWidget
-        text={budget === null ? '¥ ---' : `¥${budget.toLocaleString('ja-JP')}`}
+        text={budget === null ? '¥ ---' : `¥${formatNumberJa(budget)}`}
         maxLines={1}
         style={{ fontSize: 18, fontWeight: 'bold', color, adjustsFontSizeToFit: true }}
       />
@@ -73,7 +74,7 @@ export function RemainingBudgetWidget({
         >
           <TextWidget text="🤝 未回収" style={{ fontSize: 8, color: '#E65100' }} />
           <TextWidget
-            text={`¥${unsettledAdvance.toLocaleString('ja-JP')}`}
+            text={`¥${formatNumberJa(unsettledAdvance)}`}
             style={{ fontSize: 8, fontWeight: '600', color: '#E65100' }}
           />
         </FlexWidget>
@@ -101,7 +102,7 @@ export function RemainingBudgetWidget({
                 />
               </FlexWidget>
               <TextWidget
-                text={`¥${tx.amount.toLocaleString('ja-JP')}`}
+                text={`¥${formatNumberJa(tx.amount)}`}
                 style={{ fontSize: 8, color: '#6b7280' }}
               />
             </FlexWidget>
@@ -131,7 +132,7 @@ export function RemainingBudgetWidget({
                 />
               </FlexWidget>
               <TextWidget
-                text={`¥${p.amount.toLocaleString('ja-JP')}`}
+                text={`¥${formatNumberJa(p.amount)}`}
                 style={{ fontSize: 8, color: '#E65100' }}
               />
             </FlexWidget>

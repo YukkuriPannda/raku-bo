@@ -45,6 +45,11 @@
 - ログアウトで全状態を初期化
 - 各画面・フォームは使用する状態と action だけを購読する。複数フィールドを選ぶ場合は
   `useShallow` を使い、無関係なストア更新で画面を再描画しない
+- Android / iOSでは `freezeOnBlur` で非表示タブの再描画を停止する。タブへ戻ると
+  現在のストア値を反映し、履歴の表示月・カテゴリなどの画面内の状態は保持する。
+  初回の遅延描画と、フォーカス時・フォアグラウンド復帰時の取得規則は変えない
+- 明示的な `ja-JP` の数値表示は `lib/number-format.ts` の `formatNumberJa` を使い、
+  `Intl.NumberFormat` を再利用する。円記号・符号・絶対値の扱いは各表示の従来どおり
 - 起動時の `prefetchInitialData` と `fetchProfile` は `app/_layout.tsx` が呼ぶ。各タブは呼ばない
 
 ## 残額の計算

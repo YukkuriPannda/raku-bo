@@ -1,0 +1,37 @@
+appId: com.rakubo.app.debug
+---
+# 前提: dev clientをMetroへ接続し、アプリ本体を前面に出しておく。
+- extendedWaitUntil:
+    visible: "今月あと|http://localhost:8081"
+    timeout: 120000
+- runFlow:
+    when:
+      visible: "http://localhost:8081"
+    commands:
+      - tapOn: "http://localhost:8081"
+- extendedWaitUntil:
+    visible: "今月あと"
+    timeout: 120000
+- tapOn: "📋, 履歴"
+- evalScript: ${var n = new Date(); var p = new Date(n.getFullYear(), n.getMonth() - 1, 1); output.previousMonth = p.getFullYear() + '年' + (p.getMonth() + 1) + '月'}
+- tapOn: "前の月"
+- assertVisible: "${output.previousMonth}.*"
+- tapOn: "🍚 食費"
+- assertVisible:
+    text: "🍚 食費"
+    selected: true
+- tapOn: "📅, シフト"
+- assertVisible: "シフト・収入見込み"
+- tapOn: "📆, 支出予定"
+- assertVisible: ".*サブスク.*件.*カレンダー.*"
+- tapOn: "🏠, ホーム"
+- assertVisible: "今月あと"
+- tapOn: "📋, 履歴"
+- assertVisible: "${output.previousMonth}.*"
+- assertVisible:
+    text: "🍚 食費"
+    selected: true
+- tapOn: "すべて"
+- tapOn: "次の月"
+- tapOn: "🏠, ホーム"
+- assertVisible: "今月あと"

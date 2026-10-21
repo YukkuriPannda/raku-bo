@@ -130,6 +130,8 @@
 `performance/` は通信とネイティブ機能を模擬して、実際のストアのリクエスト数・
 草グラフ更新・残額計算を検証する。計測条件と結果は `docs/performance-issue-6.md` に記載する。
 画面の購読範囲の検証もここに置き、`.maestro/performance-smoke.yaml` で4タブの遷移を確認する。
+`render-memo.perf.cjs` は図表とヘッダーの更新条件、`number-format.perf.cjs` は数値表示の互換性を検証する。
+`.maestro/tab-state-smoke.yaml` はタブを往復した後の履歴の月・カテゴリ保持を確認する。
 
 `performance/transition-probe/` はAndroid Instrumentationによる既存4タブの読み取り専用計測。
 見出しのOnDrawと遷移後の画像照合を使い、実データの画像は保存しない。

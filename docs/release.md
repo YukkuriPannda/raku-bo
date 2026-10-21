@@ -14,6 +14,29 @@ PR検証用のローカルAPKは、次節の手順でPRの作業ブランチか�
 アプリの変更を含むPRは、**draft PR作成・更新 → ビルド → Taildrop送信 → 本人の実機検証待ち**まで行う。
 文書だけの変更は対象外。EAS、バージョン変更、タグ、GitHub Release作成・公開、マージはこの手順に含めない。
 
+### 自動実行（Windows / PowerShell 7）
+
+コミット・プッシュしてdraft PRを作成したら、`mobile` で実行する。
+
+```powershell
+npm run pr:deliver -- -Pr 12 -Target nothing-phone-2a
+```
+
+`-Target` を省略した場合は `RAKUBO_TAILDROP_TARGET` を使う。送り先の推測はしない。
+GitHub CLIの認証と、本人所有のオンライン端末へのTailscale接続が必要。
+スクリプトがPRと手元のブランチ・HEADの一致、追跡済みファイルの未コミット変更、
+`mobile` 内の未追跡ソース、送信先を確認してから、
+既存のローカルビルド、APK署名・バンドル一致の検証、SHA-256の記録、Taildrop送信、PR本文への結果追記を行う。
+PR作成、実機へのインストール・操作、マージは本人・エージェントの判断を残す。
+
+途中で失敗したら終了コード1で止まる。`mobile/build/rakubo-pr-<PR番号>-<HEAD先頭7桁>.build.json` に
+送信日時とPR更新の成否も記録する。送信後にPR更新だけが失敗した場合、ファイルは送信済みなので結果を確認して手動追記する。
+再実行するとビルド・送信からやり直す。
+
+外部操作なしのガード確認は `npm run pr:deliver -- -SelfCheck`。
+
+### 手動で実行する場合
+
 1. 実装と必要なチェックを終え、コミット・プッシュしてdraft PRを作成・更新する。
 2. PRのブランチ・HEAD・未コミット差分を確認し、アプリのソースがPRのHEADと一致する状態にする。
 3. `mobile` で `npm run build:android -- --no-upload` を実行する。

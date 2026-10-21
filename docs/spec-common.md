@@ -43,6 +43,8 @@
 - 一度取得済みのドメインは、更新中もスピナーに置き換えず前の値を出す（stale-while-revalidate）
 - フォアグラウンド復帰時の再取得は表示中のタブのみ（`hooks/useRefreshOnForeground.ts`）
 - ログアウトで全状態を初期化
+- 各画面・フォームは使用する状態と action だけを購読する。複数フィールドを選ぶ場合は
+  `useShallow` を使い、無関係なストア更新で画面を再描画しない
 - 起動時の `prefetchInitialData` と `fetchProfile` は `app/_layout.tsx` が呼ぶ。各タブは呼ばない
 
 ## 残額の計算

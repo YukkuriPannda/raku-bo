@@ -22,6 +22,7 @@ import { styles } from '@/styles/shifts.styles';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import type { ShiftEvent } from '@/types';
+import { useShallow } from 'zustand/react/shallow';
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -49,7 +50,21 @@ function ShiftItem({ item }: { item: ShiftEvent }) {
 }
 
 export default function ShiftsScreen() {
-  const { shifts, balance, hourlyWage, shiftKeywords, shiftsLoading, calendarError, clearCalendarError, fetchShifts, setHourlyWage, setShiftKeywords, logout } = useAppStore();
+  const { shifts, balance, hourlyWage, shiftKeywords, shiftsLoading, calendarError, clearCalendarError, fetchShifts, setHourlyWage, setShiftKeywords, logout } = useAppStore(
+    useShallow((s) => ({
+      shifts: s.shifts,
+      balance: s.balance,
+      hourlyWage: s.hourlyWage,
+      shiftKeywords: s.shiftKeywords,
+      shiftsLoading: s.shiftsLoading,
+      calendarError: s.calendarError,
+      clearCalendarError: s.clearCalendarError,
+      fetchShifts: s.fetchShifts,
+      setHourlyWage: s.setHourlyWage,
+      setShiftKeywords: s.setShiftKeywords,
+      logout: s.logout,
+    }))
+  );
   const month = getCurrentMonth();
   const [wageInput, setWageInput] = useState(String(hourlyWage));
   const [keywordsInput, setKeywordsInput] = useState(shiftKeywords.join('\n'));

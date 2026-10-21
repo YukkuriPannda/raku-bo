@@ -21,6 +21,7 @@ import { CATEGORY_EMOJI, ALL_CATEGORIES } from '@/types';
 import type { Category, PaymentMethod } from '@/types';
 import { styles } from '@/styles/manual-entry.styles';
 import { colors } from '@/constants/theme';
+import { useShallow } from 'zustand/react/shallow';
 
 const PAYMENT_OPTIONS: { label: string; value: PaymentMethod }[] = [
   { label: '💵 現金', value: 'cash' },
@@ -41,7 +42,15 @@ function todayString() {
 
 export default function ManualEntryScreen() {
   const router = useRouter();
-  const { addTransaction, updateTransaction, transactionsByMonth, pendingImageBase64, clearPendingImage } = useAppStore();
+  const { addTransaction, updateTransaction, transactionsByMonth, pendingImageBase64, clearPendingImage } = useAppStore(
+    useShallow((s) => ({
+      addTransaction: s.addTransaction,
+      updateTransaction: s.updateTransaction,
+      transactionsByMonth: s.transactionsByMonth,
+      pendingImageBase64: s.pendingImageBase64,
+      clearPendingImage: s.clearPendingImage,
+    }))
+  );
   const { transactionId } = useLocalSearchParams<{ transactionId?: string }>();
   const isEditing = !!transactionId;
 

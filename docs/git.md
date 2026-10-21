@@ -25,6 +25,9 @@ git switch -c feature/category-filter
 git push -u origin feature/category-filter
 ```
 
+アプリのPRは、draft作成・更新後に **ビルド → Taildrop送信 → 実機検証待ち** まで進める
+（[検証用APKの手順](release.md#pr作成時の検証用apk)）。文書だけの変更はビルド対象外。
+
 マージは PR 経由。**本人の実機確認を通すまでマージしない**（理由と確認手段は
 [../AGENTS.md](../AGENTS.md) の「マージの前に必ず本人の検証を通すこと」）。
 マージ後は作業ブランチを削除する。

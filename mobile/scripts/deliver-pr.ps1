@@ -28,7 +28,8 @@ function Find-Target($Status, [string]$Name) {
     }
     if ($Status.BackendState -ne 'Running') { throw 'Tailscale is not running.' }
     $peers = @($Status.Peer.PSObject.Properties.Value | Where-Object {
-        $_.HostName -ieq $Name -or ([string]$_.DNSName).TrimEnd('.') -ieq $Name.TrimEnd('.') -or
+        $_.HostName -ieq $Name -or ([string]$_.DNSName).Split('.')[0] -ieq $Name -or
+        ([string]$_.DNSName).TrimEnd('.') -ieq $Name.TrimEnd('.') -or
         $_.TailscaleIPs -contains $Name
     })
     if (!$Status.Self.UserID -or $peers.Count -ne 1 -or !$peers[0].Online -or $peers[0].UserID -ne $Status.Self.UserID) {
@@ -47,9 +48,9 @@ if ($SelfCheck) {
         try { Assert-Pr $bad 'fix/example' 'abc' } catch { $rejected = $true }
         if (!$rejected) { throw "PR guard missed $field" }
     }
-    $peer = [pscustomobject]@{ HostName='phone'; DNSName='phone.example.ts.net.'; TailscaleIPs=@('100.64.0.2'); Online=$true; UserID=1 }
+    $peer = [pscustomobject]@{ HostName='android-model'; DNSName='phone.example.ts.net.'; TailscaleIPs=@('100.64.0.2'); Online=$true; UserID=1 }
     $status = [pscustomobject]@{ BackendState='Running'; Self=@{UserID=1}; Peer=[pscustomobject]@{key=$peer} }
-    foreach ($name in @('phone', 'phone.example.ts.net', '100.64.0.2')) {
+    foreach ($name in @('phone', 'android-model', 'phone.example.ts.net', '100.64.0.2')) {
         if ((Find-Target $status $name) -ne '100.64.0.2') { throw 'Target selection failed' }
     }
     foreach ($name in @('', 'unknown', 'phone;command')) {
@@ -57,6 +58,10 @@ if ($SelfCheck) {
         try { Find-Target $status $name | Out-Null } catch { $rejected = $true }
         if (!$rejected) { throw "Target guard missed $name" }
     }
+    $status.Peer | Add-Member -NotePropertyName duplicate -NotePropertyValue $peer
+    try { Find-Target $status 'phone' | Out-Null; throw 'Ambiguous target accepted' }
+    catch { if ($_.Exception.Message -eq 'Ambiguous target accepted') { throw } }
+    $status.Peer.PSObject.Properties.Remove('duplicate')
     $peer.Online = $false
     try { Find-Target $status 'phone' | Out-Null; throw 'Offline target accepted' }
     catch { if ($_.Exception.Message -eq 'Offline target accepted') { throw } }

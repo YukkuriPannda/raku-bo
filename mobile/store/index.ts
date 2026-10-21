@@ -128,6 +128,12 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// 端末ローカルの日付キー。toISOString() は UTC になるため、JST の 0〜9 時台に
+// 前日の日付を返してしまう。日付の比較・集計には必ずこちらを使う。
+function toLocalDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ============================================================
 // 月ごとのバケット（transactionsByMonth）の更新ヘルパー。
 //
@@ -212,6 +218,8 @@ interface AppState {
   transactionsLastFetchedAt: Record<string, number>;
   shiftsLastFetchedAt: Record<string, number>;
   plannedExpendituresLastFetchedAt: Record<string, number>;
+  /** plannedExpenditures 配列が今どの月の内容か。取引と違い月ごとに分けて持たないため */
+  plannedExpendituresMonth: string | null;
   calendarEventsLastFetchedAt: Record<string, number>;
 
   pendingImageBase64: string | null; // 撮影直後の未アップロード画像
@@ -301,6 +309,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   transactionsLastFetchedAt: {},
   shiftsLastFetchedAt: {},
   plannedExpendituresLastFetchedAt: {},
+  plannedExpendituresMonth: null,
   calendarEventsLastFetchedAt: {},
   pendingImageBase64: null,
   calendarError: null,
@@ -337,6 +346,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       transactionsLastFetchedAt: {},
       shiftsLastFetchedAt: {},
       plannedExpendituresLastFetchedAt: {},
+      plannedExpendituresMonth: null,
       calendarEventsLastFetchedAt: {},
     });
   },
@@ -451,7 +461,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   // 予定支出一覧取得
   // ============================================================
   fetchPlannedExpenditures: async (month, opts) => {
-    if (!opts?.force && isFresh(get().plannedExpendituresLastFetchedAt, month)) return;
+    // 配列は1ヶ月分しか持たないので、今入っているのが別の月なら鮮度に関係なく取り直す。
+    // これを見ないと、支出予定タブで先月を見た直後のホームが先月の合計を出す。
+    const holdsRequestedMonth = get().plannedExpendituresMonth === month;
+    if (!opts?.force && holdsRequestedMonth && isFresh(get().plannedExpendituresLastFetchedAt, month)) return;
     const inFlightKey = `plannedExpenditures:${month}`;
     if (inFlightFetches.has(inFlightKey)) return;
     inFlightFetches.add(inFlightKey);
@@ -459,7 +472,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ plannedExpendituresLoading: true });
     try {
       const res = await plannedExpenditureApi.list(month);
-      set({ plannedExpenditures: res.data });
+      set({ plannedExpenditures: res.data, plannedExpendituresMonth: month });
     } catch (error) {
       console.error('[fetchPlannedExpenditures] エラー:', describeError(error));
     } finally {
@@ -555,7 +568,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const income_forecast = shifts.reduce((sum, s) => sum + s.estimated_wage, 0);
 
-    const planned_total = plannedExpenditures.reduce((sum, p) => sum + p.amount, 0);
+    // 停止したサブスクは支出予定タブの合計にもバックエンドの一覧にも入らないため、
+    // ここでも除く（停止直後は再取得前のローカル state に残っている）。
+    const planned_total = plannedExpenditures
+      .filter((p) => p.is_active)
+      .reduce((sum, p) => sum + p.amount, 0);
 
     const remaining = income_forecast - net_expense_total - planned_total;
 
@@ -581,7 +598,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       .map((t) => ({ label: t.store_name ?? t.category, amount: t.amount }));
 
     // 直近の支出予定（サブスクを除く、カレンダー連動のみ・日付が近い順）
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = toLocalDateKey(now);
     const upcomingPlanned = plannedExpenditures
       .filter((p) => p.entry_type === 'calendar' && !!p.event_date && p.event_date >= todayStr)
       .slice()
@@ -629,15 +646,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       [...transactions, ...pastTransactions]
         .filter((t) => t.type === 'cash' && !t.is_advance)
         .forEach((t) => {
-          const d = new Date(t.transacted_at);
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const key = toLocalDateKey(new Date(t.transacted_at));
           dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + t.amount);
         });
 
       const buildDays = (rollingDays: number): DailySpend[] =>
         Array.from({ length: rollingDays }, (_, i) => {
           const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (rollingDays - 1 - i));
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const key = toLocalDateKey(d);
           return { date: key, total: dailyTotals.get(key) ?? 0 };
         });
 
@@ -823,6 +839,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ============================================================
   setShiftKeywords: async (keywords) => {
     set({ shiftKeywords: keywords });
+    // キーワードはシフトの抽出条件そのものなので、鮮度判定を無視して取り直す
+    get().fetchShifts(getCurrentMonth(), { force: true });
     try {
       await profileApi.update({ shift_keywords: keywords });
     } catch (error) {

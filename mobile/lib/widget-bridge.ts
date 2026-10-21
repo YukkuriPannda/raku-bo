@@ -37,6 +37,44 @@ interface WidgetBudgetCache {
   unsettledAdvance?: number;
 }
 
+/**
+ * SecureStore の1件あたりの上限。
+ * expo-secure-store はこれを超えると
+ * 「larger than 2048 bytes and it may not be stored successfully.
+ *  In a future SDK version, this call may throw an error.」
+ * と警告するだけで続行するため、保存が壊れても気付けない
+ * （lib/auth.ts がセッション保存で踏んだのと同じ罠）。
+ */
+const SECURE_STORE_BYTES_LIMIT = 2048;
+
+/**
+ * ウィジェットに出すラベルの最大長。
+ *
+ * 店名とカレンダーのイベント名はユーザー入力で長さに制限がない。日本語は
+ * 1文字3バイトなので、4件ぶん無制限に入れると SECURE_STORE_BYTES_LIMIT を
+ * 超えて保存が黙って壊れる。ウィジェット側は1行で末尾を省略して描くため、
+ * 切っても見た目は変わらない。
+ */
+const WIDGET_LABEL_MAX_CHARS = 24;
+
+// Array.from で分けてから切る。String.slice はサロゲートペアの途中で切れるため、
+// 絵文字入りの店名だと壊れた文字が残り encodeURIComponent が例外を投げる。
+const trimLabels = (items: RecentTransactionSummary[]): RecentTransactionSummary[] =>
+  items.map((item) => ({
+    ...item,
+    label: Array.from(item.label).slice(0, WIDGET_LABEL_MAX_CHARS).join(''),
+  }));
+
+/** UTF-8 でのバイト数。SecureStore の上限はバイト単位なので文字数では判定できない */
+const utf8ByteLength = (value: string): number => {
+  try {
+    return encodeURIComponent(value).replace(/%[0-9A-F]{2}/gi, 'b').length;
+  } catch {
+    // 壊れたサロゲートを含む場合のみ。警告の判定用なので概算で足りる
+    return value.length * 3;
+  }
+};
+
 /** 残高を SecureStore に保存し、ホーム画面上のウィジェットを即時更新する（fire-and-forget） */
 export function saveWidgetBudget(
   balance: BalanceData,
@@ -48,12 +86,19 @@ export function saveWidgetBudget(
     remaining: balance.remaining,
     month,
     updatedAt: new Date().toISOString(),
-    recentTransactions,
-    upcomingPlanned,
+    recentTransactions: trimLabels(recentTransactions),
+    upcomingPlanned: trimLabels(upcomingPlanned),
     unsettledAdvance: balance.advance_unsettled_total,
   };
 
-  SecureStore.setItemAsync(WIDGET_CACHE_KEY, JSON.stringify(cache))
+  const serialized = JSON.stringify(cache);
+  if (utf8ByteLength(serialized) > SECURE_STORE_BYTES_LIMIT) {
+    console.warn(
+      `[saveWidgetBudget] SecureStore の上限 ${SECURE_STORE_BYTES_LIMIT} バイトを超えました（${utf8ByteLength(serialized)} バイト）。保存が失敗する可能性があります`,
+    );
+  }
+
+  SecureStore.setItemAsync(WIDGET_CACHE_KEY, serialized)
     .then(() =>
       requestWidgetUpdate({
         widgetName: WIDGET_NAME,
@@ -107,16 +152,6 @@ interface WidgetHeatmapCache {
 }
 
 /**
- * SecureStore の1件あたりの上限。
- * expo-secure-store はこれを超えると
- * 「larger than 2048 bytes and it may not be stored successfully.
- *  In a future SDK version, this call may throw an error.」
- * と警告するだけで続行するため、保存が壊れても気付けない
- * （lib/auth.ts がセッション保存で踏んだのと同じ罠）。
- */
-const SECURE_STORE_BYTES_LIMIT = 2048;
-
-/**
  * ヒートマップの保存形式（v2）。
  *
  * `[{date:"2026-07-05", total:1234}, ...]` をそのまま JSON にすると
@@ -164,7 +199,7 @@ export function saveWidgetHeatmap(days: DailySpend[]): void {
   // 表示は新しい日ほど重要なので、古い側を切る。
   let payload = days;
   let serialized = JSON.stringify(compactHeatmap(payload, updatedAt));
-  while (serialized.length > SECURE_STORE_BYTES_LIMIT && payload.length > 0) {
+  while (utf8ByteLength(serialized) > SECURE_STORE_BYTES_LIMIT && payload.length > 0) {
     payload = payload.slice(1);
     serialized = JSON.stringify(compactHeatmap(payload, updatedAt));
   }

@@ -56,7 +56,7 @@ export function RemainingBudgetWidget({
 
       {/* 下部ラベル */}
       <TextWidget
-        text={budget === null ? 'ひらいて更新' : '使える'}
+        text={budget === null ? 'ひらいて更新' : budget >= 0 ? '使える' : 'つかいすぎ'}
         style={{ fontSize: 9, color: '#6b7280' }}
       />
 

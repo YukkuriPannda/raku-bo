@@ -43,12 +43,15 @@ balance.get('/', async (c) => {
   try {
     const supabase = createSupabaseClient(c.env);
 
-    // 今月の支出合計（type='cash' のみ集計）
+    // 今月の支出合計（type='cash' のみ集計）。
+    // 建て替えは自分の支出ではないため、返済済みかどうかに関係なく除く
+    // （クライアントの calcBalance と定義を揃える）。
     const { data: txData, error: txError } = await supabase
       .from('transactions')
       .select('amount')
       .eq('user_id', userId)
       .eq('type', 'cash')
+      .eq('is_advance', false)
       .gte('transacted_at', startDate)
       .lt('transacted_at', endDate);
 

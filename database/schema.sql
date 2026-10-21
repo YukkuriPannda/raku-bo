@@ -140,10 +140,6 @@ CREATE INDEX IF NOT EXISTS idx_planned_expenditures_user_id
 CREATE INDEX IF NOT EXISTS idx_planned_expenditures_user_active
   ON public.planned_expenditures(user_id, entry_type, is_active);
 
-CREATE TRIGGER trg_planned_expenditures_updated_at
-  BEFORE UPDATE ON public.planned_expenditures
-  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
 ALTER TABLE public.planned_expenditures ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "planned_expenditures: 自分のレコードのみ参照可" ON public.planned_expenditures
@@ -179,6 +175,10 @@ CREATE TRIGGER trg_transactions_updated_at
 
 CREATE TRIGGER trg_points_updated_at
   BEFORE UPDATE ON public.points
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER trg_planned_expenditures_updated_at
+  BEFORE UPDATE ON public.planned_expenditures
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- =============================================================

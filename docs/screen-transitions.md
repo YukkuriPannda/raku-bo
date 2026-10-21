@@ -19,16 +19,20 @@ flowchart LR
     Home <-->|下部タブ| Shifts[シフト /shifts]
     Home <-->|下部タブ| Planned[支出予定 /planned-expenditures]
 
-    Home -->|追加ボタン・レシート撮影| Camera[撮影 /screens/camera]
-    Home -->|追加ボタン・手動入力| Manual[入力 /screens/manual-entry]
+    Tabs[全タブ共通の追加ボタン] -->|レシート撮影| Camera[撮影 /screens/camera]
+    Tabs -->|手動入力| Manual[入力 /screens/manual-entry]
     Camera -->|撮影完了| Manual
     History -->|明細を長押しして編集| Manual
-    Manual -->|保存| Home
-    Camera -->|戻る| Home
-    Manual -->|戻る| Home
+    Manual -->|新規登録| Home
+    Manual -->|編集を保存・戻る| Back[直前の画面]
+    Camera -->|戻る| Back
 ```
 
-モバイルの中央「追加」はタブの空きスロットに重ねたボタンで、独立した入力画面ではない。撮影後は入力画面に画像を引き渡し、そこで内容を確認・登録する。`支出予定` の追加・編集は同じ画面上のモーダルで行う。通知とアプリショートカットから撮影画面へ直接入る経路もある。
+モバイルの中央「追加」はタブの空きスロットに重ねたオーバーレイで、独立した入力画面ではない。4つのタブすべてから開ける（[spec-common.md](spec-common.md) 参照）。撮影後は入力画面に画像を引き渡し、そこで内容を確認・登録する。
+
+撮影・入力画面の「戻る」と編集時の保存は `router.back()` なので、行き先は直前の画面（履歴から入ったときは履歴）。新規登録の保存だけホームへ戻る。
+
+`支出予定` の追加・編集は同じ画面上のモーダルで行う。通知とアプリショートカットから撮影画面へ直接入る経路もある。
 
 ## Webアプリ
 

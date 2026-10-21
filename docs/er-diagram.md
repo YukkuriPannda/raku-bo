@@ -88,6 +88,8 @@ erDiagram
 
 - `auth.users` は Supabase Auth が管理するテーブル。`profiles.id` が同じIDを参照し、ユーザー作成時のトリガーでプロフィールが作られる。
 - `transactions.receipt_id` は任意。レシート削除時は `NULL` になり、取引自体は残る。商品明細は取引削除時に連動して削除される。
-- `transactions.type` は `cash` / `point` / `income_forecast`。建て替えは別種別ではなく `is_advance` と `settled_at` で表す。
+- `transactions.type` は `cash` / `point` / `income_forecast`。ただしアプリが書き込むのは `cash` だけ。建て替えは別種別ではなく `is_advance` と `settled_at` で表す。
+- `POINTS` テーブルと `transactions.points_earned` は**ポイント機能の残骸**（機能は2026-07-21に削除済み）。テーブルは残っているがアプリからは読み書きしない。
+- 残額の計算で建て替え（`is_advance`）は返済済みでも常に除外する。この判定はクライアント側（`mobile/store/index.ts` の `calcBalance`）にあり、`GET /balance` は除外しない。
 - `planned_expenditures.entry_type` は `subscription` / `calendar`。`calendar_event_id` は Google Calendar のイベントIDを保持する文字列で、DB上の外部キーではない。
 - シフトは Google Calendar から取得し、シフト専用テーブルはない。レシート画像本体は Cloudflare R2、モバイル端末の SQLite は表示用キャッシュなので、このER図の対象外。

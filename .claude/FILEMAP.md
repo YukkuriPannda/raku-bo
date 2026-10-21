@@ -42,6 +42,7 @@
 | `lib/auth.ts` | Supabase認証。PKCE、`LargeSecureStore`、**`handleOAuthCallback()`**。設計理由がコメントに詳しい |
 | `lib/auth-errors.ts` | 認証エラーの正規化。`backend/src/types/error-codes.ts` と同期させること |
 | `lib/api.ts` | axios クライアント。JWTの付与 |
+| `lib/crypto-polyfill.ts` | PKCE 用の crypto 補完 |
 | `lib/db.ts` | expo-sqlite のローカルキャッシュ |
 | `lib/heatmap.ts` | 草グラフの計算と配色。ホーム画面とウィジェットの**両方**から使うのでUI非依存 |
 | `lib/notifications.ts` | 常駐通知（レシート撮影への導線） |
@@ -132,9 +133,24 @@
 | パス | 役割 |
 |---|---|
 | `docker-compose.yml` | 開発環境（backend / web / mobile の3サービス） |
-| `.claude/CLAUDE.md` | 作業時の決まりごと。**ビルド・配布・署名鍵の方針はここが正** |
+| `AGENTS.md` | エージェント向け運用ルールの**正本**（`.claude/CLAUDE.md` はこれを読み込むだけ） |
+| `release.bat` | リリースAPKのビルドから draft 作成まで |
+| `send-taildrop.bat` | ビルドしたAPKを Taildrop で手元の端末へ送る |
 | `.claude/FILEMAP.md` | このファイル |
 | `.agents/skills/raku-bo-eas-build/SKILL.md` | EAS クラウドビルドの実行・完了確認・実機導入の手順 |
+
+### docs/
+
+| パス | 役割 |
+|---|---|
+| `docs/spec-common.md` | タブ共通の仕様（タブ構成・FAB・スワイプ・取得規則・残額の式） |
+| `docs/spec-home.md` 他 | 各タブの仕様。`spec-<タブ名>.md` |
+| `docs/spec-widget-common.md` 他 | ウィジェット共通と各ウィジェットの仕様 |
+| `docs/git.md` | ブランチ運用（git-flow） |
+| `docs/release.md` | ビルド・リリース・署名鍵。**配布の方針はここが正** |
+| `docs/subagents.md` | 誰が決め、誰が実装・調査・検証するか |
+| `docs/screen-transitions.md` | 画面遷移図 |
+| `docs/er-diagram.md` | DBスキーマのER図 |
 
 ---
 

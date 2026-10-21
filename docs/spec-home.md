@@ -26,6 +26,8 @@
 
 - フォーカス時に `fetchTransactions` / `fetchShifts` / `fetchPlannedExpenditures` を並列実行
 - プルリフレッシュで同じ3つを force 取得
+- 草グラフは今月の取引取得後と取引の追加・編集・削除・返済切替・予定支出の完了後に更新する。
+  シフト・時給・予定支出だけの変更では過去の取引を取り直さない
 
 ## 使う API
 

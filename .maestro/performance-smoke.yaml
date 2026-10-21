@@ -1,0 +1,24 @@
+appId: com.rakubo.app.debug
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "http://localhost:8081"
+    commands:
+      - tapOn: "http://localhost:8081"
+- extendedWaitUntil:
+    visible: "今月あと"
+    timeout: 120000
+- tapOn: "🏠, ホーム"
+- assertVisible: "今月あと"
+- repeat:
+    times: 3
+    commands:
+      - tapOn: "📋, 履歴"
+      - assertVisible: "支出履歴"
+      - tapOn: "📅, シフト"
+      - assertVisible: "シフト・収入見込み"
+      - tapOn: "📆, 支出予定"
+      - assertVisible: ".*サブスク.*件.*カレンダー.*"
+      - tapOn: "🏠, ホーム"
+      - assertVisible: "今月あと"

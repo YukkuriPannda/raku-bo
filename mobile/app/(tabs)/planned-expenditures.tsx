@@ -23,6 +23,7 @@ import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import { ALL_CATEGORIES, CATEGORY_EMOJI } from '@/types';
 import type { PlannedExpenditure, Category, PaymentMethod, BillingCycle, CalendarEvent } from '@/types';
+import { useShallow } from 'zustand/react/shallow';
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -156,7 +157,7 @@ function PaymentSelector({
 
 // サブスク追加フォーム
 function SubscriptionForm({ onAdd }: { onAdd: () => void }) {
-  const { addPlannedExpenditure } = useAppStore();
+  const addPlannedExpenditure = useAppStore((s) => s.addPlannedExpenditure);
   const [serviceName, setServiceName] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('その他');
@@ -288,7 +289,13 @@ function formatMonthLabel(month: string): string {
 
 // カレンダー連動追加フォーム
 function CalendarForm({ month, onAdd }: { month: string; onAdd: () => void }) {
-  const { addPlannedExpenditure, fetchCalendarEvents, calendarEvents } = useAppStore();
+  const { addPlannedExpenditure, fetchCalendarEvents, calendarEvents } = useAppStore(
+    useShallow((s) => ({
+      addPlannedExpenditure: s.addPlannedExpenditure,
+      fetchCalendarEvents: s.fetchCalendarEvents,
+      calendarEvents: s.calendarEvents,
+    }))
+  );
   const today = new Date().toISOString().slice(0, 10);
   const futureEvents = calendarEvents.filter((ev) => ev.date >= today);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -392,7 +399,16 @@ function CalendarForm({ month, onAdd }: { month: string; onAdd: () => void }) {
 }
 
 export default function PlannedExpendituresScreen() {
-  const { plannedExpenditures, plannedExpendituresLoading, fetchPlannedExpenditures, updatePlannedExpenditure, deletePlannedExpenditure, completePlannedExpenditure } = useAppStore();
+  const { plannedExpenditures, plannedExpendituresLoading, fetchPlannedExpenditures, updatePlannedExpenditure, deletePlannedExpenditure, completePlannedExpenditure } = useAppStore(
+    useShallow((s) => ({
+      plannedExpenditures: s.plannedExpenditures,
+      plannedExpendituresLoading: s.plannedExpendituresLoading,
+      fetchPlannedExpenditures: s.fetchPlannedExpenditures,
+      updatePlannedExpenditure: s.updatePlannedExpenditure,
+      deletePlannedExpenditure: s.deletePlannedExpenditure,
+      completePlannedExpenditure: s.completePlannedExpenditure,
+    }))
+  );
   const currentMonth = getCurrentMonth();
   const [viewMonth, setViewMonth] = useState(currentMonth);
   const [activeTab, setActiveTab] = useState<'subscription' | 'calendar'>('subscription');

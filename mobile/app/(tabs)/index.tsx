@@ -21,6 +21,7 @@ import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import type { DailySpend } from '@/lib/widget-bridge';
 import type { Transaction } from '@/types';
+import { useShallow } from 'zustand/react/shallow';
 
 // 建て替え（未回収）を表す色。記録画面・履歴・ウィジェットと共通
 const ADVANCE_COLOR = '#E65100';
@@ -241,7 +242,20 @@ export default function HomeScreen() {
     fetchShifts,
     fetchPlannedExpenditures,
     heatmapDays,
-  } = useAppStore();
+  } = useAppStore(useShallow((s) => ({
+    balance: s.balance,
+    transactions: s.transactions,
+    transactionsLoading: s.transactionsLoading,
+    shiftsLoading: s.shiftsLoading,
+    plannedExpendituresLoading: s.plannedExpendituresLoading,
+    transactionsLoaded: s.transactionsLoaded,
+    shiftsLoaded: s.shiftsLoaded,
+    plannedExpendituresLoaded: s.plannedExpendituresLoaded,
+    fetchTransactions: s.fetchTransactions,
+    fetchShifts: s.fetchShifts,
+    fetchPlannedExpenditures: s.fetchPlannedExpenditures,
+    heatmapDays: s.heatmapDays,
+  })));
   const month = getCurrentMonth();
   const swipeGesture = useSwipeTabNavigation();
 

@@ -400,7 +400,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         transactionsLastFetchedAt: { ...state.transactionsLastFetchedAt, [month]: Date.now() },
       }));
       // 残額とウィジェットは今月分だけで計算する
-      if (isCurrentMonth) get().calcBalance();
+      if (isCurrentMonth) {
+        get().calcBalance();
+        get().refreshHeatmapWidget();
+      }
     }
   },
 
@@ -591,9 +594,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     saveWidgetBudget(balance, month, recentTransactions, upcomingPlanned);
     showReceiptQuickCaptureNotification(remaining);
-
-    // 草グラフウィジェット用の日別支出（直近約2ヶ月分）を非同期で更新
-    get().refreshHeatmapWidget();
   },
 
   // ============================================================
@@ -670,6 +670,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       // 残高を再計算
       get().calcBalance();
+      get().refreshHeatmapWidget();
     } catch (error) {
       console.error('[addTransaction] エラー:', describeError(error));
       throw error; // 呼び出し元でハンドリングする
@@ -689,6 +690,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       transactionsByMonth: upsertIntoMonths(state.transactionsByMonth, updated),
     }));
     get().calcBalance();
+    get().refreshHeatmapWidget();
   },
 
   // ============================================================
@@ -702,6 +704,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         transactionsByMonth: removeFromMonths(state.transactionsByMonth, id),
       }));
       get().calcBalance();
+      get().refreshHeatmapWidget();
     } catch (error) {
       console.error('[deleteTransaction] エラー:', describeError(error));
       throw error;
@@ -722,6 +725,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
       await cacheTransactionsQuietly([updated], 'settleAdvance');
       get().calcBalance();
+      get().refreshHeatmapWidget();
     } catch (error) {
       console.error('[settleAdvance] エラー:', describeError(error));
       throw error;
@@ -787,6 +791,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
       await cacheTransactionsQuietly([newTx], 'completePlannedExpenditure');
       get().calcBalance();
+      get().refreshHeatmapWidget();
     } catch (error) {
       console.error('[completePlannedExpenditure] エラー:', describeError(error));
       throw error;

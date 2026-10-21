@@ -1,0 +1,2300 @@
+{
+  "metric": "tap-down to destination heading OnDraw; destination pixels confirmed afterward",
+  "positiveReductionMeansFaster": true,
+  "warmOnly": true,
+  "comparison": [
+    {
+      "route": "home->history",
+      "before": {
+        "n": 10,
+        "drawMedianMs": 1574.161,
+        "drawRangeMs": [
+          1516.611,
+          3198.37
+        ],
+        "observationMedianMs": [
+          1591.292,
+          1790.07
+        ],
+        "screenshotMedianCount": 2
+      },
+      "after": {
+        "n": 10,
+        "drawMedianMs": 1630.627,
+        "drawRangeMs": [
+          1570.052,
+          4367.977
+        ],
+        "observationMedianMs": [
+          1640.12,
+          1806.035
+        ],
+        "screenshotMedianCount": 2
+      },
+      "drawMedianReductionMs": -56.466,
+      "observationMedianReductionBoundsMs": [
+        -214.743,
+        149.95
+      ]
+    },
+    {
+      "route": "history->shifts",
+      "before": {
+        "n": 10,
+        "drawMedianMs": 1553.644,
+        "drawRangeMs": [
+          1466.093,
+          3124.4
+        ],
+        "observationMedianMs": [
+          1568.117,
+          1767.771
+        ],
+        "screenshotMedianCount": 2
+      },
+      "after": {
+        "n": 10,
+        "drawMedianMs": 1556.152,
+        "drawRangeMs": [
+          1469.121,
+          2059.362
+        ],
+        "observationMedianMs": [
+          1573.262,
+          1782.363
+        ],
+        "screenshotMedianCount": 2
+      },
+      "drawMedianReductionMs": -2.508,
+      "observationMedianReductionBoundsMs": [
+        -214.246,
+        194.509
+      ]
+    },
+    {
+      "route": "shifts->planned",
+      "before": {
+        "n": 10,
+        "drawMedianMs": 1087.986,
+        "drawRangeMs": [
+          931.245,
+          1981.712
+        ],
+        "observationMedianMs": [
+          1106.943,
+          1306.141
+        ],
+        "screenshotMedianCount": 2
+      },
+      "after": {
+        "n": 10,
+        "drawMedianMs": 1105.582,
+        "drawRangeMs": [
+          899.935,
+          1928.837
+        ],
+        "observationMedianMs": [
+          1121.312,
+          1302.724
+        ],
+        "screenshotMedianCount": 2
+      },
+      "drawMedianReductionMs": -17.596,
+      "observationMedianReductionBoundsMs": [
+        -195.781,
+        184.829
+      ]
+    },
+    {
+      "route": "planned->home",
+      "before": {
+        "n": 10,
+        "drawMedianMs": 1174.527,
+        "drawRangeMs": [
+          957.108,
+          1975.714
+        ],
+        "observationMedianMs": [
+          1184.545,
+          1372.531
+        ],
+        "screenshotMedianCount": 2
+      },
+      "after": {
+        "n": 10,
+        "drawMedianMs": 1216.952,
+        "drawRangeMs": [
+          1051.535,
+          2208.748
+        ],
+        "observationMedianMs": [
+          1235.847,
+          1483.39
+        ],
+        "screenshotMedianCount": 2
+      },
+      "drawMedianReductionMs": -42.425,
+      "observationMedianReductionBoundsMs": [
+        -298.845,
+        136.684
+      ]
+    }
+  ],
+  "runs": {
+    "before": [
+      {
+        "file": "before-2-complete.txt",
+        "summary": {
+          "status": "ok",
+          "repeats": 7,
+          "transitions": 28,
+          "settleMs": 500,
+          "warmOnly": true,
+          "observer": "native-onDraw-then-screenshot",
+          "instrumentationMayRestartTargetProcess": true
+        },
+        "rows": [
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "home->history",
+            "drawMs": 1560.688,
+            "lowerMs": 1577.66,
+            "upperMs": 1766.713,
+            "captureMs": [
+              50.191,
+              35.966
+            ],
+            "captureWindowsMs": [
+              [
+                1577.66,
+                1627.851
+              ],
+              [
+                1730.746,
+                1766.713
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "history->shifts",
+            "drawMs": 1545.385,
+            "lowerMs": 1557.987,
+            "upperMs": 1742.68,
+            "captureMs": [
+              46.006,
+              36.257
+            ],
+            "captureWindowsMs": [
+              [
+                1557.987,
+                1603.993
+              ],
+              [
+                1706.424,
+                1742.68
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "shifts->planned",
+            "drawMs": 931.245,
+            "lowerMs": 949.243,
+            "upperMs": 1139.505,
+            "captureMs": [
+              53.608,
+              31.334
+            ],
+            "captureWindowsMs": [
+              [
+                949.243,
+                1002.852
+              ],
+              [
+                1108.171,
+                1139.505
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "planned->home",
+            "drawMs": 1185.524,
+            "lowerMs": 1185.524,
+            "upperMs": 1283.838,
+            "captureMs": [
+              63.061
+            ],
+            "captureWindowsMs": [
+              [
+                1220.777,
+                1283.838
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "home->history",
+            "drawMs": 1587.634,
+            "lowerMs": 1604.924,
+            "upperMs": 1791.052,
+            "captureMs": [
+              49.161,
+              34.015
+            ],
+            "captureWindowsMs": [
+              [
+                1604.924,
+                1654.085
+              ],
+              [
+                1757.037,
+                1791.052
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "history->shifts",
+            "drawMs": 1534.321,
+            "lowerMs": 1534.321,
+            "upperMs": 1601.442,
+            "captureMs": [
+              54.032
+            ],
+            "captureWindowsMs": [
+              [
+                1547.41,
+                1601.442
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "shifts->planned",
+            "drawMs": 952.282,
+            "lowerMs": 966.043,
+            "upperMs": 1145.599,
+            "captureMs": [
+              42.907,
+              34.703
+            ],
+            "captureWindowsMs": [
+              [
+                966.043,
+                1008.95
+              ],
+              [
+                1110.896,
+                1145.599
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "planned->home",
+            "drawMs": 1071.103,
+            "lowerMs": 1071.103,
+            "upperMs": 1144.063,
+            "captureMs": [
+              49.607
+            ],
+            "captureWindowsMs": [
+              [
+                1094.456,
+                1144.063
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "home->history",
+            "drawMs": 1756.931,
+            "lowerMs": 1778.322,
+            "upperMs": 1964.205,
+            "captureMs": [
+              48.065,
+              34.862
+            ],
+            "captureWindowsMs": [
+              [
+                1778.322,
+                1826.387
+              ],
+              [
+                1929.343,
+                1964.205
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "history->shifts",
+            "drawMs": 1580.856,
+            "lowerMs": 1598.659,
+            "upperMs": 1846.232,
+            "captureMs": [
+              64.562,
+              78.404
+            ],
+            "captureWindowsMs": [
+              [
+                1598.659,
+                1663.221
+              ],
+              [
+                1767.828,
+                1846.232
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "shifts->planned",
+            "drawMs": 1981.712,
+            "lowerMs": 1981.712,
+            "upperMs": 2120.06,
+            "captureMs": [
+              112.06
+            ],
+            "captureWindowsMs": [
+              [
+                2007.999,
+                2120.06
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.995,
+            "maskSamples": 1752,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "planned->home",
+            "drawMs": 1975.714,
+            "lowerMs": 1975.714,
+            "upperMs": 2077.356,
+            "captureMs": [
+              75.559
+            ],
+            "captureWindowsMs": [
+              [
+                2001.798,
+                2077.356
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 0.993,
+            "maskSamples": 3268,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 4,
+            "route": "home->history",
+            "drawMs": 3117.195,
+            "lowerMs": 3135.446,
+            "upperMs": 3415.122,
+            "captureMs": [
+              73.967,
+              79.86
+            ],
+            "captureWindowsMs": [
+              [
+                3135.446,
+                3209.412
+              ],
+              [
+                3335.263,
+                3415.122
+              ]
+            ],
+            "matchRatio": 0.999,
+            "sourceRatio": 0.981,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 4,
+            "route": "history->shifts",
+            "drawMs": 3124.4,
+            "lowerMs": 3148.301,
+            "upperMs": 3384.387,
+            "captureMs": [
+              82.192,
+              35.86
+            ],
+            "captureWindowsMs": [
+              [
+                3148.301,
+                3230.493
+              ],
+              [
+                3348.527,
+                3384.387
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 0.994,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 4,
+            "route": "shifts->planned",
+            "drawMs": 1088.418,
+            "lowerMs": 1110.762,
+            "upperMs": 1348.301,
+            "captureMs": [
+              79.592,
+              52.492
+            ],
+            "captureWindowsMs": [
+              [
+                1110.762,
+                1190.354
+              ],
+              [
+                1295.809,
+                1348.301
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.971,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 4,
+            "route": "planned->home",
+            "drawMs": 1194.106,
+            "lowerMs": 1220.101,
+            "upperMs": 1422.735,
+            "captureMs": [
+              59.313,
+              34.321
+            ],
+            "captureWindowsMs": [
+              [
+                1220.101,
+                1279.413
+              ],
+              [
+                1388.414,
+                1422.735
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 5,
+            "route": "home->history",
+            "drawMs": 1536.846,
+            "lowerMs": 1555.565,
+            "upperMs": 1816.419,
+            "captureMs": [
+              62.157,
+              85.612
+            ],
+            "captureWindowsMs": [
+              [
+                1555.565,
+                1617.722
+              ],
+              [
+                1730.807,
+                1816.419
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.981,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 5,
+            "route": "history->shifts",
+            "drawMs": 1619.319,
+            "lowerMs": 1632.875,
+            "upperMs": 1814.609,
+            "captureMs": [
+              47.011,
+              32.709
+            ],
+            "captureWindowsMs": [
+              [
+                1632.875,
+                1679.886
+              ],
+              [
+                1781.9,
+                1814.609
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 5,
+            "route": "shifts->planned",
+            "drawMs": 1133.595,
+            "lowerMs": 1147.805,
+            "upperMs": 1325.884,
+            "captureMs": [
+              42.353,
+              33.456
+            ],
+            "captureWindowsMs": [
+              [
+                1147.805,
+                1190.158
+              ],
+              [
+                1292.428,
+                1325.884
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.971,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 5,
+            "route": "planned->home",
+            "drawMs": 957.108,
+            "lowerMs": 977.901,
+            "upperMs": 1166.785,
+            "captureMs": [
+              46.952,
+              36.654
+            ],
+            "captureWindowsMs": [
+              [
+                977.901,
+                1024.853
+              ],
+              [
+                1130.131,
+                1166.785
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 6,
+            "route": "home->history",
+            "drawMs": 1518.619,
+            "lowerMs": 1532.681,
+            "upperMs": 1715.24,
+            "captureMs": [
+              48.152,
+              32.288
+            ],
+            "captureWindowsMs": [
+              [
+                1532.681,
+                1580.833
+              ],
+              [
+                1682.952,
+                1715.24
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.981,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 6,
+            "route": "history->shifts",
+            "drawMs": 1561.902,
+            "lowerMs": 1578.247,
+            "upperMs": 1792.861,
+            "captureMs": [
+              53.834,
+              58.181
+            ],
+            "captureWindowsMs": [
+              [
+                1578.247,
+                1632.081
+              ],
+              [
+                1734.681,
+                1792.861
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 6,
+            "route": "shifts->planned",
+            "drawMs": 1193.018,
+            "lowerMs": 1206.929,
+            "upperMs": 1391.475,
+            "captureMs": [
+              44.468,
+              30.092
+            ],
+            "captureWindowsMs": [
+              [
+                1206.929,
+                1251.397
+              ],
+              [
+                1361.384,
+                1391.475
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.971,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 6,
+            "route": "planned->home",
+            "drawMs": 1114.339,
+            "lowerMs": 1133.282,
+            "upperMs": 1369.704,
+            "captureMs": [
+              70.907,
+              59.184
+            ],
+            "captureWindowsMs": [
+              [
+                1133.282,
+                1204.189
+              ],
+              [
+                1310.52,
+                1369.704
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 7,
+            "route": "home->history",
+            "drawMs": 3198.37,
+            "lowerMs": 3218.459,
+            "upperMs": 3422.958,
+            "captureMs": [
+              45.643,
+              55.77
+            ],
+            "captureWindowsMs": [
+              [
+                3218.459,
+                3264.102
+              ],
+              [
+                3367.188,
+                3422.958
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.981,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 7,
+            "route": "history->shifts",
+            "drawMs": 1600.183,
+            "lowerMs": 1617.664,
+            "upperMs": 1845.376,
+            "captureMs": [
+              65.035,
+              54.8
+            ],
+            "captureWindowsMs": [
+              [
+                1617.664,
+                1682.699
+              ],
+              [
+                1790.577,
+                1845.376
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 7,
+            "route": "shifts->planned",
+            "drawMs": 1092.25,
+            "lowerMs": 1110.238,
+            "upperMs": 1336.702,
+            "captureMs": [
+              59.055,
+              60.543
+            ],
+            "captureWindowsMs": [
+              [
+                1110.238,
+                1169.293
+              ],
+              [
+                1276.159,
+                1336.702
+              ]
+            ],
+            "matchRatio": 0.999,
+            "sourceRatio": 0.971,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 7,
+            "route": "planned->home",
+            "drawMs": 1676.466,
+            "lowerMs": 1730.766,
+            "upperMs": 1998.629,
+            "captureMs": [
+              79.311,
+              84.903
+            ],
+            "captureWindowsMs": [
+              [
+                1730.766,
+                1810.077
+              ],
+              [
+                1913.726,
+                1998.629
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 0.993,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          }
+        ]
+      },
+      {
+        "file": "before-3.txt",
+        "summary": {
+          "status": "ok",
+          "repeats": 3,
+          "transitions": 12,
+          "settleMs": 500,
+          "warmOnly": true,
+          "observer": "native-onDraw-then-screenshot",
+          "instrumentationMayRestartTargetProcess": true
+        },
+        "rows": [
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "home->history",
+            "drawMs": 1516.611,
+            "lowerMs": 1535.66,
+            "upperMs": 1721.897,
+            "captureMs": [
+              43.973,
+              37.889
+            ],
+            "captureWindowsMs": [
+              [
+                1535.66,
+                1579.633
+              ],
+              [
+                1684.008,
+                1721.897
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "history->shifts",
+            "drawMs": 1522.169,
+            "lowerMs": 1537.054,
+            "upperMs": 1723.229,
+            "captureMs": [
+              47.158,
+              37.143
+            ],
+            "captureWindowsMs": [
+              [
+                1537.054,
+                1584.212
+              ],
+              [
+                1686.086,
+                1723.229
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "shifts->planned",
+            "drawMs": 1087.553,
+            "lowerMs": 1103.648,
+            "upperMs": 1286.398,
+            "captureMs": [
+              43.227,
+              35.203
+            ],
+            "captureWindowsMs": [
+              [
+                1103.648,
+                1146.875
+              ],
+              [
+                1251.195,
+                1286.398
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "planned->home",
+            "drawMs": 1163.529,
+            "lowerMs": 1183.565,
+            "upperMs": 1375.358,
+            "captureMs": [
+              50.584,
+              37.28
+            ],
+            "captureWindowsMs": [
+              [
+                1183.565,
+                1234.148
+              ],
+              [
+                1338.078,
+                1375.358
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "home->history",
+            "drawMs": 1549.735,
+            "lowerMs": 1567.259,
+            "upperMs": 1758.549,
+            "captureMs": [
+              53.45,
+              33.975
+            ],
+            "captureWindowsMs": [
+              [
+                1567.259,
+                1620.709
+              ],
+              [
+                1724.574,
+                1758.549
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "history->shifts",
+            "drawMs": 1470.256,
+            "lowerMs": 1482.494,
+            "upperMs": 1664.558,
+            "captureMs": [
+              46.973,
+              33.585
+            ],
+            "captureWindowsMs": [
+              [
+                1482.494,
+                1529.467
+              ],
+              [
+                1630.973,
+                1664.558
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "shifts->planned",
+            "drawMs": 1049.98,
+            "lowerMs": 1064.851,
+            "upperMs": 1242.031,
+            "captureMs": [
+              45.064,
+              29.056
+            ],
+            "captureWindowsMs": [
+              [
+                1064.851,
+                1109.915
+              ],
+              [
+                1212.974,
+                1242.031
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "planned->home",
+            "drawMs": 1143.795,
+            "lowerMs": 1164.534,
+            "upperMs": 1357.66,
+            "captureMs": [
+              49.331,
+              40.713
+            ],
+            "captureWindowsMs": [
+              [
+                1164.534,
+                1213.864
+              ],
+              [
+                1316.947,
+                1357.66
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "home->history",
+            "drawMs": 1592.252,
+            "lowerMs": 1607.357,
+            "upperMs": 1789.088,
+            "captureMs": [
+              44.339,
+              33.708
+            ],
+            "captureWindowsMs": [
+              [
+                1607.357,
+                1651.696
+              ],
+              [
+                1755.38,
+                1789.088
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "history->shifts",
+            "drawMs": 1466.093,
+            "lowerMs": 1484.056,
+            "upperMs": 1670.549,
+            "captureMs": [
+              43.548,
+              39.683
+            ],
+            "captureWindowsMs": [
+              [
+                1484.056,
+                1527.604
+              ],
+              [
+                1630.866,
+                1670.549
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "shifts->planned",
+            "drawMs": 961.961,
+            "lowerMs": 980.133,
+            "upperMs": 1234.862,
+            "captureMs": [
+              71.804,
+              68.592
+            ],
+            "captureWindowsMs": [
+              [
+                980.133,
+                1051.937
+              ],
+              [
+                1166.269,
+                1234.862
+              ]
+            ],
+            "matchRatio": 0.997,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "planned->home",
+            "drawMs": 1337.635,
+            "lowerMs": 1360.845,
+            "upperMs": 1605.923,
+            "captureMs": [
+              77.417,
+              61.941
+            ],
+            "captureWindowsMs": [
+              [
+                1360.845,
+                1438.262
+              ],
+              [
+                1543.983,
+                1605.923
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.993,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          }
+        ]
+      }
+    ],
+    "after": [
+      {
+        "file": "after-2-actual.txt",
+        "summary": {
+          "status": "ok",
+          "repeats": 7,
+          "transitions": 28,
+          "settleMs": 500,
+          "warmOnly": true,
+          "observer": "native-onDraw-then-screenshot",
+          "instrumentationMayRestartTargetProcess": true
+        },
+        "rows": [
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "home->history",
+            "drawMs": 1654.776,
+            "lowerMs": 1675.095,
+            "upperMs": 1862.297,
+            "captureMs": [
+              51.598,
+              31.471
+            ],
+            "captureWindowsMs": [
+              [
+                1675.095,
+                1726.692
+              ],
+              [
+                1830.827,
+                1862.297
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "history->shifts",
+            "drawMs": 1610.162,
+            "lowerMs": 1626.647,
+            "upperMs": 1808.513,
+            "captureMs": [
+              41.414,
+              39.091
+            ],
+            "captureWindowsMs": [
+              [
+                1626.647,
+                1668.062
+              ],
+              [
+                1769.422,
+                1808.513
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "shifts->planned",
+            "drawMs": 1109.01,
+            "lowerMs": 1127.659,
+            "upperMs": 1316.047,
+            "captureMs": [
+              49.861,
+              34.248
+            ],
+            "captureWindowsMs": [
+              [
+                1127.659,
+                1177.519
+              ],
+              [
+                1281.799,
+                1316.047
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "planned->home",
+            "drawMs": 1392.376,
+            "lowerMs": 1415.689,
+            "upperMs": 1644.211,
+            "captureMs": [
+              70.207,
+              49.926
+            ],
+            "captureWindowsMs": [
+              [
+                1415.689,
+                1485.895
+              ],
+              [
+                1594.285,
+                1644.211
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "home->history",
+            "drawMs": 1596.602,
+            "lowerMs": 1613.06,
+            "upperMs": 1797.337,
+            "captureMs": [
+              45.501,
+              34.351
+            ],
+            "captureWindowsMs": [
+              [
+                1613.06,
+                1658.561
+              ],
+              [
+                1762.986,
+                1797.337
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "history->shifts",
+            "drawMs": 1482.583,
+            "lowerMs": 1498.702,
+            "upperMs": 1682.582,
+            "captureMs": [
+              46.556,
+              35.206
+            ],
+            "captureWindowsMs": [
+              [
+                1498.702,
+                1545.257
+              ],
+              [
+                1647.376,
+                1682.582
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "shifts->planned",
+            "drawMs": 902.443,
+            "lowerMs": 915.65,
+            "upperMs": 1103.545,
+            "captureMs": [
+              47.728,
+              36.719
+            ],
+            "captureWindowsMs": [
+              [
+                915.65,
+                963.378
+              ],
+              [
+                1066.825,
+                1103.545
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "planned->home",
+            "drawMs": 1080.705,
+            "lowerMs": 1103.351,
+            "upperMs": 1298.938,
+            "captureMs": [
+              47.527,
+              41.444
+            ],
+            "captureWindowsMs": [
+              [
+                1103.351,
+                1150.879
+              ],
+              [
+                1257.494,
+                1298.938
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "home->history",
+            "drawMs": 1609.82,
+            "lowerMs": 1624.222,
+            "upperMs": 1809.137,
+            "captureMs": [
+              46.625,
+              36.174
+            ],
+            "captureWindowsMs": [
+              [
+                1624.222,
+                1670.847
+              ],
+              [
+                1772.963,
+                1809.137
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "history->shifts",
+            "drawMs": 1554.246,
+            "lowerMs": 1574.694,
+            "upperMs": 1823.164,
+            "captureMs": [
+              81.348,
+              64.26
+            ],
+            "captureWindowsMs": [
+              [
+                1574.694,
+                1656.042
+              ],
+              [
+                1758.904,
+                1823.164
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "shifts->planned",
+            "drawMs": 1928.837,
+            "lowerMs": 1928.837,
+            "upperMs": 2029.55,
+            "captureMs": [
+              80.335
+            ],
+            "captureWindowsMs": [
+              [
+                1949.215,
+                2029.55
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.995,
+            "maskSamples": 1752,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "planned->home",
+            "drawMs": 2208.748,
+            "lowerMs": 2208.748,
+            "upperMs": 2323.266,
+            "captureMs": [
+              83.217
+            ],
+            "captureWindowsMs": [
+              [
+                2240.049,
+                2323.266
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 0.993,
+            "maskSamples": 3268,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 4,
+            "route": "home->history",
+            "drawMs": 4367.977,
+            "lowerMs": 4397.385,
+            "upperMs": 4675.331,
+            "captureMs": [
+              75.967,
+              69.61
+            ],
+            "captureWindowsMs": [
+              [
+                4397.385,
+                4473.351
+              ],
+              [
+                4605.721,
+                4675.331
+              ]
+            ],
+            "matchRatio": 0.999,
+            "sourceRatio": 0.981,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 4,
+            "route": "history->shifts",
+            "drawMs": 2059.362,
+            "lowerMs": 2059.362,
+            "upperMs": 2153.333,
+            "captureMs": [
+              67.834
+            ],
+            "captureWindowsMs": [
+              [
+                2085.499,
+                2153.333
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 0.994,
+            "maskSamples": 2363,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 4,
+            "route": "shifts->planned",
+            "drawMs": 1245.42,
+            "lowerMs": 1262.638,
+            "upperMs": 1476.727,
+            "captureMs": [
+              65.438,
+              46.142
+            ],
+            "captureWindowsMs": [
+              [
+                1262.638,
+                1328.076
+              ],
+              [
+                1430.585,
+                1476.727
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.971,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 4,
+            "route": "planned->home",
+            "drawMs": 1154.017,
+            "lowerMs": 1171.484,
+            "upperMs": 1399.329,
+            "captureMs": [
+              68.895,
+              54.007
+            ],
+            "captureWindowsMs": [
+              [
+                1171.484,
+                1240.38
+              ],
+              [
+                1345.323,
+                1399.329
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 5,
+            "route": "home->history",
+            "drawMs": 1570.052,
+            "lowerMs": 1583.293,
+            "upperMs": 1767.831,
+            "captureMs": [
+              48.687,
+              34.127
+            ],
+            "captureWindowsMs": [
+              [
+                1583.293,
+                1631.98
+              ],
+              [
+                1733.704,
+                1767.831
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.981,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 5,
+            "route": "history->shifts",
+            "drawMs": 1517.679,
+            "lowerMs": 1530.96,
+            "upperMs": 1715.227,
+            "captureMs": [
+              47.593,
+              34.735
+            ],
+            "captureWindowsMs": [
+              [
+                1530.96,
+                1578.553
+              ],
+              [
+                1680.492,
+                1715.227
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 5,
+            "route": "shifts->planned",
+            "drawMs": 1124.839,
+            "lowerMs": 1136.645,
+            "upperMs": 1320.316,
+            "captureMs": [
+              46.715,
+              33.988
+            ],
+            "captureWindowsMs": [
+              [
+                1136.645,
+                1183.36
+              ],
+              [
+                1286.327,
+                1320.316
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.971,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 5,
+            "route": "planned->home",
+            "drawMs": 1051.535,
+            "lowerMs": 1077.246,
+            "upperMs": 1273.257,
+            "captureMs": [
+              56.287,
+              35.835
+            ],
+            "captureWindowsMs": [
+              [
+                1077.246,
+                1133.533
+              ],
+              [
+                1237.422,
+                1273.257
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 6,
+            "route": "home->history",
+            "drawMs": 1598.078,
+            "lowerMs": 1614.696,
+            "upperMs": 1802.933,
+            "captureMs": [
+              51.618,
+              34.273
+            ],
+            "captureWindowsMs": [
+              [
+                1614.696,
+                1666.314
+              ],
+              [
+                1768.66,
+                1802.933
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.981,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 6,
+            "route": "history->shifts",
+            "drawMs": 1470.816,
+            "lowerMs": 1483.999,
+            "upperMs": 1677.277,
+            "captureMs": [
+              52.504,
+              38.126
+            ],
+            "captureWindowsMs": [
+              [
+                1483.999,
+                1536.503
+              ],
+              [
+                1639.151,
+                1677.277
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 6,
+            "route": "shifts->planned",
+            "drawMs": 899.935,
+            "lowerMs": 915.051,
+            "upperMs": 1120.564,
+            "captureMs": [
+              56.405,
+              36.68
+            ],
+            "captureWindowsMs": [
+              [
+                915.051,
+                971.456
+              ],
+              [
+                1083.884,
+                1120.564
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.971,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 6,
+            "route": "planned->home",
+            "drawMs": 1198.301,
+            "lowerMs": 1224.309,
+            "upperMs": 1508.648,
+            "captureMs": [
+              93.934,
+              83.132
+            ],
+            "captureWindowsMs": [
+              [
+                1224.309,
+                1318.243
+              ],
+              [
+                1425.516,
+                1508.648
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 7,
+            "route": "home->history",
+            "drawMs": 2153.862,
+            "lowerMs": 2185.094,
+            "upperMs": 2369.32,
+            "captureMs": [
+              48.142,
+              34.243
+            ],
+            "captureWindowsMs": [
+              [
+                2185.094,
+                2233.236
+              ],
+              [
+                2335.077,
+                2369.32
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.981,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 7,
+            "route": "history->shifts",
+            "drawMs": 1689.052,
+            "lowerMs": 1708.171,
+            "upperMs": 1945.45,
+            "captureMs": [
+              73.752,
+              45.087
+            ],
+            "captureWindowsMs": [
+              [
+                1708.171,
+                1781.922
+              ],
+              [
+                1900.363,
+                1945.45
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 7,
+            "route": "shifts->planned",
+            "drawMs": 1166.577,
+            "lowerMs": 1187.506,
+            "upperMs": 1455.824,
+            "captureMs": [
+              83.932,
+              80.737
+            ],
+            "captureWindowsMs": [
+              [
+                1187.506,
+                1271.438
+              ],
+              [
+                1375.088,
+                1455.824
+              ]
+            ],
+            "matchRatio": 0.997,
+            "sourceRatio": 0.971,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 7,
+            "route": "planned->home",
+            "drawMs": 1235.602,
+            "lowerMs": 1247.384,
+            "upperMs": 1517.818,
+            "captureMs": [
+              85.799,
+              80.177
+            ],
+            "captureWindowsMs": [
+              [
+                1247.384,
+                1333.182
+              ],
+              [
+                1437.641,
+                1517.818
+              ]
+            ],
+            "matchRatio": 0.978,
+            "sourceRatio": 0.993,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          }
+        ]
+      },
+      {
+        "file": "after-3.txt",
+        "summary": {
+          "status": "ok",
+          "repeats": 3,
+          "transitions": 12,
+          "settleMs": 500,
+          "warmOnly": true,
+          "observer": "native-onDraw-then-screenshot",
+          "instrumentationMayRestartTargetProcess": true
+        },
+        "rows": [
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "home->history",
+            "drawMs": 1665.226,
+            "lowerMs": 1665.226,
+            "upperMs": 1725.641,
+            "captureMs": [
+              45.643
+            ],
+            "captureWindowsMs": [
+              [
+                1679.998,
+                1725.641
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "history->shifts",
+            "drawMs": 1558.058,
+            "lowerMs": 1571.83,
+            "upperMs": 1756.213,
+            "captureMs": [
+              49.194,
+              32.547
+            ],
+            "captureWindowsMs": [
+              [
+                1571.83,
+                1621.025
+              ],
+              [
+                1723.666,
+                1756.213
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "shifts->planned",
+            "drawMs": 1102.154,
+            "lowerMs": 1114.964,
+            "upperMs": 1289.4,
+            "captureMs": [
+              39.244,
+              32.498
+            ],
+            "captureWindowsMs": [
+              [
+                1114.964,
+                1154.207
+              ],
+              [
+                1256.901,
+                1289.4
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 1,
+            "route": "planned->home",
+            "drawMs": 1239.689,
+            "lowerMs": 1266.711,
+            "upperMs": 1458.131,
+            "captureMs": [
+              44.573,
+              35.918
+            ],
+            "captureWindowsMs": [
+              [
+                1266.711,
+                1311.284
+              ],
+              [
+                1422.213,
+                1458.131
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "home->history",
+            "drawMs": 1612.997,
+            "lowerMs": 1631.983,
+            "upperMs": 1812.656,
+            "captureMs": [
+              44.079,
+              32.907
+            ],
+            "captureWindowsMs": [
+              [
+                1631.983,
+                1676.062
+              ],
+              [
+                1779.749,
+                1812.656
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "history->shifts",
+            "drawMs": 1615.477,
+            "lowerMs": 1632.282,
+            "upperMs": 1836.737,
+            "captureMs": [
+              63.803,
+              37.502
+            ],
+            "captureWindowsMs": [
+              [
+                1632.282,
+                1696.085
+              ],
+              [
+                1799.235,
+                1836.737
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "shifts->planned",
+            "drawMs": 1085.345,
+            "lowerMs": 1085.345,
+            "upperMs": 1175.52,
+            "captureMs": [
+              54.37
+            ],
+            "captureWindowsMs": [
+              [
+                1121.149,
+                1175.52
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 2,
+            "route": "planned->home",
+            "drawMs": 1097.236,
+            "lowerMs": 1119.337,
+            "upperMs": 1308.976,
+            "captureMs": [
+              47.785,
+              33.047
+            ],
+            "captureWindowsMs": [
+              [
+                1119.337,
+                1167.123
+              ],
+              [
+                1275.929,
+                1308.976
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "home->history",
+            "drawMs": 1648.257,
+            "lowerMs": 1648.257,
+            "upperMs": 1712.71,
+            "captureMs": [
+              49.686
+            ],
+            "captureWindowsMs": [
+              [
+                1663.024,
+                1712.71
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 3806,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "history->shifts",
+            "drawMs": 1469.121,
+            "lowerMs": 1469.121,
+            "upperMs": 1529.61,
+            "captureMs": [
+              48.608
+            ],
+            "captureWindowsMs": [
+              [
+                1481.002,
+                1529.61
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 2363,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "shifts->planned",
+            "drawMs": 943.563,
+            "lowerMs": 943.563,
+            "upperMs": 1042.475,
+            "captureMs": [
+              83.23
+            ],
+            "captureWindowsMs": [
+              [
+                959.245,
+                1042.475
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 1,
+            "maskSamples": 1752,
+            "screenshotCount": 1
+          },
+          {
+            "warmOnly": true,
+            "observer": "native-onDraw-then-screenshot",
+            "cycle": 3,
+            "route": "planned->home",
+            "drawMs": 1527.997,
+            "lowerMs": 1574.875,
+            "upperMs": 1862.049,
+            "captureMs": [
+              75.309,
+              100.464
+            ],
+            "captureWindowsMs": [
+              [
+                1574.875,
+                1650.185
+              ],
+              [
+                1761.585,
+                1862.049
+              ]
+            ],
+            "matchRatio": 1,
+            "sourceRatio": 0.993,
+            "maskSamples": 3268,
+            "screenshotCount": 2
+          }
+        ]
+      }
+    ]
+  }
+}

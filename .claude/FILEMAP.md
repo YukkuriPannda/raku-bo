@@ -126,6 +126,16 @@
 
 `gemini-ocr/` にOCR精度の検証コードがある。本番の動作には関与しない。
 
+`performance/` は通信とネイティブ機能を模擬して、実際のストアのリクエスト数・
+草グラフ更新・残額計算を検証する。計測条件と結果は `docs/performance-issue-6.md` に記載する。
+画面の購読範囲の検証もここに置き、`.maestro/performance-smoke.yaml` で4タブの遷移を確認する。
+
+`performance/transition-probe/` はAndroid Instrumentationによる既存4タブの読み取り専用計測。
+見出しのOnDrawと遷移後の画像照合を使い、実データの画像は保存しない。
+`summarize.cjs` が成功した実行だけを集計し、`transition-results.json` に匿名の時間記録を保存する。
+`summarize-profile.cjs` はHermesの全サンプルを関数名で集計する。CPU集計は `transition-profile-results.json`。
+実測の条件・結果・CPU調査は `docs/performance-transition-2026-10-21.md` に記載する。
+
 ---
 
 ## ルート直下

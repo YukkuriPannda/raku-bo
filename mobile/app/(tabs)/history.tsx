@@ -21,6 +21,7 @@ import { styles } from '@/styles/history.styles';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
 import { useRefreshOnForeground } from '@/hooks/useRefreshOnForeground';
 import type { Transaction } from '@/types';
+import { useShallow } from 'zustand/react/shallow';
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -172,7 +173,15 @@ function TransactionItem({
 }
 
 export default function HistoryScreen() {
-  const { transactionsByMonth, transactionsLoading, fetchTransactions, deleteTransaction, settleAdvance } = useAppStore();
+  const { transactionsByMonth, transactionsLoading, fetchTransactions, deleteTransaction, settleAdvance } = useAppStore(
+    useShallow((s) => ({
+      transactionsByMonth: s.transactionsByMonth,
+      transactionsLoading: s.transactionsLoading,
+      fetchTransactions: s.fetchTransactions,
+      deleteTransaction: s.deleteTransaction,
+      settleAdvance: s.settleAdvance,
+    }))
+  );
   const router = useRouter();
   const currentMonth = getCurrentMonth();
   const [month, setMonth] = useState(currentMonth);

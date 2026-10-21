@@ -1,0 +1,64 @@
+{
+  "revision": "1948f606ea09dcf797354b62f4ddc2b8e81d78b3",
+  "device": "emulator-5554",
+  "build": "debug dev client + Metro dev=true / Hermes",
+  "renderer": "Google SwiftShader 4.0.0.1",
+  "capture": "ordinary tab navigation; separate from the instrumentation timing runs; no screenshot polling",
+  "nativeTrace": {
+    "durationMs": 45000,
+    "threadCpuMs": {
+      "mqt_v_js": 20428.58,
+      "RenderThread": 8739.2,
+      "main": 4678.29
+    },
+    "mountViews": {
+      "count": 20,
+      "meanMs": 29.05,
+      "maxMs": 98.77
+    },
+    "gc": {
+      "count": 13,
+      "meanMs": 95.39,
+      "maxMs": 159.58
+    }
+  },
+  "hermes": {
+    "samples": 16825,
+    "sampledMs": 31954.426,
+    "self": [
+      {
+        "name": "(idle)",
+        "ms": 12732.132,
+        "percentOfSampledTime": 39.845
+      },
+      {
+        "name": "unstable_now",
+        "ms": 8795.875,
+        "percentOfSampledTime": 27.526
+      },
+      {
+        "name": "numberPrototypeToLocaleString",
+        "ms": 1521.971,
+        "percentOfSampledTime": 4.763
+      }
+    ],
+    "inclusive": [
+      {
+        "name": "performWorkOnRoot",
+        "ms": 17802.789,
+        "percentOfSampledTime": 55.713
+      },
+      {
+        "name": "renderRootSync",
+        "ms": 15504.607,
+        "percentOfSampledTime": 48.521
+      },
+      {
+        "name": "renderWithHooks",
+        "ms": 5963.868,
+        "percentOfSampledTime": 18.664
+      }
+    ],
+    "note": "All call sites combined by function name; inclusive stacks overlap between functions. No URLs or app records exported."
+  }
+}

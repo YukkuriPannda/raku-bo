@@ -1,6 +1,6 @@
 # ビルドとリリース
 
-配布先は GitHub Releases だけ。`YukkuriPannda/raku-bo` は public なので、
+正式配布先は GitHub Releases だけ。`YukkuriPannda/raku-bo` は public なので、
 publish 後はスマホのブラウザから認証なしで APK を直接ダウンロードできる。
 
 **リリースは draft（下書き）として作られる。** 本人が説明文を確認してから

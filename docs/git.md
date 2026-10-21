@@ -50,7 +50,8 @@ git switch develop && git merge --no-ff release/v1.0.1
 git branch -d release/v1.0.1
 ```
 
-EASビルドとリリースビルドは `main` でしか許可されない。タグは `v<expo.version>`。
+EASビルドと正式リリースビルドは `main` 限定。タグは `v<expo.version>`。
+PR検証用のローカルAPKは [release.md](release.md#pr作成時の検証用apk) の例外に従う。
 
 ## hotfix
 
@@ -69,4 +70,4 @@ git switch develop && git merge --no-ff hotfix/v1.0.2
 - `main` / `develop` への直接コミット
 - 共有済みブランチの `push --force`
 - 本人の確認前のマージ
-- `main` 以外でのEASビルド・リリースビルド
+- `main` 以外でのEASビルド・正式リリースビルド（PR検証用のローカルAPKは上記手順に従う）

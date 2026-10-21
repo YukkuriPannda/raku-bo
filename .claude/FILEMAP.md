@@ -138,6 +138,7 @@
 `summarize.cjs` が成功した実行だけを集計し、`transition-results.json` に匿名の時間記録を保存する。
 `summarize-profile.cjs` はHermesの全サンプルを関数名で集計する。CPU集計は `transition-profile-results.json`。
 実測の条件・結果・CPU調査は `docs/performance-transition-2026-10-21.md` に記載する。
+3件の追加対策と48回の再計測は `docs/performance-followups-8-10.md`、時間記録は `followup-transition-results.json`。
 
 ---
 

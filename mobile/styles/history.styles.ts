@@ -11,15 +11,68 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   monthBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   monthBarText: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  // 前月／翌月の送りボタン。タブ切替スワイプと同じ帯に載るため、
+  // 指が触れる範囲は hitSlop で補う
+  monthNavButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  monthNavLabel: {
+    fontSize: 22,
+    lineHeight: 24,
+    color: colors.primary,
+  },
+  monthNavLabelDisabled: {
+    color: colors.border,
+  },
+  filterBar: {
+    flexGrow: 0,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  filterContent: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  filterChip: {
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: colors.surface,
+  },
+  filterChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  filterChipText: {
+    flexShrink: 0,
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  filterChipTextSelected: {
+    color: colors.surface,
+    fontWeight: '600',
   },
   item: {
     flexDirection: 'row',

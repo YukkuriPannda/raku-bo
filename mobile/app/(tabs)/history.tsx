@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   FlatList,
+  ScrollView,
   RefreshControl,
   TouchableOpacity,
   Pressable,
@@ -14,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 
 import { useAppStore } from '@/store';
-import { CATEGORY_EMOJI } from '@/types';
+import { ALL_CATEGORIES, CATEGORY_EMOJI } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/history.styles';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
@@ -26,10 +27,27 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+/** "YYYY-MM" を delta ヶ月ずらす。Date 経由なので年またぎも越える */
+function shiftMonth(month: string, delta: number): string {
+  const [year, mon] = month.split('-').map(Number);
+  const d = new Date(year, mon - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** "2026-09" → "2026年9月" */
+function formatMonthLabel(month: string): string {
+  const [year, mon] = month.split('-');
+  return `${year}年${Number(mon)}月`;
+}
+
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 }
+
+// 未取得の月に毎レンダー新しい配列を渡すと useMemo が毎回やり直しになるため、
+// 空配列は固定のものを使い回す
+const NO_TRANSACTIONS: Transaction[] = [];
 
 const PAYMENT_LABEL: Record<string, string> = {
   cash: '現金',
@@ -154,11 +172,37 @@ function TransactionItem({
 }
 
 export default function HistoryScreen() {
-  const { transactions, balance, transactionsLoading, fetchTransactions, deleteTransaction, settleAdvance } = useAppStore();
+  const { transactionsByMonth, transactionsLoading, fetchTransactions, deleteTransaction, settleAdvance } = useAppStore();
   const router = useRouter();
-  const month = getCurrentMonth();
+  const currentMonth = getCurrentMonth();
+  const [month, setMonth] = useState(currentMonth);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const swipeGesture = useSwipeTabNavigation();
+
+  // 未来の月は記録が入り得ないので「次の月」は今月で止める
+  const atCurrentMonth = month === currentMonth;
+  // 未取得の月は undefined。取得済みで0件の場合と区別はしないが、
+  // 読み込み中は空表示を出さないことで「一瞬0件」を避ける
+  const monthTransactions = transactionsByMonth[month] ?? NO_TRANSACTIONS;
+
+  const categories = useMemo(() => [
+    ...ALL_CATEGORIES,
+    ...Array.from(new Set(monthTransactions.map((item) => item.category)))
+      .filter((category) => !ALL_CATEGORIES.includes(category)),
+  ], [monthTransactions]);
+  const filteredTransactions = useMemo(
+    () => selectedCategory === null
+      ? monthTransactions
+      : monthTransactions.filter((item) => item.category === selectedCategory),
+    [monthTransactions, selectedCategory]
+  );
+  // 表示中の月・カテゴリの未回収分を出す。store の balance は今月分
+  // 固定のため、過去月を見ているときに使うと数字が合わない
+  const unsettledTotal = filteredTransactions.reduce(
+    (total, item) => total + (item.is_advance && !item.settled_at ? item.amount : 0),
+    0
+  );
 
   useFocusEffect(useCallback(() => { fetchTransactions(month); }, [month, fetchTransactions]));
   useRefreshOnForeground(() => fetchTransactions(month));
@@ -192,14 +236,58 @@ export default function HistoryScreen() {
       {/* 行ごとの削除スワイプと競合しないよう、タブ切替スワイプはヘッダー部分のみで受け付ける */}
       <GestureDetector gesture={swipeGesture}>
         <View style={styles.monthBar}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="前の月"
+            onPress={() => setMonth((prev) => shiftMonth(prev, -1))}
+            hitSlop={8}
+            style={styles.monthNavButton}
+          >
+            <Text style={styles.monthNavLabel}>‹</Text>
+          </TouchableOpacity>
           <Text style={styles.monthBarText}>
-            {month.replace('-', '年')}月 （{transactions.length} 件）
+            {formatMonthLabel(month)} （{filteredTransactions.length} 件）
           </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="次の月"
+            accessibilityState={{ disabled: atCurrentMonth }}
+            disabled={atCurrentMonth}
+            onPress={() => setMonth((prev) => shiftMonth(prev, 1))}
+            hitSlop={8}
+            style={styles.monthNavButton}
+          >
+            <Text style={[styles.monthNavLabel, atCurrentMonth && styles.monthNavLabelDisabled]}>›</Text>
+          </TouchableOpacity>
         </View>
       </GestureDetector>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterBar}
+        contentContainerStyle={styles.filterContent}
+      >
+        {[null, ...categories].map((category) => {
+          const selected = selectedCategory === category;
+          return (
+            <TouchableOpacity
+              key={category ?? 'all'}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => setSelectedCategory(category)}
+              style={[styles.filterChip, selected && styles.filterChipSelected]}
+            >
+              <Text numberOfLines={1} style={[styles.filterChipText, selected && styles.filterChipTextSelected]}>
+                {category === null ? 'すべて' : `${CATEGORY_EMOJI[category] ?? '🏷️'} ${category}`}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       <FlatList
-        data={transactions}
+        data={filteredTransactions}
         keyExtractor={(item) => item.id}
         renderItem={({ item }: ListRenderItemInfo<Transaction>) => (
           <TransactionItem
@@ -212,20 +300,26 @@ export default function HistoryScreen() {
           />
         )}
         ListHeaderComponent={
-          balance.advance_unsettled_total > 0 ? (
+          unsettledTotal > 0 ? (
             <View style={styles.unsettledBar}>
               <Text style={styles.unsettledLabel}>🤝 未回収の建て替え</Text>
               <Text style={styles.unsettledAmount}>
-                ¥{balance.advance_unsettled_total.toLocaleString('ja-JP')}
+                ¥{unsettledTotal.toLocaleString('ja-JP')}
               </Text>
             </View>
           ) : null
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📭</Text>
-            <Text style={styles.emptyText}>今月の支出記録はまだありません</Text>
-          </View>
+          transactionsLoading ? null : (
+            <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>📭</Text>
+              <Text style={styles.emptyText}>
+                {selectedCategory === null
+                  ? `${formatMonthLabel(month)}の支出記録はありません`
+                  : `${formatMonthLabel(month)}の「${selectedCategory}」の記録はありません`}
+              </Text>
+            </View>
+          )
         }
         refreshControl={
           <RefreshControl
@@ -235,7 +329,7 @@ export default function HistoryScreen() {
             tintColor={colors.primary}
           />
         }
-        contentContainerStyle={transactions.length === 0 ? { flex: 1 } : { paddingBottom: 100 }}
+        contentContainerStyle={filteredTransactions.length === 0 ? { flexGrow: 1 } : { paddingBottom: 100 }}
       />
 
       {/* 記録追加のボタンはタブバー中央に移した（app/(tabs)/_layout.tsx） */}

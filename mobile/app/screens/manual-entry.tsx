@@ -41,7 +41,7 @@ function todayString() {
 
 export default function ManualEntryScreen() {
   const router = useRouter();
-  const { addTransaction, updateTransaction, transactions, pendingImageBase64, clearPendingImage } = useAppStore();
+  const { addTransaction, updateTransaction, transactionsByMonth, pendingImageBase64, clearPendingImage } = useAppStore();
   const { transactionId } = useLocalSearchParams<{ transactionId?: string }>();
   const isEditing = !!transactionId;
 
@@ -81,8 +81,18 @@ export default function ManualEntryScreen() {
   // 編集モード時: store のデータでフォームを初期化
   useEffect(() => {
     if (!isEditing) return;
-    const tx = transactions.find((t) => t.id === transactionId);
-    if (!tx) return;
+    // store の transactions は今月分しか持たないため、過去の月の行を編集すると
+    // 見つからず空のフォームが出ていた。読み込み済みの全月から探す
+    const tx = Object.values(transactionsByMonth)
+      .flat()
+      .find((t) => t.id === transactionId);
+    // 空のフォームのまま保存すると元の記録を潰すので、見つからなければ編集させない
+    if (!tx) {
+      Alert.alert('エラー', '編集する記録が見つかりませんでした', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+      return;
+    }
     setStoreName(tx.store_name ?? '');
     setAmount(String(tx.amount));
     setCategory(tx.category);

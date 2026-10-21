@@ -129,12 +129,65 @@ function getCurrentMonth(): string {
 }
 
 // ============================================================
+// 月ごとのバケット（transactionsByMonth）の更新ヘルパー。
+//
+// 履歴画面は月を切り替えて過去月も表示するため、取得結果を月ごとに
+// 分けて持つ。追加・更新・削除のときは表示中の月だけでなく、
+// 該当する月のバケットにも同じ変更を当てないと、月を行き来したときに
+// 消したはずの行が戻ってくる。
+//
+// 月の判定は transacted_at の先頭7文字（UTC基準）で行う。
+// サーバ側の月絞り込み（gte/lt に YYYY-MM-01 を渡す）および
+// ローカルキャッシュの LIKE 'YYYY-MM%' と同じ区切りに揃えるため。
+// ============================================================
+function removeFromMonths(
+  byMonth: Record<string, Transaction[]>,
+  id: string
+): Record<string, Transaction[]> {
+  const next: Record<string, Transaction[]> = {};
+  for (const [month, list] of Object.entries(byMonth)) {
+    next[month] = list.filter((t) => t.id !== id);
+  }
+  return next;
+}
+
+function patchInMonths(
+  byMonth: Record<string, Transaction[]>,
+  id: string,
+  patch: Partial<Transaction>
+): Record<string, Transaction[]> {
+  const next: Record<string, Transaction[]> = {};
+  for (const [month, list] of Object.entries(byMonth)) {
+    next[month] = list.map((t) => (t.id === id ? { ...t, ...patch } : t));
+  }
+  return next;
+}
+
+// 日付の編集で別の月へ移ることがあるため、全バケットから取り除いてから入れ直す。
+// まだ取得していない月のバケットは作らない（作ると「0件」と区別できなくなる）
+function upsertIntoMonths(
+  byMonth: Record<string, Transaction[]>,
+  tx: Transaction
+): Record<string, Transaction[]> {
+  const next = removeFromMonths(byMonth, tx.id);
+  const month = tx.transacted_at.slice(0, 7);
+  if (!(month in next)) return next;
+  next[month] = [tx, ...next[month]].sort((a, b) =>
+    b.transacted_at.localeCompare(a.transacted_at)
+  );
+  return next;
+}
+
+// ============================================================
 // ストアの型定義
 // ============================================================
 interface AppState {
   // ---- 状態 ----
   user: User | null;
   transactions: Transaction[];
+  // 月（"YYYY-MM"）ごとの取得結果。履歴画面の月切り替えが参照する。
+  // transactions は「今月分」に固定で、残額計算とウィジェットが見る
+  transactionsByMonth: Record<string, Transaction[]>;
   shifts: ShiftEvent[];
   plannedExpenditures: PlannedExpenditure[];
   calendarEvents: CalendarEvent[];
@@ -231,6 +284,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ---- 初期状態 ----
   user: null,
   transactions: [],
+  transactionsByMonth: {},
   shifts: [],
   plannedExpenditures: [],
   calendarEvents: [],
@@ -311,11 +365,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (inFlightFetches.has(inFlightKey)) return; // 起動時の先読みとタブ側の取得が同時に走るケースなどの重複防止
     inFlightFetches.add(inFlightKey);
 
+    // 履歴画面の月切り替えで過去月を取りに来ることがある。その結果で
+    // transactions を差し替えてはいけない。calcBalance はこの配列から
+    // 残額を出し、同じ値をホーム画面ウィジェットにも書き込むため、
+    // 過去月の金額が「今月の残り」として表示されてしまう。
+    // 今月のときだけ差し替え、各月の結果は transactionsByMonth に入れる
+    const isCurrentMonth = month === getCurrentMonth();
+
     set({ transactionsLoading: true });
     try {
       const res = await transactionApi.list(month);
       const data: Transaction[] = res.data;
-      set({ transactions: data });
+      set((state) => ({
+        transactionsByMonth: { ...state.transactionsByMonth, [month]: data },
+        ...(isCurrentMonth ? { transactions: data } : null),
+      }));
 
       // 保存の失敗で取得結果を捨ててはいけない（cacheTransactionsQuietly のコメント参照）
       await cacheTransactionsQuietly(data, 'fetchTransactions');
@@ -324,7 +388,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       // オフライン時はキャッシュから読み込む。
       // 他アカウントのキャッシュを混ぜないよう、必ず現在のユーザーIDで絞る
       const cached = await getCachedTransactions(month, get().user?.id ?? null);
-      set({ transactions: cached });
+      set((state) => ({
+        transactionsByMonth: { ...state.transactionsByMonth, [month]: cached },
+        ...(isCurrentMonth ? { transactions: cached } : null),
+      }));
     } finally {
       inFlightFetches.delete(inFlightKey);
       set((state) => ({
@@ -332,7 +399,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         transactionsLoaded: true,
         transactionsLastFetchedAt: { ...state.transactionsLastFetchedAt, [month]: Date.now() },
       }));
-      get().calcBalance();
+      // 残額とウィジェットは今月分だけで計算する
+      if (isCurrentMonth) get().calcBalance();
     }
   },
 
@@ -594,6 +662,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // ローカルステートの先頭に追加
       set((state) => ({
         transactions: [newTx, ...state.transactions],
+        transactionsByMonth: upsertIntoMonths(state.transactionsByMonth, newTx),
       }));
 
       // キャッシュにも保存
@@ -617,6 +686,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const updated: Transaction = res.data;
     set((state) => ({
       transactions: state.transactions.map((t) => t.id === id ? updated : t),
+      transactionsByMonth: upsertIntoMonths(state.transactionsByMonth, updated),
     }));
     get().calcBalance();
   },
@@ -629,6 +699,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await transactionApi.delete(id);
       set((state) => ({
         transactions: state.transactions.filter((t) => t.id !== id),
+        transactionsByMonth: removeFromMonths(state.transactionsByMonth, id),
       }));
       get().calcBalance();
     } catch (error) {
@@ -647,6 +718,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const updated: Transaction = res.data;
       set((state) => ({
         transactions: state.transactions.map((t) => (t.id === id ? { ...t, ...updated } : t)),
+        transactionsByMonth: patchInMonths(state.transactionsByMonth, id, updated),
       }));
       await cacheTransactionsQuietly([updated], 'settleAdvance');
       get().calcBalance();
@@ -708,6 +780,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const newTx: Transaction = res.data;
       set((state) => ({
         transactions: [newTx, ...state.transactions],
+        // 履歴画面は transactionsByMonth を見るので、こちらにも入れないと
+        // 再取得するまで完了した予定支出が履歴に出ない
+        transactionsByMonth: upsertIntoMonths(state.transactionsByMonth, newTx),
         plannedExpenditures: state.plannedExpenditures.filter((p) => p.id !== id),
       }));
       await cacheTransactionsQuietly([newTx], 'completePlannedExpenditure');

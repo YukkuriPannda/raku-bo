@@ -80,6 +80,7 @@ native.Platform = { OS: 'android' };
 native.Alert = { alert() {} };
 
 const heatmap = loadTypeScript('mobile/lib/heatmap.ts', {}, createHooks());
+const numberFormat = loadTypeScript('mobile/lib/number-format.ts', {}, createHooks());
 const homeHooks = createHooks();
 let homeState;
 const router = { push() {} };
@@ -94,6 +95,7 @@ const homeMocks = {
   '@/constants/theme': { colors: { primary: '#16824a' } },
   '@/styles/index.styles': { styles },
   '@/lib/heatmap': heatmap,
+  '@/lib/number-format': numberFormat,
   '@/hooks/useSwipeTabNavigation': { useSwipeTabNavigation: () => null },
   '@/hooks/useRefreshOnForeground': { useRefreshOnForeground() {} },
   'zustand/react/shallow': { useShallow: (selector) => selector },
@@ -247,6 +249,7 @@ let shiftState = {
   logout() {},
 };
 const shiftMocks = {
+  '@/lib/number-format': numberFormat,
   'react-native': native,
   '@react-navigation/native': { useFocusEffect() {} },
   'react-native-gesture-handler': { GestureDetector: 'GestureDetector' },

@@ -45,6 +45,7 @@
 | `lib/crypto-polyfill.ts` | PKCE 用の crypto 補完 |
 | `lib/db.ts` | expo-sqlite のローカルキャッシュ |
 | `lib/heatmap.ts` | 草グラフの計算と配色。ホーム画面とウィジェットの**両方**から使うのでUI非依存 |
+| `lib/number-format.ts` | `ja-JP` の数値書式化。画面・通知・残額ウィジェットで `Intl.NumberFormat` を再利用 |
 | `lib/notifications.ts` | 常駐通知（レシート撮影への導線） |
 | `lib/widget-bridge.ts` | ホーム画面ウィジェットへのデータ受け渡し |
 | `store/index.ts` | Zustand。状態と各API呼び出しが集約されている。**一番大きいファイル** |

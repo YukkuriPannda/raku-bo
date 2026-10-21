@@ -13,6 +13,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 import { useAppStore } from '@/store';
+import { formatNumberJa } from '@/lib/number-format';
 import { ALL_CATEGORIES } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/index.styles';
@@ -32,7 +33,7 @@ function getCurrentMonth(): string {
 }
 
 function formatCurrency(amount: number): string {
-  return `¥${Math.abs(amount).toLocaleString('ja-JP')}`;
+  return `¥${formatNumberJa(Math.abs(amount))}`;
 }
 
 // 曜日ラベル（日曜始まり）。GitHubの草グラフに倣い月・水・金だけ表示する

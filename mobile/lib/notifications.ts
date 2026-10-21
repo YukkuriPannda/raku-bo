@@ -8,6 +8,7 @@
 
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { formatNumberJa } from './number-format';
 
 const CHANNEL_ID = 'receipt-quick-capture';
 const NOTIFICATION_ID = 'receipt-quick-capture';
@@ -44,7 +45,7 @@ export async function showReceiptQuickCaptureNotification(remaining: number): Pr
       identifier: NOTIFICATION_ID,
       content: {
         title: '📷 レシートを撮影',
-        body: `今月あと¥${remaining.toLocaleString('ja-JP')}`,
+        body: `今月あと¥${formatNumberJa(remaining)}`,
         sticky: true, // スワイプで消せない（Androidのongoing通知）
         autoDismiss: false, // タップしても消えない
         data: { screen: '/screens/camera' },

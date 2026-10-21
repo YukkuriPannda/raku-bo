@@ -17,6 +17,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useAppStore } from '@/store';
+import { formatNumberJa } from '@/lib/number-format';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/shifts.styles';
 import { useSwipeTabNavigation } from '@/hooks/useSwipeTabNavigation';
@@ -43,7 +44,7 @@ function ShiftItem({ item }: { item: ShiftEvent }) {
       </Text>
       <View style={styles.shiftFooter}>
         <Text style={styles.shiftDuration}>⏱ {item.duration_hours.toFixed(1)} 時間</Text>
-        <Text style={styles.shiftWage}>¥{item.estimated_wage.toLocaleString('ja-JP')}</Text>
+        <Text style={styles.shiftWage}>¥{formatNumberJa(item.estimated_wage)}</Text>
       </View>
     </View>
   );
@@ -76,7 +77,7 @@ const ShiftsListHeader = memo(function ShiftsListHeader({
       )}
       <View style={styles.forecastCard}>
         <Text style={styles.forecastLabel}>今月の月収見込み</Text>
-        <Text style={styles.forecastAmount}>¥{incomeForecast.toLocaleString('ja-JP')}</Text>
+        <Text style={styles.forecastAmount}>¥{formatNumberJa(incomeForecast)}</Text>
         <Text style={styles.forecastSub}>
           シフト {shifts.length} 件 · 合計 {shifts.reduce((s, i) => s + i.duration_hours, 0).toFixed(1)} 時間
         </Text>

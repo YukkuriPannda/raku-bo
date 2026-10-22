@@ -231,16 +231,16 @@ const HistoryExpenseSummary = memo(function HistoryExpenseSummary({
           </View>
           <View style={styles.historySummaryLegend}>
             {categories.map(({ category, amount, percentage, color }) => (
-              <View key={category} style={styles.historySummaryCategory}>
+              <View
+                key={category}
+                style={styles.historySummaryCategory}
+                accessible
+                accessibilityLabel={`${category}、${formatNumberJa(amount)}円、${percentage.toFixed(1)}パーセント`}
+              >
                 <View style={[styles.historySummaryCategoryDot, { backgroundColor: color }]} />
                 <Text style={styles.historySummaryCategoryEmoji}>
                   {CATEGORY_EMOJI[category as keyof typeof CATEGORY_EMOJI] ?? '🏷️'}
                 </Text>
-                <Text style={styles.historySummaryCategoryName}>{category}</Text>
-                <View style={styles.historySummaryCategoryDetails}>
-                  <Text style={styles.historySummaryCategoryAmount}>¥{formatNumberJa(amount)}</Text>
-                  <Text style={styles.historySummaryCategoryPercentage}>{percentage.toFixed(1)}%</Text>
-                </View>
               </View>
             ))}
           </View>

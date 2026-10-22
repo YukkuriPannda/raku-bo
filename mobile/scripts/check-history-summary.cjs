@@ -160,8 +160,11 @@ assert.equal(visible.nodes.find((node) => node.props.testID === 'history-summary
 const segments = visible.bar.props.children;
 assert.deepEqual(segments.map((node) => node.props.style[1].width), ['75%', '25%']);
 assert.equal(segments.reduce((sum, node) => sum + parseFloat(node.props.style[1].width), 0), 100);
-assert.deepEqual(visible.nodes.filter((node) => node.props.style === 'historySummaryCategoryPercentage')
-  .map((node) => node.props.children.join('')), ['75.0%', '25.0%']);
+const legend = visible.nodes.filter((node) => node.props.style === 'historySummaryCategory');
+assert.deepEqual(legend.map((node) => node.props.accessibilityLabel), ['交通費、300円、75.0パーセント', '食費、100円、25.0パーセント']);
+assert.ok(legend.every((node) => node.props.accessible));
+assert.deepEqual(legend.map((node) => elements(node).filter((child) => child.type === 'Text')
+  .map((child) => child.props.children)), [['🚃'], ['🍚']], 'legend must display icons only');
 const reordered = chart([transaction('food', 300, '食費'), transaction('travel', 100, '交通費')]);
 for (const segment of segments) {
   assert.equal(reordered.bar.props.children.find((node) => node.key === segment.key).props.style[1].backgroundColor,
@@ -170,5 +173,7 @@ for (const segment of segments) {
 const custom = chart([transaction('custom', 1, longCategory), transaction('big', 999_999_999, '食費')]);
 assert.ok(Math.abs(parseFloat(custom.bar.props.children[1].props.style[1].width) - 0.0000001) < 1e-12,
   'tiny categories must retain their actual proportion, without minimum-width inflation');
-assert.ok(custom.nodes.some((node) => node.props.children === longCategory), 'long name must remain complete');
+assert.ok(custom.nodes.some((node) => node.props.accessibilityLabel?.startsWith(longCategory)),
+  'custom category name must remain available to screen readers');
+assert.ok(!custom.nodes.some((node) => node.props.children === longCategory), 'long name must not expand the legend');
 console.log('history summary self-check passed (aggregation and composition bar elements)');

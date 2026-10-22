@@ -77,45 +77,23 @@ export const styles = StyleSheet.create({
     height: '100%',
   },
   historySummaryLegend: {
-    gap: spacing.xs,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   historySummaryCategory: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   historySummaryCategoryDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginTop: 5,
   },
   historySummaryCategoryEmoji: {
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  historySummaryCategoryName: {
-    flex: 1,
-    flexShrink: 1,
-    fontSize: 13,
-    color: colors.textPrimary,
-  },
-  historySummaryCategoryDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flexShrink: 0,
-  },
-  historySummaryCategoryAmount: {
-    flexShrink: 0,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  historySummaryCategoryPercentage: {
-    flexShrink: 0,
-    fontSize: 13,
-    color: colors.textSecondary,
+    fontSize: 16,
+    lineHeight: 20,
   },
   filterBar: {
     flexGrow: 0,

@@ -87,7 +87,7 @@ export const styles = StyleSheet.create({
   historySummaryCategory: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.xs / 2,
   },
   historySummaryCategoryDot: {
     width: 4,

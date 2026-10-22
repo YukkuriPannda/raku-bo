@@ -76,10 +76,13 @@ export const styles = StyleSheet.create({
   historySummarySegment: {
     height: '100%',
   },
+  historySummaryLegendScroll: {
+    flexGrow: 0,
+  },
   historySummaryLegend: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   historySummaryCategory: {
     flexDirection: 'row',
@@ -87,13 +90,13 @@ export const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   historySummaryCategoryDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   historySummaryCategoryEmoji: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 16,
   },
   filterBar: {
     flexGrow: 0,

@@ -229,7 +229,12 @@ const HistoryExpenseSummary = memo(function HistoryExpenseSummary({
               />
             ))}
           </View>
-          <View style={styles.historySummaryLegend}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.historySummaryLegendScroll}
+            contentContainerStyle={styles.historySummaryLegend}
+          >
             {categories.map(({ category, amount, percentage, color }) => (
               <View
                 key={category}
@@ -243,7 +248,7 @@ const HistoryExpenseSummary = memo(function HistoryExpenseSummary({
                 </Text>
               </View>
             ))}
-          </View>
+          </ScrollView>
         </View>
       )}
     </View>

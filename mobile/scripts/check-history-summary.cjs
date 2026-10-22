@@ -133,7 +133,7 @@ function loadModule(filename, mocks = {}, appended = '') {
 const types = loadModule(path.resolve(__dirname, '../types/index.ts'));
 const screen = loadModule(path.resolve(__dirname, '../app/(tabs)/history.tsx'), {
   react: { ...React, useMemo: (factory) => factory() },
-  'react-native': { View: 'View', Text: 'Text' },
+  'react-native': { View: 'View', Text: 'Text', ScrollView: 'ScrollView' },
   'react-native-gesture-handler': {}, '@react-navigation/native': {}, 'expo-router': {},
   '@/store': {}, '@/hooks/useSwipeTabNavigation': {}, '@/hooks/useRefreshOnForeground': {},
   'zustand/react/shallow': {}, '@/types': types, '@/constants/theme': { colors: {} },
@@ -161,6 +161,8 @@ const segments = visible.bar.props.children;
 assert.deepEqual(segments.map((node) => node.props.style[1].width), ['75%', '25%']);
 assert.equal(segments.reduce((sum, node) => sum + parseFloat(node.props.style[1].width), 0), 100);
 const legend = visible.nodes.filter((node) => node.props.style === 'historySummaryCategory');
+assert.ok(visible.nodes.some((node) => node.type === 'ScrollView' && node.props.horizontal
+  && node.props.contentContainerStyle === 'historySummaryLegend'), 'icon legend must stay on one scrollable row');
 assert.deepEqual(legend.map((node) => node.props.accessibilityLabel), ['交通費、300円、75.0パーセント', '食費、100円、25.0パーセント']);
 assert.ok(legend.every((node) => node.props.accessible));
 assert.deepEqual(legend.map((node) => elements(node).filter((child) => child.type === 'Text')

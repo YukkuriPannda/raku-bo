@@ -20,6 +20,7 @@ appId: com.rakubo.app.debug
     element:
       id: history-category-食費
     direction: DOWN
+    centerElement: true
 - tapOn:
     id: history-category-食費
 - assertVisible:

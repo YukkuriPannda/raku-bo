@@ -1,0 +1,34 @@
+appId: com.rakubo.app.debug
+---
+# 前提: ログイン済みでホームを表示し、履歴の月は当月・カテゴリは「すべて」。
+- tapOn: "📋, 履歴"
+- assertVisible:
+    id: history-summary-total
+- copyTextFrom:
+    id: history-summary-total
+- evalScript: ${output.monthTotal = maestro.copiedText}
+- scrollUntilVisible:
+    element:
+      id: history-category-食費
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: history-category-食費
+- assertVisible:
+    id: history-category-食費
+    selected: true
+- scrollUntilVisible:
+    element:
+      id: history-summary-total
+    direction: UP
+- assertVisible:
+    id: history-summary-total
+    text: ${output.monthTotal}
+- scrollUntilVisible:
+    element:
+      id: history-category-all
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: history-category-all
+- tapOn: "🏠, ホーム"

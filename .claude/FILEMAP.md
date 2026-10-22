@@ -135,6 +135,7 @@
 画面の購読範囲の検証もここに置き、`.maestro/performance-smoke.yaml` で4タブの遷移を確認する。
 `render-memo.perf.cjs` は図表とヘッダーの更新条件、`number-format.perf.cjs` は数値表示の互換性を検証する。
 `.maestro/tab-state-smoke.yaml` はタブを往復した後の履歴の月・カテゴリ保持を確認する。
+`.maestro/history-summary.yaml` はカテゴリで絞り込んでも月の支出合計が変わらないことを確認する。
 
 `performance/transition-probe/` はAndroid Instrumentationによる既存4タブの読み取り専用計測。
 見出しのOnDrawと遷移後の画像照合を使い、実データの画像は保存しない。

@@ -49,6 +49,7 @@ env:
 - scrollUntilVisible:
     element: すべて
     direction: DOWN
+    centerElement: true
 - tapOn: すべて
 - repeat:
     times: ${PAST_MONTHS}

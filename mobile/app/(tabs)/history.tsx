@@ -174,6 +174,11 @@ function TransactionItem({
   );
 }
 
+const HISTORY_CATEGORY_PALETTE = [
+  '#1B7F4F', '#2F80ED', '#F2994A', '#9B51E0', '#EB5757',
+  '#219653', '#F2C94C', '#56CCF2', '#BB6BD9', '#6FCF97',
+];
+
 const HistoryExpenseSummary = memo(function HistoryExpenseSummary({
   transactions,
 }: {
@@ -186,32 +191,59 @@ const HistoryExpenseSummary = memo(function HistoryExpenseSummary({
 
   if (summary === null) return null;
 
-  const largestAmount = Math.max(0, summary.categories[0]?.amount ?? 0);
+  const categories = summary.total > 0 ? summary.categories.map(({ category, amount }) => {
+    const standardIndex = ALL_CATEGORIES.findIndex((name) => name === category);
+    let hash = 0;
+    if (standardIndex < 0) {
+      for (let i = 0; i < category.length; i++) {
+        hash = (hash * 31 + category.charCodeAt(i)) | 0;
+      }
+    }
+    return {
+      category,
+      amount,
+      percentage: (amount / summary.total) * 100,
+      color: standardIndex >= 0
+        ? HISTORY_CATEGORY_PALETTE[standardIndex]
+        : HISTORY_CATEGORY_PALETTE[(hash >>> 0) % HISTORY_CATEGORY_PALETTE.length],
+    };
+  }) : [];
 
   return (
     <View style={styles.historySummary}>
       <Text style={styles.historySummaryTitle}>📊 月の支出合計</Text>
       <Text testID="history-summary-total" style={styles.historySummaryTotal}>¥{formatNumberJa(summary.total)}</Text>
-      {summary.categories.length === 0 ? (
+      {categories.length === 0 ? (
         <Text style={styles.historySummaryEmpty}>カテゴリ別の支出はありません</Text>
       ) : (
         <View style={styles.historySummaryCategories}>
-          {summary.categories.map(({ category, amount }) => {
-            const width = largestAmount > 0 ? Math.max(0, (amount / largestAmount) * 100) : 0;
-            return (
+          <View
+            style={styles.historySummaryStackedBar}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {categories.map(({ category, percentage, color }) => (
+              <View
+                key={category}
+                style={[styles.historySummarySegment, { width: `${percentage}%`, backgroundColor: color }]}
+              />
+            ))}
+          </View>
+          <View style={styles.historySummaryLegend}>
+            {categories.map(({ category, amount, percentage, color }) => (
               <View key={category} style={styles.historySummaryCategory}>
-                <View style={styles.historySummaryCategoryHeader}>
-                  <Text style={styles.historySummaryCategoryName}>
-                    {CATEGORY_EMOJI[category as keyof typeof CATEGORY_EMOJI] ?? '🏷️'} {category}
-                  </Text>
+                <View style={[styles.historySummaryCategoryDot, { backgroundColor: color }]} />
+                <Text style={styles.historySummaryCategoryEmoji}>
+                  {CATEGORY_EMOJI[category as keyof typeof CATEGORY_EMOJI] ?? '🏷️'}
+                </Text>
+                <Text style={styles.historySummaryCategoryName}>{category}</Text>
+                <View style={styles.historySummaryCategoryDetails}>
                   <Text style={styles.historySummaryCategoryAmount}>¥{formatNumberJa(amount)}</Text>
-                </View>
-                <View style={styles.historySummaryBarTrack}>
-                  <View style={[styles.historySummaryBarFill, { width: `${width}%` }]} />
+                  <Text style={styles.historySummaryCategoryPercentage}>{percentage.toFixed(1)}%</Text>
                 </View>
               </View>
-            );
-          })}
+            ))}
+          </View>
         </View>
       )}
     </View>

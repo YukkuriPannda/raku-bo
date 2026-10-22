@@ -65,13 +65,34 @@ export const styles = StyleSheet.create({
     marginTop: spacing.md,
     gap: spacing.sm,
   },
-  historySummaryCategory: {
+  historySummaryStackedBar: {
+    flexDirection: 'row',
+    width: '100%',
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  historySummarySegment: {
+    height: '100%',
+  },
+  historySummaryLegend: {
     gap: spacing.xs,
   },
-  historySummaryCategoryHeader: {
+  historySummaryCategory: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
+  },
+  historySummaryCategoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 5,
+  },
+  historySummaryCategoryEmoji: {
+    fontSize: 14,
+    lineHeight: 18,
   },
   historySummaryCategoryName: {
     flex: 1,
@@ -79,22 +100,22 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textPrimary,
   },
+  historySummaryCategoryDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexShrink: 0,
+  },
   historySummaryCategoryAmount: {
     flexShrink: 0,
     fontSize: 13,
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  historySummaryBarTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  historySummaryBarFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: colors.primary,
+  historySummaryCategoryPercentage: {
+    flexShrink: 0,
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   filterBar: {
     flexGrow: 0,

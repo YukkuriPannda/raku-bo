@@ -117,4 +117,58 @@ expectSummary(movedOut, 100, [{ category: '食費', amount: 100 }]);
 expectSummary(movedIn, 200, [{ category: '交通費', amount: 200 }]);
 assert.equal(JSON.stringify(original), before, 'derived month arrays must leave their source unchanged');
 
-console.log('history summary self-check passed');
+// 実画面の要素を検査する。React Nativeのレイアウトや実マウントは端末で別途確認する。
+const React = require('react');
+const styles = new Proxy({}, { get: (_, name) => name });
+function loadModule(filename, mocks = {}, appended = '') {
+  const compiled = { exports: {} };
+  const { outputText } = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
+  });
+  new Function('require', 'module', 'exports', outputText + appended)(
+    (name) => Object.hasOwn(mocks, name) ? mocks[name] : require(name), compiled, compiled.exports
+  );
+  return compiled.exports;
+}
+const types = loadModule(path.resolve(__dirname, '../types/index.ts'));
+const screen = loadModule(path.resolve(__dirname, '../app/(tabs)/history.tsx'), {
+  react: { ...React, useMemo: (factory) => factory() },
+  'react-native': { View: 'View', Text: 'Text' },
+  'react-native-gesture-handler': {}, '@react-navigation/native': {}, 'expo-router': {},
+  '@/store': {}, '@/hooks/useSwipeTabNavigation': {}, '@/hooks/useRefreshOnForeground': {},
+  'zustand/react/shallow': {}, '@/types': types, '@/constants/theme': { colors: {} },
+  '@/styles/history.styles': { styles }, '@/lib/history-summary': { buildHistoryExpenseSummary },
+  '@/lib/number-format': { formatNumberJa: (value) => new Intl.NumberFormat('ja-JP').format(value) },
+}, '\nexports.summary = HistoryExpenseSummary;');
+assert.equal(screen.summary.$$typeof, Symbol.for('react.memo'), 'chart must stay memoized');
+function elements(node) {
+  if (Array.isArray(node)) return node.flatMap(elements);
+  return React.isValidElement(node) ? [node, ...elements(node.props.children)] : [];
+}
+function chart(records) {
+  const tree = screen.summary.type({ transactions: records });
+  const nodes = elements(tree);
+  const bar = nodes.find((node) => node.props.style === 'historySummaryStackedBar');
+  return { tree, nodes, bar };
+}
+assert.equal(chart(undefined).tree, null, 'unfetched month must not show zero');
+assert.equal(chart([]).bar, undefined, 'empty month must not show a composition bar');
+const visible = chart([transaction('food', 100, '食費'), transaction('travel', 300, '交通費'),
+  transaction('forecast', 900, '娯楽', { type: 'income_forecast' })]);
+assert.equal(visible.nodes.filter((node) => node.props.style === 'historySummaryStackedBar').length, 1);
+assert.equal(visible.nodes.find((node) => node.props.testID === 'history-summary-total').props.children.join(''), '¥400');
+const segments = visible.bar.props.children;
+assert.deepEqual(segments.map((node) => node.props.style[1].width), ['75%', '25%']);
+assert.equal(segments.reduce((sum, node) => sum + parseFloat(node.props.style[1].width), 0), 100);
+assert.deepEqual(visible.nodes.filter((node) => node.props.style === 'historySummaryCategoryPercentage')
+  .map((node) => node.props.children.join('')), ['75.0%', '25.0%']);
+const reordered = chart([transaction('food', 300, '食費'), transaction('travel', 100, '交通費')]);
+for (const segment of segments) {
+  assert.equal(reordered.bar.props.children.find((node) => node.key === segment.key).props.style[1].backgroundColor,
+    segment.props.style[1].backgroundColor, 'same category must retain its color when order changes');
+}
+const custom = chart([transaction('custom', 1, longCategory), transaction('big', 999_999_999, '食費')]);
+assert.ok(Math.abs(parseFloat(custom.bar.props.children[1].props.style[1].width) - 0.0000001) < 1e-12,
+  'tiny categories must retain their actual proportion, without minimum-width inflation');
+assert.ok(custom.nodes.some((node) => node.props.children === longCategory), 'long name must remain complete');
+console.log('history summary self-check passed (aggregation and composition bar elements)');

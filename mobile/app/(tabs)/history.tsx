@@ -344,6 +344,7 @@ export default function HistoryScreen() {
                 return (
                   <TouchableOpacity
                     key={category ?? 'all'}
+                    testID={`history-category-${category ?? 'all'}`}
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
                     onPress={() => setSelectedCategory(category)}

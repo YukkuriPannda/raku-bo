@@ -38,6 +38,64 @@ export const styles = StyleSheet.create({
   monthNavLabelDisabled: {
     color: colors.border,
   },
+  historySummary: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  historySummaryTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  historySummaryTotal: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    marginTop: 2,
+  },
+  historySummaryEmpty: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
+  historySummaryCategories: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  historySummaryCategory: {
+    gap: spacing.xs,
+  },
+  historySummaryCategoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  historySummaryCategoryName: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  historySummaryCategoryAmount: {
+    flexShrink: 0,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  historySummaryBarTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  historySummaryBarFill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
   filterBar: {
     flexGrow: 0,
     backgroundColor: colors.surface,

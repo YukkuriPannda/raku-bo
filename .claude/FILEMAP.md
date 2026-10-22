@@ -45,6 +45,7 @@
 | `lib/crypto-polyfill.ts` | PKCE 用の crypto 補完 |
 | `lib/db.ts` | expo-sqlite のローカルキャッシュ |
 | `lib/heatmap.ts` | 草グラフの計算と配色。ホーム画面とウィジェットの**両方**から使うのでUI非依存 |
+| `lib/history-summary.ts` | 履歴タブの月全体の現金支出合計とカテゴリ別合計を計算する |
 | `lib/number-format.ts` | `ja-JP` の数値書式化。画面・通知・残額ウィジェットで `Intl.NumberFormat` を再利用 |
 | `lib/notifications.ts` | 常駐通知（レシート撮影への導線） |
 | `lib/widget-bridge.ts` | ホーム画面ウィジェットへのデータ受け渡し |
@@ -54,6 +55,7 @@
 | `hooks/useSwipeTabNavigation.ts` | タブ間の左右スワイプ |
 | `hooks/useRefreshOnForeground.ts` | バックグラウンド復帰時の再取得 |
 | `types/index.ts` | アプリ全体の型 |
+| `scripts/check-history-summary.cjs` | 履歴の月集計を検算する依存追加なしのセルフチェック |
 
 ### スタイル
 

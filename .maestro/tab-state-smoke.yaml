@@ -16,6 +16,9 @@ appId: com.rakubo.app.debug
 - evalScript: ${var n = new Date(); var p = new Date(n.getFullYear(), n.getMonth() - 1, 1); output.previousMonth = p.getFullYear() + '年' + (p.getMonth() + 1) + '月'}
 - tapOn: "前の月"
 - assertVisible: "${output.previousMonth}.*"
+- scrollUntilVisible:
+    element: "🍚 食費"
+    direction: DOWN
 - tapOn: "🍚 食費"
 - assertVisible:
     text: "🍚 食費"

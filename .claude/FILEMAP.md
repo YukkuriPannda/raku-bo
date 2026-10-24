@@ -45,6 +45,7 @@
 | `lib/crypto-polyfill.ts` | PKCE 用の crypto 補完 |
 | `lib/db.ts` | expo-sqlite のローカルキャッシュ |
 | `lib/heatmap.ts` | 草グラフの計算と配色。ホーム画面とウィジェットの**両方**から使うのでUI非依存 |
+| `lib/history-summary.ts` | 履歴タブの月全体の現金支出合計とカテゴリ別合計を計算する |
 | `lib/number-format.ts` | `ja-JP` の数値書式化。画面・通知・残額ウィジェットで `Intl.NumberFormat` を再利用 |
 | `lib/notifications.ts` | 常駐通知（レシート撮影への導線） |
 | `lib/widget-bridge.ts` | ホーム画面ウィジェットへのデータ受け渡し |
@@ -54,6 +55,7 @@
 | `hooks/useSwipeTabNavigation.ts` | タブ間の左右スワイプ |
 | `hooks/useRefreshOnForeground.ts` | バックグラウンド復帰時の再取得 |
 | `types/index.ts` | アプリ全体の型 |
+| `scripts/check-history-summary.cjs` | 履歴の月集計を検算する依存追加なしのセルフチェック |
 
 ### スタイル
 
@@ -133,6 +135,7 @@
 画面の購読範囲の検証もここに置き、`.maestro/performance-smoke.yaml` で4タブの遷移を確認する。
 `render-memo.perf.cjs` は図表とヘッダーの更新条件、`number-format.perf.cjs` は数値表示の互換性を検証する。
 `.maestro/tab-state-smoke.yaml` はタブを往復した後の履歴の月・カテゴリ保持を確認する。
+`.maestro/history-summary.yaml` はカテゴリで絞り込んでも月の支出合計が変わらないことを確認する。
 
 `performance/transition-probe/` はAndroid Instrumentationによる既存4タブの読み取り専用計測。
 見出しのOnDrawと遷移後の画像照合を使い、実データの画像は保存しない。

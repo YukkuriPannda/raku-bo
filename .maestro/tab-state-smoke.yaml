@@ -16,9 +16,15 @@ appId: com.rakubo.app.debug
 - evalScript: ${var n = new Date(); var p = new Date(n.getFullYear(), n.getMonth() - 1, 1); output.previousMonth = p.getFullYear() + '年' + (p.getMonth() + 1) + '月'}
 - tapOn: "前の月"
 - assertVisible: "${output.previousMonth}.*"
-- tapOn: "🍚 食費"
+- scrollUntilVisible:
+    element:
+      id: history-category-食費
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: history-category-食費
 - assertVisible:
-    text: "🍚 食費"
+    id: history-category-食費
     selected: true
 - tapOn: "📅, シフト"
 - assertVisible: "シフト・収入見込み"
@@ -29,7 +35,7 @@ appId: com.rakubo.app.debug
 - tapOn: "📋, 履歴"
 - assertVisible: "${output.previousMonth}.*"
 - assertVisible:
-    text: "🍚 食費"
+    id: history-category-食費
     selected: true
 - tapOn: "すべて"
 - tapOn: "次の月"

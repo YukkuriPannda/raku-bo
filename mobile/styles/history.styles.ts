@@ -38,6 +38,66 @@ export const styles = StyleSheet.create({
   monthNavLabelDisabled: {
     color: colors.border,
   },
+  historySummary: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  historySummaryTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  historySummaryTotal: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+    marginTop: 2,
+  },
+  historySummaryEmpty: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
+  historySummaryCategories: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  historySummaryStackedBar: {
+    flexDirection: 'row',
+    width: '100%',
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  historySummarySegment: {
+    height: '100%',
+  },
+  historySummaryLegendScroll: {
+    flexGrow: 0,
+  },
+  historySummaryLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  historySummaryCategory: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs / 2,
+  },
+  historySummaryCategoryDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
+  historySummaryCategoryEmoji: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
   filterBar: {
     flexGrow: 0,
     backgroundColor: colors.surface,

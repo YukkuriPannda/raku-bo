@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 
 import { useAppStore } from '@/store';
 import { formatNumberJa } from '@/lib/number-format';
+import { buildHistoryExpenseSummary } from '@/lib/history-summary';
 import { ALL_CATEGORIES, CATEGORY_EMOJI } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/history.styles';
@@ -173,6 +174,87 @@ function TransactionItem({
   );
 }
 
+const HISTORY_CATEGORY_PALETTE = [
+  '#1B7F4F', '#2F80ED', '#F2994A', '#9B51E0', '#EB5757',
+  '#219653', '#F2C94C', '#56CCF2', '#BB6BD9', '#6FCF97',
+];
+
+const HistoryExpenseSummary = memo(function HistoryExpenseSummary({
+  transactions,
+}: {
+  transactions: Transaction[] | undefined;
+}) {
+  const summary = useMemo(
+    () => transactions === undefined ? null : buildHistoryExpenseSummary(transactions),
+    [transactions]
+  );
+
+  if (summary === null) return null;
+
+  const categories = summary.total > 0 ? summary.categories.map(({ category, amount }) => {
+    const standardIndex = ALL_CATEGORIES.findIndex((name) => name === category);
+    let hash = 0;
+    if (standardIndex < 0) {
+      for (let i = 0; i < category.length; i++) {
+        hash = (hash * 31 + category.charCodeAt(i)) | 0;
+      }
+    }
+    return {
+      category,
+      amount,
+      percentage: (amount / summary.total) * 100,
+      color: standardIndex >= 0
+        ? HISTORY_CATEGORY_PALETTE[standardIndex]
+        : HISTORY_CATEGORY_PALETTE[(hash >>> 0) % HISTORY_CATEGORY_PALETTE.length],
+    };
+  }) : [];
+
+  return (
+    <View style={styles.historySummary}>
+      <Text style={styles.historySummaryTitle}>📊 月の支出合計</Text>
+      <Text testID="history-summary-total" style={styles.historySummaryTotal}>¥{formatNumberJa(summary.total)}</Text>
+      {categories.length === 0 ? (
+        <Text style={styles.historySummaryEmpty}>カテゴリ別の支出はありません</Text>
+      ) : (
+        <View style={styles.historySummaryCategories}>
+          <View
+            style={styles.historySummaryStackedBar}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {categories.map(({ category, percentage, color }) => (
+              <View
+                key={category}
+                style={[styles.historySummarySegment, { width: `${percentage}%`, backgroundColor: color }]}
+              />
+            ))}
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.historySummaryLegendScroll}
+            contentContainerStyle={styles.historySummaryLegend}
+          >
+            {categories.map(({ category, amount, percentage, color }) => (
+              <View
+                key={category}
+                style={styles.historySummaryCategory}
+                accessible
+                accessibilityLabel={`${category}、${formatNumberJa(amount)}円、${percentage.toFixed(1)}パーセント`}
+              >
+                <View style={[styles.historySummaryCategoryDot, { backgroundColor: color }]} />
+                <Text style={styles.historySummaryCategoryEmoji}>
+                  {CATEGORY_EMOJI[category as keyof typeof CATEGORY_EMOJI] ?? '🏷️'}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+});
+
 export default function HistoryScreen() {
   const { transactionsByMonth, transactionsLoading, fetchTransactions, deleteTransaction, settleAdvance } = useAppStore(
     useShallow((s) => ({
@@ -272,30 +354,6 @@ export default function HistoryScreen() {
         </View>
       </GestureDetector>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterBar}
-        contentContainerStyle={styles.filterContent}
-      >
-        {[null, ...categories].map((category) => {
-          const selected = selectedCategory === category;
-          return (
-            <TouchableOpacity
-              key={category ?? 'all'}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => setSelectedCategory(category)}
-              style={[styles.filterChip, selected && styles.filterChipSelected]}
-            >
-              <Text numberOfLines={1} style={[styles.filterChipText, selected && styles.filterChipTextSelected]}>
-                {category === null ? 'すべて' : `${CATEGORY_EMOJI[category] ?? '🏷️'} ${category}`}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
       <FlatList
         data={filteredTransactions}
         keyExtractor={(item) => item.id}
@@ -310,14 +368,41 @@ export default function HistoryScreen() {
           />
         )}
         ListHeaderComponent={
-          unsettledTotal > 0 ? (
-            <View style={styles.unsettledBar}>
-              <Text style={styles.unsettledLabel}>🤝 未回収の建て替え</Text>
-              <Text style={styles.unsettledAmount}>
-                ¥{formatNumberJa(unsettledTotal)}
-              </Text>
-            </View>
-          ) : null
+          <View>
+            <HistoryExpenseSummary transactions={transactionsByMonth[month]} />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterBar}
+              contentContainerStyle={styles.filterContent}
+            >
+              {[null, ...categories].map((category) => {
+                const selected = selectedCategory === category;
+                return (
+                  <TouchableOpacity
+                    key={category ?? 'all'}
+                    testID={`history-category-${category ?? 'all'}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setSelectedCategory(category)}
+                    style={[styles.filterChip, selected && styles.filterChipSelected]}
+                  >
+                    <Text numberOfLines={1} style={[styles.filterChipText, selected && styles.filterChipTextSelected]}>
+                      {category === null ? 'すべて' : `${CATEGORY_EMOJI[category] ?? '🏷️'} ${category}`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            {unsettledTotal > 0 && (
+              <View style={styles.unsettledBar}>
+                <Text style={styles.unsettledLabel}>🤝 未回収の建て替え</Text>
+                <Text style={styles.unsettledAmount}>
+                  ¥{formatNumberJa(unsettledTotal)}
+                </Text>
+              </View>
+            )}
+          </View>
         }
         ListEmptyComponent={
           transactionsLoading ? null : (

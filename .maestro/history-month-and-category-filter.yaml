@@ -46,6 +46,14 @@ env:
 
 # 前回の実行や手動操作の状態を引きずらないよう、絞り込みと月を初期状態に戻す。
 # 今月では「次の月」が無効なので、押しすぎても今月で止まる
+- scrollUntilVisible:
+    element:
+      id: history-summary-total
+    direction: UP
+- scrollUntilVisible:
+    element: すべて
+    direction: DOWN
+    centerElement: true
 - tapOn: すべて
 - repeat:
     times: ${PAST_MONTHS}
@@ -76,6 +84,14 @@ env:
     commands:
       - tapOn: 前の月
 - assertVisible: "${output.pastMonth} （0 件）"
+- scrollUntilVisible:
+    element:
+      id: history-summary-total
+    direction: UP
+- assertVisible:
+    id: history-summary-total
+    text: "¥0"
+- assertVisible: カテゴリ別の支出はありません
 - assertVisible: "${output.pastMonth}の支出記録はありません"
 
 # カテゴリで絞り込むと、空表示の文言にカテゴリ名が入る。

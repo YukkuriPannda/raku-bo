@@ -228,6 +228,10 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  unsettledBarActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: ADVANCE_COLOR,
+  },
   unsettledLabel: {
     fontSize: 13,
     fontWeight: '600',

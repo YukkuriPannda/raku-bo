@@ -271,6 +271,7 @@ export default function HistoryScreen() {
   const [month, setMonth] = useState(currentMonth);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [unsettledOnly, setUnsettledOnly] = useState(false);
   const { gesture: swipeGesture, animatedStyle: swipeStyle } = useSwipeTabNavigation();
 
   // 未来の月は記録が入り得ないので「次の月」は今月で止める
@@ -284,15 +285,22 @@ export default function HistoryScreen() {
     ...Array.from(new Set(monthTransactions.map((item) => item.category)))
       .filter((category) => !ALL_CATEGORIES.includes(category)),
   ], [monthTransactions]);
-  const filteredTransactions = useMemo(
+  const categoryTransactions = useMemo(
     () => selectedCategory === null
       ? monthTransactions
       : monthTransactions.filter((item) => item.category === selectedCategory),
     [monthTransactions, selectedCategory]
   );
+  const filteredTransactions = useMemo(
+    () => unsettledOnly
+      ? categoryTransactions.filter((item) => item.is_advance && !item.settled_at)
+      : categoryTransactions,
+    [categoryTransactions, unsettledOnly]
+  );
   // 表示中の月・カテゴリの未回収分を出す。store の balance は今月分
-  // 固定のため、過去月を見ているときに使うと数字が合わない
-  const unsettledTotal = filteredTransactions.reduce(
+  // 固定のため、過去月を見ているときに使うと数字が合わない。
+  // 絞り込み前の件数で出すので、フィルターを掛けても金額は変わらない
+  const unsettledTotal = categoryTransactions.reduce(
     (total, item) => total + (item.is_advance && !item.settled_at ? item.amount : 0),
     0
   );
@@ -395,13 +403,22 @@ export default function HistoryScreen() {
                 );
               })}
             </ScrollView>
-            {unsettledTotal > 0 && (
-              <View style={styles.unsettledBar}>
-                <Text style={styles.unsettledLabel}>🤝 未回収の建て替え</Text>
+            {/* ON のあいだは0円でも残す。消えると解除する手段がなくなる */}
+            {(unsettledTotal > 0 || unsettledOnly) && (
+              <TouchableOpacity
+                testID="history-unsettled-filter"
+                accessibilityRole="button"
+                accessibilityState={{ selected: unsettledOnly }}
+                onPress={() => setUnsettledOnly((prev) => !prev)}
+                style={[styles.unsettledBar, unsettledOnly && styles.unsettledBarActive]}
+              >
+                <Text style={styles.unsettledLabel}>
+                  {unsettledOnly ? '🤝 未回収の建て替えのみ ✕' : '🤝 未回収の建て替え'}
+                </Text>
                 <Text style={styles.unsettledAmount}>
                   ¥{formatNumberJa(unsettledTotal)}
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
           </View>
         }
@@ -410,9 +427,11 @@ export default function HistoryScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>📭</Text>
               <Text style={styles.emptyText}>
-                {selectedCategory === null
-                  ? `${formatMonthLabel(month)}の支出記録はありません`
-                  : `${formatMonthLabel(month)}の「${selectedCategory}」の記録はありません`}
+                {unsettledOnly
+                  ? `${formatMonthLabel(month)}に未回収の建て替えはありません`
+                  : selectedCategory === null
+                    ? `${formatMonthLabel(month)}の支出記録はありません`
+                    : `${formatMonthLabel(month)}の「${selectedCategory}」の記録はありません`}
               </Text>
             </View>
           )

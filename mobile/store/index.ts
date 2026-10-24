@@ -9,6 +9,7 @@ import { transactionApi, balanceApi, shiftApi, profileApi, plannedExpenditureApi
 import { signOut as authSignOut, loadGoogleRefreshToken, saveGoogleAccessToken } from '@/lib/auth';
 import { AuthError, AuthErrorCode, parseAuthError, getAuthErrorMessage, describeError } from '@/lib/auth-errors';
 import { cacheTransactions, getCachedTransactions, clearCache } from '@/lib/db';
+import { advanceAmount, selfAmount } from '@/lib/advance';
 import { saveWidgetBudget, clearWidgetBudget, saveWidgetHeatmap, clearWidgetHeatmap } from '@/lib/widget-bridge';
 import { showReceiptQuickCaptureNotification, clearReceiptQuickCaptureNotification } from '@/lib/notifications';
 import type { DailySpend } from '@/lib/widget-bridge';
@@ -549,11 +550,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // 建て替えは自分の支出ではないため、返済済みかどうかに関係なく実質支出から除く。
     // 未回収分は「返してもらい忘れ」を防ぐための表示用に別途集計する。
-    const advanceTransactions = cashTransactions.filter((t) => t.is_advance);
-    const advance_total = advanceTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const advance_unsettled_total = advanceTransactions
+    // 明細単位の建て替え（items[].is_advance）も建て替え分として差し引く
+    const advance_total = cashTransactions.reduce((sum, t) => sum + advanceAmount(t), 0);
+    const advance_unsettled_total = cashTransactions
       .filter((t) => !t.settled_at)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + advanceAmount(t), 0);
     const net_expense_total = expense_total - advance_total;
 
     const income_forecast = shifts.reduce((sum, s) => sum + s.estimated_wage, 0);
@@ -577,11 +578,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const recentTransactions = transactions
-      .filter((t) => t.type === 'cash' && !t.is_advance)
+      .filter((t) => t.type === 'cash' && selfAmount(t) > 0)
       .slice()
       .sort((a, b) => b.transacted_at.localeCompare(a.transacted_at))
       .slice(0, 2)
-      .map((t) => ({ label: t.store_name ?? t.category, amount: t.amount }));
+      .map((t) => ({ label: t.store_name ?? t.category, amount: selfAmount(t) }));
 
     // 直近の支出予定（サブスクを除く、カレンダー連動のみ・日付が近い順）
     const todayStr = now.toISOString().slice(0, 10);
@@ -627,11 +628,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       const dailyTotals = new Map<string, number>();
       // 建て替えは自分の支出ではないため草グラフにも積まない（残額計算と定義を揃える）
       [...transactions, ...pastTransactions]
-        .filter((t) => t.type === 'cash' && !t.is_advance)
+        .filter((t) => t.type === 'cash')
         .forEach((t) => {
+          const self = selfAmount(t);
+          if (self <= 0) return;
           const d = new Date(t.transacted_at);
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + t.amount);
+          dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + self);
         });
 
       const buildDays = (rollingDays: number): DailySpend[] =>

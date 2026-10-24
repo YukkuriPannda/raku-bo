@@ -15,6 +15,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 
 import { useAppStore } from '@/store';
 import { formatNumberJa } from '@/lib/number-format';
+import { selfAmount } from '@/lib/advance';
 import { ALL_CATEGORIES } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/index.styles';
@@ -152,11 +153,14 @@ const CategorySpendingChart = memo(function CategorySpendingChart({ transactions
     const totalsByCategory = new Map<string, number>();
 
     for (const t of transactions) {
-      if (t.type !== 'cash' || t.is_advance) continue;
+      if (t.type !== 'cash') continue;
       if (!Number.isFinite(t.amount) || t.amount <= 0) continue;
+      // 建て替え分（明細単位を含む）は自分の支出ではないので差し引く
+      const self = selfAmount(t);
+      if (self <= 0) continue;
       // カスタムカテゴリの表記ゆれを正規化せず、入力された文字列のまま集計する
       const category = t.category as string;
-      totalsByCategory.set(category, (totalsByCategory.get(category) ?? 0) + t.amount);
+      totalsByCategory.set(category, (totalsByCategory.get(category) ?? 0) + self);
     }
 
     const total = Array.from(totalsByCategory.values()).reduce((sum, v) => sum + v, 0);

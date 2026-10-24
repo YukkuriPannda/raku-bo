@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+#Requires -Version 5.1
 param(
     [int]$Pr,
     [string]$Target = $env:RAKUBO_TAILDROP_TARGET,
@@ -6,7 +6,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# PowerShell 7.3+ だけが見る設定。5.1 では未使用の変数になるだけで害はない
 $PSNativeCommandUseErrorActionPreference = $false
+
+# 5.1 の Set-Content -Encoding utf8 は BOM を付ける。BOM 付きの本文を
+# gh pr edit --body-file に渡すとPR本文の先頭に見えないゴミが入り、
+# .build.json も JSON パーサーが嫌がるため、BOM なしで書く
+$Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+function Write-Utf8([string]$Path, [string]$Text) {
+    [IO.File]::WriteAllText($Path, $Text, $Utf8NoBom)
+}
 
 function Invoke-Checked([string]$Program, [string[]]$Arguments, [switch]$Capture) {
     if ($Capture) { $output = & $Program @Arguments }
@@ -115,8 +124,11 @@ try {
     $zip = [IO.Compression.ZipFile]::OpenRead($apk)
     try {
         $stream = $zip.GetEntry('assets/index.android.bundle').Open()
-        try { $embeddedHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) }
-        finally { $stream.Dispose() }
+        # ToHexString と SHA256::HashData は .NET 5 以降専用で 5.1 には無い。
+        # Get-FileHash との比較は -ne（既定で大文字小文字を無視）なので桁の形は問わない
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        try { $embeddedHash = (($sha256.ComputeHash($stream)) | ForEach-Object { $_.ToString('x2') }) -join '' }
+        finally { $sha256.Dispose(); $stream.Dispose() }
     } finally { $zip.Dispose() }
     $bundle = Join-Path $mobile 'android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle'
     if ($embeddedHash -ne (Get-FileHash $bundle -Algorithm SHA256).Hash) { throw 'APK bundle mismatch.' }
@@ -126,14 +138,14 @@ try {
         EmbeddedBundleMatches=$true; Target=$Target; SentAt=$null; PrUpdated=$false
     }
     $record = [IO.Path]::ChangeExtension($apk, '.build.json')
-    $metadata | ConvertTo-Json | Set-Content $record -Encoding utf8
+    Write-Utf8 $record ($metadata | ConvertTo-Json)
     Assert-Unchanged
     Assert-Pr (Read-Pr) $branch $revision
     $currentDestination = Find-Target (Invoke-Checked $tailscale @('status', '--json') -Capture | ConvertFrom-Json) $Target
     if ($currentDestination -ne $destination) { throw 'Taildrop target changed during build.' }
     Invoke-Checked $tailscale @('file', 'cp', $apk, "${destination}:")
     $metadata.SentAt = [DateTimeOffset]::Now.ToString('o')
-    $metadata | ConvertTo-Json | Set-Content $record -Encoding utf8
+    Write-Utf8 $record ($metadata | ConvertTo-Json)
     # Read the latest body after sending; keep other edits and never mark a failed send as complete.
     $info = Read-Pr
     Assert-Pr $info $branch $revision
@@ -142,9 +154,9 @@ try {
         "- SHA-256: $($metadata.Sha256)`n- 専用署名・バンドル一致を確認済み。Metro不要、本番Worker接続。`n" +
         "- Taildrop: $Target へ送信成功（終了コード0）。受信・インストール・実機動作は本人の検証待ち。`n"
     $bodyFile = Join-Path $mobile "build/pr-$Pr-delivery-body.md"
-    $body | Set-Content $bodyFile -Encoding utf8
+    Write-Utf8 $bodyFile $body
     Invoke-Checked gh @('pr', 'edit', "$Pr", '--body-file', $bodyFile)
     $metadata.PrUpdated = $true
-    $metadata | ConvertTo-Json | Set-Content $record -Encoding utf8
+    Write-Utf8 $record ($metadata | ConvertTo-Json)
     Write-Host "完了: $apk → $Target / $($info.url)。実機で検証してください。"
 } finally { Pop-Location }

@@ -132,6 +132,7 @@ transactions.post('/', async (c) => {
           transaction_id: data.id,
           name: it.name,
           price: it.price,
+          is_advance: (it as { is_advance?: unknown }).is_advance === true,
         }));
 
       if (rows.length > 0) {
@@ -221,7 +222,12 @@ transactions.patch('/:id', async (c) => {
           typeof (it as { name?: unknown }).name === 'string' &&
           typeof (it as { price?: unknown }).price === 'number'
         )
-        .map((it) => ({ transaction_id: id, name: it.name, price: it.price }));
+        .map((it) => ({
+          transaction_id: id,
+          name: it.name,
+          price: it.price,
+          is_advance: (it as { is_advance?: unknown }).is_advance === true,
+        }));
       if (rows.length > 0) {
         const { data: itemsData } = await supabase
           .from('transaction_items')

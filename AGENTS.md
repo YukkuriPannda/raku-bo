@@ -12,21 +12,28 @@ Codex / Claude / その他のエージェントで扱いは同じ。
 | 各ウィジェットの仕様 | [docs/spec-widget-common.md](docs/spec-widget-common.md) と `docs/spec-widget-*.md` |
 | ブランチ運用・コミット | [docs/git.md](docs/git.md) |
 | ビルド・リリース・署名鍵 | [docs/release.md](docs/release.md) |
-| 役割分担（誰が決め、誰が実装するか） | [docs/subagents.md](docs/subagents.md) |
+| 役割分担（誰が決め、誰が実装・調査・検証するか） | [docs/subagents.md](docs/subagents.md) ／ **毎回読む** |
 | 画面遷移 / DBスキーマ | [docs/screen-transitions.md](docs/screen-transitions.md) / [docs/er-diagram.md](docs/er-diagram.md) |
+
+[docs/subagents.md](docs/subagents.md) は**作業を始める前に毎回読む。**
+下位モデルを使うかどうかに関係なく読む。自分で全部書くつもりのときも読む。
+誰に何を投げるか・投げないかの判断そのものがそこに書いてあるので、
+読まずに決めると分担を外す（実装した本人が検証する、開いた問いを haiku に投げる、など）。
 
 構造を変える変更（ファイルの追加・削除・移動、責務の移動）を入れたら FILEMAP.md を更新する。
 タブやウィジェットの挙動を変えたら対応する `docs/spec-*.md` を更新する。
 
 ## 作業の流れ
 
-1. **読む** — FILEMAP.md で触る場所の見当をつけ、タブの変更なら該当の `docs/spec-*.md` を読む。
+1. **読む** — [docs/subagents.md](docs/subagents.md) と FILEMAP.md を読む。
+   FILEMAP.md で触る場所の見当をつけ、タブの変更なら該当の `docs/spec-*.md` を読む。
    既にある仕組み（ストアのaction、`constants/theme.ts` のトークン、既存のhook）を先に探す
 2. **ブランチを切る** — `develop` から `feature/*` ／ `fix/*`（[docs/git.md](docs/git.md)）。
    `main` と `develop` では直接作業しない
-3. **分ける** — 独立した実装が複数あるなら [docs/subagents.md](docs/subagents.md) の分担で回す。
+3. **分ける** — [docs/subagents.md](docs/subagents.md) の分担で回す。独立した実装が
+   複数あるなら実装を分け、そうでなくても**検証は実装した本人以外に割る**。
    契約（型・APIのパス・DBのカラム）を先に固めてから投げる。分割の手間が変更より
-   大きいなら自分でやる
+   大きいなら実装は自分でやってよいが、そのときも検証は別に出す
 4. **実装する** — 変更が届く先（呼び出し元・型・ウィジェット・web側）まで含めて終わらせる。
    仕様を変えたらドキュメントも同じコミットで直す
 5. **動かす** — 触ったサービスを再起動し、型チェックを通す

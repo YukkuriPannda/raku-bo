@@ -206,6 +206,27 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.background,
     textAlign: 'right',
   },
+  itemAdvanceBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemAdvanceBtnActive: {
+    borderColor: ADVANCE_COLOR,
+    backgroundColor: ADVANCE_BG,
+  },
+  itemAdvanceBtnText: {
+    fontSize: 13,
+    opacity: 0.35,
+  },
+  itemAdvanceBtnTextActive: {
+    opacity: 1,
+  },
   itemDeleteBtn: {
     width: 28,
     height: 28,

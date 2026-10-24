@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { useAppStore } from '@/store';
 import { formatNumberJa } from '@/lib/number-format';
 import { buildHistoryExpenseSummary } from '@/lib/history-summary';
+import { advanceAmount } from '@/lib/advance';
 import { ALL_CATEGORIES, CATEGORY_EMOJI } from '@/types';
 import { colors } from '@/constants/theme';
 import { styles } from '@/styles/history.styles';
@@ -103,6 +104,9 @@ function TransactionItem({
   const emoji = CATEGORY_EMOJI[item.category] ?? '💸';
   const hasItems = !!item.items && item.items.length > 0;
   const isSettled = !!item.settled_at;
+  // レシート全体の建て替えと、明細単位の建て替えの両方を含む
+  const advance = advanceAmount(item);
+  const selfTotal = item.amount - advance;
 
   const handleSettle = () => {
     swipeableRef.current?.close();
@@ -126,7 +130,7 @@ function TransactionItem({
       ref={swipeableRef}
       renderRightActions={() => <DeleteAction onPress={handleDelete} />}
       renderLeftActions={
-        item.is_advance ? () => <SettleAction settled={isSettled} onPress={handleSettle} /> : undefined
+        advance > 0 ? () => <SettleAction settled={isSettled} onPress={handleSettle} /> : undefined
       }
       leftThreshold={40}
       overshootLeft={false}
@@ -146,13 +150,14 @@ function TransactionItem({
               {item.category} · {PAYMENT_LABEL[item.payment_method]} · {formatDate(item.transacted_at)}
               {hasItems ? `  · 🧾${item.items!.length}` : ''}
             </Text>
-            {item.is_advance && (
+            {advance > 0 && (
               <Text style={[styles.advanceBadge, isSettled && styles.advanceBadgeSettled]}>
-                {isSettled ? '🤝 建て替え・返済済み' : '🤝 建て替え・未返済'}
+                {item.is_advance ? '🤝 建て替え' : `🤝 一部建て替え ¥${formatNumberJa(advance)}`}
+                {isSettled ? '・返済済み' : '・未返済'}
               </Text>
             )}
           </View>
-          <Text style={[styles.itemAmount, item.is_advance && !isSettled && styles.itemAmountAdvance]}>
+          <Text style={[styles.itemAmount, advance > 0 && !isSettled && styles.itemAmountAdvance]}>
             ¥{formatNumberJa(item.amount)}
           </Text>
         </View>
@@ -161,12 +166,30 @@ function TransactionItem({
             {hasItems ? (
               item.items!.map((it) => (
                 <View key={it.id} style={styles.expandedItemRow}>
-                  <Text style={styles.expandedItemName} numberOfLines={1}>{it.name}</Text>
+                  <Text style={styles.expandedItemName} numberOfLines={1}>
+                    {it.is_advance ? '🤝 ' : ''}{it.name}
+                  </Text>
                   <Text style={styles.expandedItemPrice}>¥{formatNumberJa(it.price)}</Text>
                 </View>
               ))
             ) : (
               <Text style={styles.expandedEmpty}>商品情報なし</Text>
+            )}
+            {advance > 0 && (
+              <>
+                <View style={styles.expandedTotalRow}>
+                  <Text style={styles.expandedTotalLabel}>レシート合計</Text>
+                  <Text style={styles.expandedTotalValue}>¥{formatNumberJa(item.amount)}</Text>
+                </View>
+                <View style={styles.expandedTotalRow}>
+                  <Text style={styles.expandedTotalLabel}>立替合計</Text>
+                  <Text style={styles.expandedTotalValue}>¥{formatNumberJa(advance)}</Text>
+                </View>
+                <View style={styles.expandedTotalRow}>
+                  <Text style={styles.expandedTotalLabel}>自分の支出</Text>
+                  <Text style={styles.expandedTotalValue}>¥{formatNumberJa(selfTotal)}</Text>
+                </View>
+              </>
             )}
           </View>
         )}
@@ -293,7 +316,7 @@ export default function HistoryScreen() {
   );
   const filteredTransactions = useMemo(
     () => unsettledOnly
-      ? categoryTransactions.filter((item) => item.is_advance && !item.settled_at)
+      ? categoryTransactions.filter((item) => advanceAmount(item) > 0 && !item.settled_at)
       : categoryTransactions,
     [categoryTransactions, unsettledOnly]
   );
@@ -301,7 +324,7 @@ export default function HistoryScreen() {
   // 固定のため、過去月を見ているときに使うと数字が合わない。
   // 絞り込み前の件数で出すので、フィルターを掛けても金額は変わらない
   const unsettledTotal = categoryTransactions.reduce(
-    (total, item) => total + (item.is_advance && !item.settled_at ? item.amount : 0),
+    (total, item) => total + (item.settled_at ? 0 : advanceAmount(item)),
     0
   );
 

@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '@/store';
 import { receiptApi } from '@/lib/api';
 import { describeError } from '@/lib/auth-errors';
+import { formatNumberJa } from '@/lib/number-format';
 import { CATEGORY_EMOJI, ALL_CATEGORIES } from '@/types';
 import type { Category, PaymentMethod } from '@/types';
 import { styles } from '@/styles/manual-entry.styles';
@@ -64,7 +65,7 @@ export default function ManualEntryScreen() {
   const [date, setDate] = useState(todayString);
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(!!pendingImageBase64);
-  const [items, setItems] = useState<{ name: string; price: string }[]>([]);
+  const [items, setItems] = useState<{ name: string; price: string; isAdvance: boolean }[]>([]);
   const [isAmountManuallyEdited, setIsAmountManuallyEdited] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -109,7 +110,7 @@ export default function ManualEntryScreen() {
     setIsAdvance(tx.is_advance);
     setDate(tx.transacted_at.split('T')[0]);
     if (tx.items && tx.items.length > 0) {
-      setItems(tx.items.map((it) => ({ name: it.name, price: String(it.price) })));
+      setItems(tx.items.map((it) => ({ name: it.name, price: String(it.price), isAdvance: it.is_advance })));
       setIsAmountManuallyEdited(true);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -123,6 +124,13 @@ export default function ManualEntryScreen() {
     }, 0);
     setAmount(String(total));
   }, [items, isAmountManuallyEdited]);
+
+  // 明細単位の建て替え合計（表示用。保存時の集計は lib/advance.ts が担う）
+  const itemAdvanceTotal = items.reduce((sum, it) => {
+    if (!it.isAdvance) return sum;
+    const p = parseInt(it.price, 10);
+    return sum + (isNaN(p) ? 0 : p);
+  }, 0);
 
   // レシート撮影からの場合、マウント時に OCR アップロードを開始
   useEffect(() => {
@@ -144,6 +152,7 @@ export default function ManualEntryScreen() {
           setItems(result.items.map((it: { name: string; price: number }) => ({
             name: it.name ?? '',
             price: String(it.price ?? ''),
+            isAdvance: false,
           })));
         }
       })
@@ -186,7 +195,7 @@ export default function ManualEntryScreen() {
         ? category as Category
         : 'その他' as Category;
       const validItems = items
-        .map(it => ({ name: it.name.trim(), price: parseInt(it.price, 10) }))
+        .map(it => ({ name: it.name.trim(), price: parseInt(it.price, 10), is_advance: it.isAdvance }))
         .filter(it => it.name && !isNaN(it.price) && it.price > 0);
 
       if (isEditing) {
@@ -197,7 +206,9 @@ export default function ManualEntryScreen() {
           store_name: storeName.trim() || undefined,
           transacted_at: dateObj.toISOString(),
           is_advance: isAdvance,
-          items: validItems.length > 0 ? validItems : undefined,
+          // 空でも必ず送る。undefined だと JSON からキーが落ち、バックエンドが
+          // 置き換えをスキップして消したはずの明細と立替フラグが残る
+          items: validItems,
         });
         router.back();
       } else {
@@ -380,6 +391,7 @@ export default function ManualEntryScreen() {
           {/* 商品 */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>商品（任意）</Text>
+            <Text style={styles.advanceHint}>🤝 を押した商品は建て替え扱いになり、自分の支出から除きます。</Text>
             {items.map((item, idx) => (
               <View key={idx} style={styles.itemRow}>
                 <TextInput
@@ -398,6 +410,16 @@ export default function ManualEntryScreen() {
                   style={styles.itemPriceInput}
                 />
                 <TouchableOpacity
+                  onPress={() => setItems(prev => prev.map((it, i) => i === idx ? { ...it, isAdvance: !it.isAdvance } : it))}
+                  activeOpacity={0.7}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: item.isAdvance }}
+                  accessibilityLabel={`${item.name || `商品${idx + 1}`}を建て替えにする`}
+                  style={[styles.itemAdvanceBtn, item.isAdvance && styles.itemAdvanceBtnActive]}
+                >
+                  <Text style={[styles.itemAdvanceBtnText, item.isAdvance && styles.itemAdvanceBtnTextActive]}>🤝</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   onPress={() => setItems(prev => prev.filter((_, i) => i !== idx))}
                   activeOpacity={0.7}
                   style={styles.itemDeleteBtn}
@@ -406,8 +428,15 @@ export default function ManualEntryScreen() {
                 </TouchableOpacity>
               </View>
             ))}
+            {itemAdvanceTotal > 0 && (
+              <Text style={styles.advanceHint}>
+                {isAdvance
+                  ? 'レシート全体が建て替えなので、商品ごとの指定は使いません。'
+                  : `立替 ¥${formatNumberJa(itemAdvanceTotal)} / 自分の支出 ¥${formatNumberJa(Math.max(0, (parseInt(amount, 10) || 0) - itemAdvanceTotal))}`}
+              </Text>
+            )}
             <TouchableOpacity
-              onPress={() => setItems(prev => [...prev, { name: '', price: '' }])}
+              onPress={() => setItems(prev => [...prev, { name: '', price: '', isAdvance: false }])}
               activeOpacity={0.8}
               style={styles.addItemBtn}
             >

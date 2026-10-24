@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS public.transaction_items (
   transaction_id  UUID REFERENCES public.transactions(id) ON DELETE CASCADE NOT NULL,
   name            TEXT NOT NULL,
   price           INTEGER NOT NULL,
+  is_advance      BOOLEAN NOT NULL DEFAULT FALSE,  -- この明細だけ建て替えた（自己支出から除く）
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 

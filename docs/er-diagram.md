@@ -52,6 +52,7 @@ erDiagram
         uuid transaction_id FK
         text name
         integer price
+        boolean is_advance
         timestamptz created_at
     }
     POINTS {

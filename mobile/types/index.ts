@@ -66,6 +66,8 @@ export interface TransactionItem {
   transaction_id: string;
   name: string;
   price: number;
+  /** この明細だけ建て替えた。レシート単位の is_advance とは独立 */
+  is_advance: boolean;
   created_at: string;
 }
 
@@ -187,7 +189,7 @@ export interface UpdateTransactionData {
   store_name?: string;
   transacted_at: string;
   is_advance?: boolean;
-  items?: { name: string; price: number }[];
+  items?: { name: string; price: number; is_advance?: boolean }[];
 }
 
 /** 新規トランザクション登録用データ */
@@ -200,5 +202,5 @@ export interface CreateTransactionData {
   receipt_url?: string;
   transacted_at: string;
   is_advance?: boolean;
-  items?: { name: string; price: number }[];
+  items?: { name: string; price: number; is_advance?: boolean }[];
 }

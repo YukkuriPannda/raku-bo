@@ -8,6 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "type-check": "tsc --noEmit",
+    "check:advance": "node scripts/check-advance.cjs",
     "build:android": "node scripts/build-android.mjs",
     "pr:deliver": "pwsh -NoProfile -File scripts/deliver-pr.ps1"
   },

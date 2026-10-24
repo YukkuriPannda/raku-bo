@@ -272,6 +272,23 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '600',
   },
+  expandedTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 3,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  expandedTotalLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  expandedTotalValue: {
+    fontSize: 12,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
   expandedEmpty: {
     fontSize: 12,
     color: colors.textSecondary,

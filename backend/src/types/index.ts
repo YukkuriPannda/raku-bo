@@ -35,6 +35,8 @@ export interface TransactionItem {
   transaction_id: string;
   name: string;
   price: number;
+  /** この明細だけ建て替えた。レシート単位の is_advance とは独立 */
+  is_advance: boolean;
   created_at: string;
 }
 

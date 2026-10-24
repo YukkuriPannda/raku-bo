@@ -13,6 +13,7 @@ import {
   ListRenderItemInfo,
   Alert,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -111,7 +112,7 @@ export default function ShiftsScreen() {
   const [wageInput, setWageInput] = useState(String(hourlyWage));
   const [keywordsInput, setKeywordsInput] = useState(shiftKeywords.join('\n'));
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
-  const swipeGesture = useSwipeTabNavigation();
+  const { gesture: swipeGesture, animatedStyle: swipeStyle } = useSwipeTabNavigation();
   const openSettings = useCallback(() => setSettingsModalVisible(true), []);
 
   useFocusEffect(
@@ -155,6 +156,7 @@ export default function ShiftsScreen() {
 
   return (
     <GestureDetector gesture={swipeGesture}>
+    <Animated.View style={[{ flex: 1 }, swipeStyle]}>
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -260,6 +262,7 @@ export default function ShiftsScreen() {
         </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
+    </Animated.View>
     </GestureDetector>
   );
 }

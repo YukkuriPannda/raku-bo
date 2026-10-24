@@ -13,6 +13,7 @@ import {
   ScrollView,
   ListRenderItemInfo,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -417,7 +418,7 @@ export default function PlannedExpendituresScreen() {
   const [editAmount, setEditAmount] = useState('');
   const [editBillingDay, setEditBillingDay] = useState('');
   const [addModalVisible, setAddModalVisible] = useState(false);
-  const swipeGesture = useSwipeTabNavigation();
+  const { gesture: swipeGesture, animatedStyle: swipeStyle } = useSwipeTabNavigation();
 
   useFocusEffect(useCallback(() => { fetchPlannedExpenditures(viewMonth); }, [fetchPlannedExpenditures, viewMonth]));
   useRefreshOnForeground(() => fetchPlannedExpenditures(viewMonth));
@@ -493,6 +494,7 @@ export default function PlannedExpendituresScreen() {
 
   return (
     <GestureDetector gesture={swipeGesture}>
+    <Animated.View style={[{ flex: 1 }, swipeStyle]}>
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -669,6 +671,7 @@ export default function PlannedExpendituresScreen() {
         </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
+    </Animated.View>
     </GestureDetector>
   );
 }

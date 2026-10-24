@@ -10,6 +10,7 @@ import {
   Alert,
   ListRenderItemInfo,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { GestureDetector, Swipeable } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -270,7 +271,7 @@ export default function HistoryScreen() {
   const [month, setMonth] = useState(currentMonth);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const swipeGesture = useSwipeTabNavigation();
+  const { gesture: swipeGesture, animatedStyle: swipeStyle } = useSwipeTabNavigation();
 
   // 未来の月は記録が入り得ないので「次の月」は今月で止める
   const atCurrentMonth = month === currentMonth;
@@ -324,7 +325,7 @@ export default function HistoryScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <Animated.View style={[styles.screen, swipeStyle]}>
       {/* 行ごとの削除スワイプと競合しないよう、タブ切替スワイプはヘッダー部分のみで受け付ける */}
       <GestureDetector gesture={swipeGesture}>
         <View style={styles.monthBar}>
@@ -428,6 +429,6 @@ export default function HistoryScreen() {
       />
 
       {/* 記録追加のボタンはタブバー中央に移した（app/(tabs)/_layout.tsx） */}
-    </View>
+    </Animated.View>
   );
 }

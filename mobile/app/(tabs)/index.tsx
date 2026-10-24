@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Path, Circle } from 'react-native-svg';
 
@@ -258,7 +259,7 @@ export default function HomeScreen() {
     heatmapDays: s.heatmapDays,
   })));
   const month = getCurrentMonth();
-  const swipeGesture = useSwipeTabNavigation();
+  const { gesture: swipeGesture, animatedStyle: swipeStyle } = useSwipeTabNavigation();
 
   const loadData = useCallback(async (opts?: { force?: boolean }) => {
     await Promise.all([
@@ -282,7 +283,7 @@ export default function HomeScreen() {
 
   return (
     <GestureDetector gesture={swipeGesture}>
-    <View style={styles.screen}>
+    <Animated.View style={[styles.screen, swipeStyle]}>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
         refreshControl={
@@ -379,7 +380,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* 記録追加のボタンはタブバー中央に移した（app/(tabs)/_layout.tsx） */}
-    </View>
+    </Animated.View>
     </GestureDetector>
   );
 }

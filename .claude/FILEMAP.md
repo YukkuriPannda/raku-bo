@@ -76,6 +76,7 @@
 | `widgets/SpendingHeatmapWidget.tsx` | 草グラフウィジェット |
 | `widgets/widget-task-handler.tsx` | ウィジェット更新の headless task |
 | `scripts/build-android.mjs` | EASを使わないローカルAPKビルド。署名鍵の扱いと GitHub Release(draft)の作成もここ。公開(publish)は本人がGitHub上で行う |
+| `scripts/run-powershell.mjs` | `pr:deliver` のランチャ。`pwsh` があればそれを、無ければ同梱の `powershell`(5.1) を使う |
 | `scripts/deliver-pr.ps1` | PRのHEAD確認→既存ビルド→署名・バンドル検証→Taildrop送信→PR結果追記。`pr:deliver` から実行。`-SelfCheck` は外部操作なしのガード確認 |
 | `app.json` | Expo設定。パーミッション、プラグイン、ウィジェット定義 |
 

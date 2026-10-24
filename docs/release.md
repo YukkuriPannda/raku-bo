@@ -14,13 +14,17 @@ PR検証用のローカルAPKは、次節の手順でPRの作業ブランチか�
 アプリの変更を含むPRは、**draft PR作成・更新 → ビルド → Taildrop送信 → 本人の実機検証待ち**まで行う。
 文書だけの変更は対象外。EAS、バージョン変更、タグ、GitHub Release作成・公開、マージはこの手順に含めない。
 
-### 自動実行（Windows / PowerShell 7）
+### 自動実行（Windows / PowerShell 5.1 以上）
 
 コミット・プッシュしてdraft PRを作成したら、`mobile` で実行する。
 
 ```powershell
 npm run pr:deliver -- -Pr 12 -Target nothing-phone-2a
 ```
+
+`pr:deliver` は `scripts/run-powershell.mjs` 経由で起動し、`pwsh`（7以上）があればそれを、
+無ければ Windows 同梱の `powershell`（5.1）を使う。スクリプトは 5.1 で動く書き方に
+揃えてあるので、PowerShell 7 の導入は要らない。
 
 `-Target` を省略した場合は `RAKUBO_TAILDROP_TARGET` を使う。送り先の推測はしない。
 GitHub CLIの認証と、本人所有のオンライン端末へのTailscale接続が必要。
